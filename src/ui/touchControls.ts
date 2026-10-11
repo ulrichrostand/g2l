@@ -8,6 +8,19 @@ const DEAD_ZONE = 0.15;
 const RUN_THRESHOLD = 1.35;
 /** Durée pendant laquelle le clic émis au relâchement du doigt est ignoré. */
 const GHOST_CLICK_WINDOW_MS = 450;
+const AIM_PAD_RADIUS_PX = 44;
+/** En deçà, c'est une simple tape : on tire droit devant au lieu de viser. */
+const AIM_DEAD_ZONE_PX = 12;
+
+/**
+ * Pad de tir façon jeux mobiles : glisser le pouce vise (laser affiché), relâcher tire.
+ * Renvoie l'angle de visée dans le repère du jeu, ou null pour une simple tape.
+ */
+export function aimPadAngle(deltaX: number, deltaY: number): number | null {
+  if (Math.hypot(deltaX, deltaY) < AIM_DEAD_ZONE_PX) return null;
+  // Même repère que le joystick : l'axe Y de l'écran suit l'axe Z du jeu.
+  return Math.atan2(deltaY, deltaX);
+}
 
 /**
  * Convertit le déplacement du pouce (en pixels, Y écran vers le bas) en intention de mouvement.
@@ -33,7 +46,9 @@ export class TouchControls {
   private readonly interactButton: HTMLButtonElement;
   private readonly crouchButton: HTMLButtonElement;
   private readonly commandButton: HTMLButtonElement;
-  private readonly shootButton: HTMLButtonElement;
+  private readonly aimPad = element("div", { className: "touch-btn aim-pad", attributes: { role: "button", "aria-label": "Tirer : glisser pour viser, relâcher pour tirer" } });
+  private readonly aimKnob = element("div", { className: "aim-knob", text: "Tirer" });
+  private aimPointerId: number | null = null;
   private activePointerId: number | null = null;
   private originX = 0;
   private originY = 0;
@@ -47,7 +62,6 @@ export class TouchControls {
     this.interactButton = this.actionButton("Pirater", "interact", "touch-btn primary");
     this.crouchButton = this.actionButton("Accroupir", "crouch", "touch-btn crouch");
     this.commandButton = this.actionButton("Gadget", "command", "touch-btn gadget");
-    this.shootButton = this.actionButton("Tirer", "shoot", "touch-btn shoot");
     this.root.append(
       this.joystickZone,
       element("div", { className: "touch-actions" }, [
@@ -56,10 +70,12 @@ export class TouchControls {
         this.crouchButton,
         this.interactButton,
         this.commandButton,
-        this.shootButton,
+        this.aimPad,
       ]),
     );
+    this.aimPad.append(this.aimKnob);
     this.bindJoystick();
+    this.bindAimPad();
     this.root.hidden = true;
     parent.append(this.root);
   }
@@ -71,6 +87,7 @@ export class TouchControls {
   hide(): void {
     this.root.hidden = true;
     this.releaseJoystick();
+    this.releaseAimPad();
   }
 
   /** Mise à jour à chaque frame : on ne touche au DOM que si l'état change. */
@@ -83,7 +100,7 @@ export class TouchControls {
     setIfChanged(this.interactButton, "disabled", state.contextLabel === null);
     setIfChanged(this.commandButton, "hidden", !state.gadgetVisible);
     setIfChanged(this.commandButton, "disabled", !state.gadgetReady);
-    setIfChanged(this.shootButton, "disabled", !state.shootReady);
+    if (this.aimPad.classList.contains("dry") === state.shootReady) this.aimPad.classList.toggle("dry", !state.shootReady);
     if (this.crouchButton.classList.contains("active") !== state.crouched) this.crouchButton.classList.toggle("active", state.crouched);
   }
 
@@ -124,6 +141,46 @@ export class TouchControls {
     };
     this.joystickZone.addEventListener("pointerup", release);
     this.joystickZone.addEventListener("pointercancel", release);
+  }
+
+  private bindAimPad(): void {
+    this.aimPad.addEventListener("pointerdown", (event) => {
+      if (this.aimPointerId !== null) return;
+      event.preventDefault();
+      this.aimPointerId = event.pointerId;
+      this.aimPad.setPointerCapture(event.pointerId);
+      this.aimPad.classList.add("aiming");
+    });
+    this.aimPad.addEventListener("pointermove", (event) => {
+      if (event.pointerId !== this.aimPointerId) return;
+      const { deltaX, deltaY } = this.aimPadDelta(event);
+      this.input.setVirtualAim(aimPadAngle(deltaX, deltaY));
+      const distance = Math.hypot(deltaX, deltaY);
+      const clampScale = distance > AIM_PAD_RADIUS_PX ? AIM_PAD_RADIUS_PX / distance : 1;
+      this.aimKnob.style.transform = `translate(${deltaX * clampScale}px, ${deltaY * clampScale}px)`;
+    });
+    this.aimPad.addEventListener("pointerup", (event) => {
+      if (event.pointerId !== this.aimPointerId) return;
+      // Le tir part au relâchement, dans la dernière direction visée (la mission s'en souvient un instant).
+      this.input.trigger("shoot");
+      swallowGhostClick();
+      this.releaseAimPad();
+    });
+    this.aimPad.addEventListener("pointercancel", (event) => {
+      if (event.pointerId === this.aimPointerId) this.releaseAimPad();
+    });
+  }
+
+  private aimPadDelta(event: PointerEvent): { deltaX: number; deltaY: number } {
+    const bounds = this.aimPad.getBoundingClientRect();
+    return { deltaX: event.clientX - (bounds.left + bounds.width / 2), deltaY: event.clientY - (bounds.top + bounds.height / 2) };
+  }
+
+  private releaseAimPad(): void {
+    this.aimPointerId = null;
+    this.input.setVirtualAim(null);
+    this.aimKnob.style.transform = "";
+    this.aimPad.classList.remove("aiming");
   }
 
   private updateJoystick(event: PointerEvent): void {

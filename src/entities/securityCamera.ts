@@ -63,6 +63,11 @@ export class SecurityCamera {
     return !this.firewalled && elapsedSeconds >= this.disabledUntil;
   }
 
+  /** Secondes de brouillage restantes (0 si elle filme, ou si elle est coupée définitivement). */
+  disabledSecondsLeft(elapsedSeconds: number): number {
+    return this.firewalled ? 0 : Math.max(0, this.disabledUntil - elapsedSeconds);
+  }
+
   disableUntil(elapsedSeconds: number): void {
     this.disabledUntil = Math.max(this.disabledUntil, elapsedSeconds);
     this.alarm = 0;

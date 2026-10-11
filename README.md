@@ -22,17 +22,24 @@ Pensé pour un **grand débutant** : aucune connaissance requise, on part de « 
   (installer et vérifier nginx, publier un correctif avec Git, diagnostiquer le réseau couche par couche,
   déployer un conteneur, `terraform plan/apply`, réparer une CI rouge, sauver un pod en `CrashLoopBackOff`…).
   Historique avec les flèches, `command not found` pour une faute de frappe, solution proposée après 2 erreurs.
-- **Combattre** :
-  - **Pistolet IEM** (clic gauche ou Espace, visée à la souris ; bouton Tirer avec visée automatique sur mobile) :
-    neutralise une sentinelle **dans ton champ de tir**, brouille une caméra 12 s. Munitions limitées
-    (un terminal piraté = +1), et le tir fait du bruit : les gardes proches viennent voir.
-  - **Neutralisation silencieuse** (E) : approche une sentinelle par derrière sans être repéré.
-  - **Gadgets = vraies commandes DevOps** (F) : les sentinelles sont des processus, des conteneurs puis des pods.
-    On lit la sortie de `ps aux` / `docker ps` / `kubectl get pods` et on tape `kill <PID>`,
-    `docker stop <nom>` ou `kubectl delete pod <nom>`. L'arsenal se débloque au fil des modules ;
-    chaque terminal piraté recharge le gadget. Une commande fausse fait du bruit.
-  - **Pare-feu** (gadget, à partir du module GATEWAY) : on lit le flux de la caméra avec `tcpdump`
-    et on bloque son IP avec `ufw deny from <IP>` (ou `iptables … -j DROP`) : caméra coupée définitivement.
+- **Combattre** (inspiré des jeux de tir vus de dessus) :
+  - **Pistolet à visée libre** : clic droit maintenu pour épauler (laser, tir précis, déplacement lent),
+    clic gauche ou Espace pour tirer là où pointe la souris. **On peut rater** : la balle part dans l'axe visé,
+    avec une dispersion qui grandit en marchant, en courant, en tirant à la hanche ou en enchaînant les tirs ;
+    les murs et les racks arrêtent les balles. Chargeur de 8 (R pour recharger), réserve rechargée par les terminaux.
+  - **Une balle qui touche suspend la sentinelle** (signal `SIGSTOP`) : à genoux, elle ne voit plus et ne tire plus
+    pendant 10 s. **Seulement alors**, F ouvre le gadget pour la **terminer avec une vraie commande** :
+    on lit `ps aux` (la ligne en état `T`) et on tape `kill <PID>`, puis `docker stop <nom>` (conteneur `Paused`)
+    et `kubectl delete pod <nom>` au fil des modules. Sans balle au but, pas de commande.
+    Une mauvaise commande fait du bruit et réveille le processus plus tôt. Les secteurs avancés ont un **bouclier** (2 ou 3 balles).
+  - **Les sentinelles ripostent quand elles te voient** : alarme, les sentinelles proches convergent, tirent des balles
+    visibles (on peut les esquiver ou se mettre à couvert), te poursuivent puis fouillent la zone. Santé qui remonte
+    après quelques secondes à l'abri ; à zéro, une vie en moins et retour au point d'insertion.
+  - **Neutralisation silencieuse** (E) : approche une sentinelle calme par derrière.
+  - **Caméras** : une balle les brouille 12 s ; à partir du module GATEWAY, F permet ensuite de les couper
+    définitivement au **pare-feu** (`tcpdump` puis `ufw deny from <IP>` ou `iptables … -j DROP`).
+  - Retours visuels et sonores : traçantes, flash du canon, étincelles, marqueur de touche, pictogrammes « ? », « ! » et « ⏸ »
+    au-dessus des sentinelles, voile rouge quand on est touché, caméra qui anticipe la visée.
 - Les **sentinelles** ont un **cône de vision** visible, bloqué par les murs et les racks. S'accroupir réduit leur portée, courir fait du bruit.
 - Les **caméras de surveillance** (dès le module 1) balaient la salle : si elles te voient trop longtemps, c'est l'alerte.
 - En fin de mission : **débriefing** (score, étoiles, dossiers, neutralisations, statut « Fantôme »),
@@ -78,17 +85,20 @@ et les conteneurs avant le cloud (prérequis du serverless et de Kubernetes).
 | Touche | Action |
 |--------|--------|
 | ZQSD / WASD / flèches | Se déplacer (touches physiques : AZERTY et QWERTY) |
-| Souris + clic gauche (ou Espace) | Viser et tirer au pistolet IEM |
-| Maj | Courir (bruyant) |
-| C | S'accroupir (discret) |
+| Clic droit (maintenu) | Viser : laser, tir précis, déplacement lent |
+| Clic gauche / Espace | Tirer vers le curseur (on peut rater) |
+| R | Recharger |
+| F | Terminer avec une vraie commande la cible qu'on vient de toucher |
+| Maj | Courir (bruyant, tir imprécis) |
+| C | S'accroupir (discret, tir plus précis) |
 | E | Pirater un terminal / ouvrir la console principale / neutraliser une sentinelle par derrière |
-| F | Gadget : arrêter une sentinelle ou couper une caméra avec une vraie commande |
 | N | Vision nocturne |
 | Échap | Pause |
 
 **Sur mobile / tablette** (détecté automatiquement) : joystick flottant sous le pouce gauche
 (le pousser au-delà de l'anneau fait courir), boutons à droite : Pirater/Neutraliser (selon
-la situation), Tirer, Gadget, Accroupir, Vision, Pause. La caméra recule automatiquement en mode portrait.
+la situation), **pad de tir** (glisser le pouce pour viser avec le laser, relâcher pour tirer ; une tape tire droit devant),
+Gadget (actif sur une cible touchée), Accroupir, Vision, Pause. La caméra recule automatiquement en mode portrait.
 
 ## Lancer le projet
 
@@ -107,16 +117,16 @@ sur **GitHub Pages** à chaque push sur `main` (activer *Settings → Pages → 
 
 ```
 src/
-  combat/      gadgets-commandes (kill, docker, kubectl, pare-feu) et identités des cibles
+  combat/      balistique (tir, dispersion, chargeur, projectiles), gadgets-commandes et identités des cibles
   core/        grille, pathfinding BFS, ligne de vue DDA, RNG déterministe, entrées, sons + ambiance, réglages
   level/       génération procédurale BSP + construction de la scène Three.js
   render/      pipeline de rendu (bloom, vignette, ombres) selon la qualité
-  entities/    joueur, sentinelles (patrouille/suspicion/inspection/neutralisée), caméras, terminaux, dossiers
+  entities/    joueur, sentinelles (ronde, alerte, combat, fouille, suspendue), caméras, effets de combat, terminaux, dossiers
   game/        boucle de mission, difficulté, score, examen, progression, points de reprise, code de sauvegarde
   challenges/  évaluation des réponses et des commandes de scénario (pure, testée)
   content/     les 16 modules (leçons, questions, explications) et leurs interventions pratiques
   ui/          HUD + minimap, écrans, panneaux (leçon, piratage, console, gadget, examen), contrôles tactiles
-tests/         niveaux, IA, caméras, gadgets, scénarios, examen, ambiance, contenu, score, sauvegarde, joystick
+tests/         niveaux, IA et combat, balistique, caméras, gadgets, scénarios, examen, ambiance, contenu, score, sauvegarde, tactile
 ```
 
 Ajouter ou modifier une notion = éditer un fichier de `src/content/modules/` ; le test

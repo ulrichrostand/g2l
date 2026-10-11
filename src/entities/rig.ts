@@ -125,6 +125,15 @@ export function createSentinelRig(): { rig: HumanoidRig; glow: THREE.MeshStandar
     mesh(new THREE.BoxGeometry(0.28, 0.06, 0.04), glow, 0, 0.06, 0.16),
     mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.18, 6), materials.body, 0.1, 0.25, -0.05),
   );
+  // Arme de poing : visible dès qu'elle la lève en combat, avec un canon rouge qui accroche le bloom.
+  const blaster = new THREE.Group();
+  blaster.add(
+    mesh(new THREE.BoxGeometry(0.09, 0.12, 0.3), materials.armor, 0, 0, 0.08),
+    mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.08, 10), glow, 0, 0.02, 0.26),
+  );
+  (blaster.children[1] as THREE.Mesh).rotation.x = Math.PI / 2;
+  blaster.position.set(0, -0.6, 0.05);
+  rig.rightArm.add(blaster);
   return { rig, glow };
 }
 

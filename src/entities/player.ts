@@ -7,6 +7,9 @@ export type Posture = "standing" | "crouching" | "running";
 
 const COLLISION_RADIUS = 0.28;
 const SPEED_BY_POSTURE: Record<Posture, number> = { standing: 3, crouching: 1.6, running: 5 };
+/** En visée, on avance lentement (et on ne court pas) : la précision se paie en mobilité. */
+const AIMING_SPEED_FACTOR = 0.6;
+const SHOT_POSE_SECONDS = 0.45;
 
 export class Player {
   readonly root = new THREE.Group();
@@ -21,6 +24,8 @@ export class Player {
   private crouchAmount = 0;
   /** Temps restant de la pose de tir (bras tendu). */
   private aimTimer = 0;
+  /** Angle de visée (convention mathématique) tant que le joueur épaule, sinon null. */
+  private aimAngle: number | null = null;
 
   constructor(private readonly grid: Grid) {
     this.rig = createAgentRig().rig;
@@ -31,10 +36,19 @@ export class Player {
     this.root.add(lamp);
   }
 
-  /** Se tourne vers un point et tend le bras : appelé au moment du tir. */
-  aimAt(x: number, z: number): void {
-    this.facing = Math.atan2(x - this.position.x, z - this.position.z);
-    this.aimTimer = 0.45;
+  get isAiming(): boolean {
+    return this.aimAngle !== null;
+  }
+
+  /** Visée épaulée : le corps suit la visée en permanence (null = on range l'arme). */
+  setAim(angle: number | null): void {
+    this.aimAngle = angle;
+  }
+
+  /** Se tourne d'un coup vers la direction du tir et tend le bras (tir à la hanche compris). */
+  faceShot(angle: number): void {
+    this.facing = toRigFacing(angle);
+    this.aimTimer = SHOT_POSE_SECONDS;
   }
 
   /** Direction du regard en convention mathématique (cos → X, sin → Z), utile pour les tirs sans cible. */
@@ -54,17 +68,19 @@ export class Player {
 
   update(deltaSeconds: number, intent: MoveIntent): void {
     this.isMoving = intent.x !== 0 || intent.z !== 0;
-    this.posture = this.crouched ? "crouching" : intent.running && this.isMoving ? "running" : "standing";
-    const distance = SPEED_BY_POSTURE[this.posture] * deltaSeconds;
+    const canRun = intent.running && this.isMoving && !this.isAiming;
+    this.posture = this.crouched ? "crouching" : canRun ? "running" : "standing";
+    const distance = SPEED_BY_POSTURE[this.posture] * deltaSeconds * (this.isAiming ? AIMING_SPEED_FACTOR : 1);
 
     if (this.isMoving) {
       // Axes résolus séparément : le joueur glisse le long des murs au lieu de se bloquer.
       this.tryMove(intent.x * distance, 0);
       this.tryMove(0, intent.z * distance);
-      const targetFacing = Math.atan2(intent.x, intent.z);
-      this.facing = rotateTowards(this.facing, targetFacing, deltaSeconds * 12);
+      // En visée, on se déplace en crabe : le regard reste sur la cible.
+      if (!this.isAiming) this.facing = rotateTowards(this.facing, Math.atan2(intent.x, intent.z), deltaSeconds * 12);
       this.stepPhase += deltaSeconds * (this.posture === "running" ? 16 : 10);
     }
+    if (this.aimAngle !== null) this.facing = rotateTowards(this.facing, toRigFacing(this.aimAngle), deltaSeconds * 20);
     this.animate(deltaSeconds);
   }
 
@@ -98,8 +114,13 @@ export class Player {
     this.stride += (targetStride - this.stride) * smoothing;
     this.crouchAmount += ((this.crouched ? 1 : 0) - this.crouchAmount) * smoothing;
     this.aimTimer = Math.max(0, this.aimTimer - deltaSeconds);
-    poseRig(this.rig, this.stepPhase, this.stride, this.crouchAmount, Math.min(1, this.aimTimer * 4));
+    poseRig(this.rig, this.stepPhase, this.stride, this.crouchAmount, this.isAiming ? 1 : Math.min(1, this.aimTimer * 4));
   }
+}
+
+/** Angle mathématique (cos → X, sin → Z) vers la rotation Y du modèle, qui regarde vers +Z. */
+function toRigFacing(mathAngle: number): number {
+  return Math.atan2(Math.cos(mathAngle), Math.sin(mathAngle));
 }
 
 export function rotateTowards(current: number, target: number, maxStep: number): number {

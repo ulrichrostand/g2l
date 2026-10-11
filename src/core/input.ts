@@ -1,4 +1,4 @@
-export type GameAction = "interact" | "command" | "shoot" | "crouch" | "nightVision" | "pause";
+export type GameAction = "interact" | "command" | "shoot" | "reload" | "crouch" | "nightVision" | "pause";
 
 /** Mapping par code physique (KeyW...) : fonctionne en AZERTY (ZQSD) comme en QWERTY (WASD). */
 const ACTION_KEYS: Record<GameAction, readonly string[]> = {
@@ -6,6 +6,8 @@ const ACTION_KEYS: Record<GameAction, readonly string[]> = {
   // F : même position en AZERTY et en QWERTY, juste à côté de E.
   command: ["KeyF"],
   shoot: ["Space"],
+  // R : même position en AZERTY et en QWERTY, la touche de rechargement de tous les jeux de tir.
+  reload: ["KeyR"],
   crouch: ["KeyC", "ControlLeft"],
   nightVision: ["KeyN"],
   pause: ["Escape", "KeyP"],
@@ -26,6 +28,8 @@ export interface MoveIntent {
 }
 
 const NO_MOVE: MoveIntent = { x: 0, z: 0, running: false };
+/** Bit de `PointerEvent.buttons` pour chaque valeur de `PointerEvent.button` (gauche, milieu, droit). */
+const BUTTON_MASKS: Record<0 | 1 | 2, number> = { 0: 1, 1: 4, 2: 2 };
 
 export class InputController {
   private readonly heldKeys = new Set<string>();
@@ -34,6 +38,10 @@ export class InputController {
   private virtualMove: MoveIntent = NO_MOVE;
   /** Position de la souris en coordonnées normalisées (-1..1), null tant qu'aucune souris n'a bougé. */
   private aimPointer: { x: number; y: number } | null = null;
+  /** Clic droit maintenu : visée épaulée. */
+  private aimButtonHeld = false;
+  /** Direction visée au pad tactile (radians, convention du jeu), null quand le pouce est levé. */
+  private virtualAim: number | null = null;
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
     // Ne jamais intercepter la saisie dans les champs de commande des terminaux.
@@ -55,6 +63,8 @@ export class InputController {
   private readonly handleBlur = (): void => {
     this.heldKeys.clear();
     this.virtualMove = NO_MOVE;
+    this.virtualAim = null;
+    this.aimButtonHeld = false;
   };
 
   constructor(private readonly target: Window) {
@@ -72,23 +82,51 @@ export class InputController {
     return { x: x / length, z: z / length, running: isHeld(MOVE_KEYS.run) };
   }
 
-  /** Visée à la souris sur le canvas : clic gauche = tir. Les doigts passent par le bouton Tirer. */
+  /** Souris sur le canvas : le pointeur vise, clic droit maintenu = épauler, clic gauche = tirer. */
   attachPointerAim(surface: HTMLElement): void {
-    surface.addEventListener("pointermove", (event) => {
+    /**
+     * Un 2ᵉ bouton pressé pendant qu'un autre est enfoncé (tirer en visant) n'émet PAS de pointerdown :
+     * le navigateur envoie un pointermove « chordé » où `button` désigne le bouton qui a changé.
+     * On traite donc les boutons de la même façon sur pointerdown, pointermove et pointerup.
+     */
+    const handleButtons = (event: PointerEvent): void => {
+      // -1 : simple déplacement ; > 2 : boutons précédent/suivant, sans usage en jeu.
+      if (event.pointerType !== "mouse" || event.button < 0 || event.button > 2) return;
+      const pressed = (event.buttons & BUTTON_MASKS[event.button as 0 | 1 | 2]) !== 0;
+      if (event.button === 0 && pressed && event.target === surface) this.pendingActions.add("shoot");
+      if (event.button === 2) this.aimButtonHeld = pressed;
+    };
+    surface.addEventListener("pointerdown", handleButtons);
+    // Sur la fenêtre : un bouton relâché hors du canvas ne doit pas laisser la visée bloquée.
+    this.target.addEventListener("pointermove", (event) => {
       if (event.pointerType !== "mouse") return;
+      handleButtons(event);
+      if (event.target !== surface) return;
       const bounds = surface.getBoundingClientRect();
       this.aimPointer = {
         x: ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
         y: -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
       };
     });
-    surface.addEventListener("pointerdown", (event) => {
-      if (event.pointerType === "mouse" && event.button === 0) this.pendingActions.add("shoot");
-    });
+    this.target.addEventListener("pointerup", handleButtons);
+    // Le clic droit sert à viser : pas de menu contextuel du navigateur par-dessus le jeu.
+    surface.addEventListener("contextmenu", (event) => event.preventDefault());
   }
 
   get aimPosition(): { x: number; y: number } | null {
     return this.aimPointer;
+  }
+
+  get isAimButtonHeld(): boolean {
+    return this.aimButtonHeld;
+  }
+
+  get virtualAimAngle(): number | null {
+    return this.virtualAim;
+  }
+
+  setVirtualAim(angle: number | null): void {
+    this.virtualAim = angle;
   }
 
   setVirtualMove(intent: MoveIntent): void {
@@ -108,6 +146,7 @@ export class InputController {
   clear(): void {
     this.pendingActions.clear();
     this.heldKeys.clear();
+    this.aimButtonHeld = false;
   }
 
   dispose(): void {

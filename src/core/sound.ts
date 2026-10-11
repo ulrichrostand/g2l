@@ -1,14 +1,54 @@
-type Cue = "success" | "failure" | "alarm" | "hack" | "extract" | "takedown" | "shot" | "shotHit";
+export type Cue =
+  | "success"
+  | "failure"
+  | "alarm"
+  | "hack"
+  | "extract"
+  | "takedown"
+  | "shot"
+  | "shotHit"
+  | "shieldHit"
+  | "enemyShot"
+  | "playerHit"
+  | "reload"
+  | "dryFire"
+  | "wake";
 
-const CUE_NOTES: Record<Cue, { frequencies: number[]; duration: number; wave: OscillatorType }> = {
-  hack: { frequencies: [660], duration: 0.08, wave: "square" },
-  success: { frequencies: [523, 784, 1046], duration: 0.11, wave: "triangle" },
-  failure: { frequencies: [220, 165], duration: 0.18, wave: "sawtooth" },
-  alarm: { frequencies: [880, 660, 880, 660], duration: 0.14, wave: "square" },
-  extract: { frequencies: [392, 523, 659, 784], duration: 0.13, wave: "triangle" },
-  takedown: { frequencies: [196, 98], duration: 0.12, wave: "sine" },
-  shot: { frequencies: [1400, 700], duration: 0.06, wave: "sawtooth" },
-  shotHit: { frequencies: [1400, 520, 260], duration: 0.07, wave: "square" },
+interface ToneCue {
+  kind: "tone";
+  frequencies: number[];
+  duration: number;
+  wave: OscillatorType;
+  gain: number;
+}
+
+/** Bruit filtré : le « pfft » d'un silencieux ou un impact sourd, impossibles à rendre avec une simple note. */
+interface NoiseCue {
+  kind: "noise";
+  duration: number;
+  filter: BiquadFilterType;
+  frequency: number;
+  gain: number;
+}
+
+const tone = (frequencies: number[], duration: number, wave: OscillatorType, gain = 0.06): ToneCue => ({ kind: "tone", frequencies, duration, wave, gain });
+const noise = (duration: number, filter: BiquadFilterType, frequency: number, gain: number): NoiseCue => ({ kind: "noise", duration, filter, frequency, gain });
+
+const CUES: Record<Cue, ToneCue | NoiseCue> = {
+  hack: tone([660], 0.08, "square"),
+  success: tone([523, 784, 1046], 0.11, "triangle"),
+  failure: tone([220, 165], 0.18, "sawtooth"),
+  alarm: tone([880, 660, 880, 660], 0.14, "square"),
+  extract: tone([392, 523, 659, 784], 0.13, "triangle"),
+  takedown: tone([196, 98], 0.12, "sine"),
+  shot: noise(0.09, "bandpass", 1700, 0.5),
+  shotHit: tone([1600, 900, 450], 0.05, "square", 0.05),
+  shieldHit: tone([2400, 2250], 0.07, "triangle", 0.05),
+  enemyShot: tone([980, 420], 0.07, "sawtooth", 0.035),
+  playerHit: noise(0.2, "lowpass", 380, 0.9),
+  reload: tone([320, 520], 0.05, "square", 0.04),
+  dryFire: tone([1300], 0.025, "square", 0.04),
+  wake: tone([220, 330, 440], 0.09, "sawtooth", 0.04),
 };
 
 export interface AudioOutput {
@@ -74,24 +114,55 @@ export class AudioEngine {
 
 /** Effets sonores synthétisés (aucun fichier audio à charger). */
 export class SoundFx {
+  private noiseBuffer: AudioBuffer | null = null;
+
   constructor(private readonly engine: AudioEngine) {}
 
   play(cue: Cue): void {
     const output = this.engine.output();
     if (!output) return;
-    const { context, destination } = output;
-    const { frequencies, duration, wave } = CUE_NOTES[cue];
+    const definition = CUES[cue];
+    if (definition.kind === "tone") this.playTone(output, definition);
+    else this.playNoise(output, definition);
+  }
+
+  private playTone({ context, destination }: AudioOutput, { frequencies, duration, wave, gain: volume }: ToneCue): void {
     frequencies.forEach((frequency, index) => {
       const startAt = context.currentTime + index * duration;
       const oscillator = context.createOscillator();
       const gain = context.createGain();
       oscillator.type = wave;
       oscillator.frequency.value = frequency;
-      gain.gain.setValueAtTime(0.06, startAt);
+      gain.gain.setValueAtTime(volume, startAt);
       gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
       oscillator.connect(gain).connect(destination);
       oscillator.start(startAt);
       oscillator.stop(startAt + duration);
     });
+  }
+
+  private playNoise({ context, destination }: AudioOutput, { duration, filter: filterType, frequency, gain: volume }: NoiseCue): void {
+    const source = context.createBufferSource();
+    source.buffer = this.whiteNoise(context);
+    const filter = context.createBiquadFilter();
+    filter.type = filterType;
+    filter.frequency.value = frequency;
+    const gain = context.createGain();
+    const startAt = context.currentTime;
+    gain.gain.setValueAtTime(volume, startAt);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+    source.connect(filter).connect(gain).connect(destination);
+    source.start(startAt);
+    source.stop(startAt + duration);
+  }
+
+  /** Une demi-seconde de bruit blanc, générée une seule fois puis réutilisée par tous les sons. */
+  private whiteNoise(context: AudioContext): AudioBuffer {
+    if (this.noiseBuffer && this.noiseBuffer.sampleRate === context.sampleRate) return this.noiseBuffer;
+    const buffer = context.createBuffer(1, Math.floor(context.sampleRate * 0.5), context.sampleRate);
+    const samples = buffer.getChannelData(0);
+    for (let index = 0; index < samples.length; index++) samples[index] = Math.random() * 2 - 1;
+    this.noiseBuffer = buffer;
+    return buffer;
   }
 }

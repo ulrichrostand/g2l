@@ -74,11 +74,13 @@ export interface DebriefData {
 
 const CONTROLS: [string, string][] = [
   ["ZQSD / WASD / flèches", "Se déplacer"],
-  ["Souris + clic gauche (ou Espace)", "Viser et tirer au pistolet IEM — neutralise une sentinelle, brouille une caméra ; fait du bruit"],
-  ["Maj (maintenu)", "Courir — rapide mais bruyant"],
-  ["C", "S'accroupir — portée de vue des gardes réduite de 45 %"],
+  ["Clic droit (maintenu)", "Viser : laser, tir précis, déplacement lent"],
+  ["Clic gauche / Espace", "Tirer là où pointe la souris — tu peux rater ! Une balle qui touche suspend la sentinelle 10 s"],
+  ["R", "Recharger (chargeur de 8 balles)"],
+  ["F", "Terminer la cible touchée avec une vraie commande (kill, docker, kubectl, pare-feu)"],
   ["E", "Pirater un terminal, ou neutraliser une sentinelle approchée par derrière"],
-  ["F", "Gadget : arrêter une sentinelle ou couper une caméra avec une vraie commande"],
+  ["Maj (maintenu)", "Courir — rapide mais bruyant, et le tir devient imprécis"],
+  ["C", "S'accroupir — moins visible, tir plus précis"],
   ["N", "Vision nocturne"],
   ["Échap", "Pause"],
 ];
@@ -86,10 +88,10 @@ const CONTROLS: [string, string][] = [
 const TOUCH_CONTROLS: [string, string][] = [
   ["Joystick (pouce gauche)", "Se déplacer — il apparaît là où tu poses le pouce"],
   ["Pouce au-delà de l'anneau", "Courir — rapide mais bruyant"],
-  ["Accroupir", "Portée de vue des gardes réduite de 45 %"],
+  ["Tirer (pouce droit)", "Glisse pour viser (laser), relâche pour tirer. Une simple tape tire droit devant"],
+  ["Gadget", "S'allume quand une cible est touchée : termine-la avec une vraie commande"],
   ["Pirater / Neutraliser", "S'allume près d'un terminal ou dans le dos d'une sentinelle"],
-  ["Tirer", "Pistolet IEM avec visée automatique sur la cible visible la plus proche"],
-  ["Gadget", "Arrêter une sentinelle ou couper une caméra avec une vraie commande"],
+  ["Accroupir", "Moins visible, tir plus précis"],
   ["Vision", "Vision nocturne"],
   ["❚❚", "Pause"],
 ];
@@ -132,7 +134,7 @@ export class ScreenManager {
         element("p", { className: "logo-sub", text: "DevOps Infiltration" }),
         element("p", {
           className: "lead",
-          text: "Le collectif ENTROPIA a pris le contrôle de toute l'infrastructure d'Helix Corp. Tu es Spectre, agent d'infiltration de la cellule Écho. Traverse 16 secteurs : ramasse les dossiers pour apprendre, pirate les terminaux pour le prouver, et neutralise les sentinelles avec de vraies commandes. Aucune connaissance requise, on part de zéro.",
+          text: "Le collectif ENTROPIA a pris le contrôle de toute l'infrastructure d'Helix Corp. Tu es Spectre, agent d'infiltration de la cellule Écho. Traverse 16 secteurs : ramasse les dossiers pour apprendre, pirate les terminaux pour le prouver. Touche les sentinelles au pistolet, puis termine-les avec de vraies commandes. Aucune connaissance requise, on part de zéro.",
         }),
         resumeBlock,
         element("div", { className: "row" }, [
@@ -255,7 +257,10 @@ export class ScreenManager {
         element("ul", { className: "chips" }, module.roadmapTopics.map((topic) => element("li", { text: topic }))),
         element("h3", { text: "Commandes" }),
         ...controlsList(),
-        element("p", { className: "tip", text: "Astuce : les dossiers jaunes 📁 contiennent les leçons. Les racks serveurs bloquent la vue des sentinelles : observe leurs rondes avant de bouger." }),
+        element("p", {
+          className: "tip",
+          text: "Astuce : les dossiers jaunes 📁 contiennent les leçons. Les racks bloquent la vue et les balles des sentinelles : observe leurs rondes avant de bouger. Si elles te voient, elles tirent.",
+        }),
         warning ? element("p", { className: "save-status warn", text: `💾 ${warning}` }) : null,
         element("div", { className: "row" }, [launchButton, button("Retour", onBack, "btn ghost")]),
       ]),
@@ -326,13 +331,16 @@ export class ScreenManager {
     resumeButton.focus({ preventScroll: true });
   }
 
-  showDetected(livesLeft: number, onContinue: () => void): void {
+  showPlayerDown(livesLeft: number, onContinue: () => void): void {
     const continueButton = button("Reprendre l'infiltration", onContinue, "btn primary");
     this.show(
       element("div", { className: "panel small alert" }, [
-        element("h1", { text: "DÉTECTÉ" }),
-        element("p", { text: `Retour au point d'insertion. Intégrité restante : ${livesLeft}. Les terminaux déjà piratés restent acquis.` }),
-        element("p", { className: "tip", text: "Accroupis-toi (touche C ou bouton Accroupir) près des gardes et reste derrière les racks : leur cône de vision ne traverse pas les obstacles." }),
+        element("h1", { text: "À TERRE" }),
+        element("p", { text: `Spectre a été abattu. Retour au point d'insertion. Vies restantes : ${livesLeft}. Les terminaux piratés et les sentinelles terminées restent acquis.` }),
+        element("p", {
+          className: "tip",
+          text: "Les racks arrêtent les balles : mets-toi à couvert, vise (clic droit ou pad de tir) et touche les sentinelles pour les suspendre. Quelques secondes à l'abri et ta santé remonte.",
+        }),
         element("div", { className: "row" }, [continueButton]),
       ]),
     );
@@ -344,7 +352,7 @@ export class ScreenManager {
     this.show(
       element("div", { className: "panel small alert" }, [
         element("h1", { text: "Mission compromise" }),
-        element("p", { text: "Spectre a été repéré trop souvent. La cellule Écho t'exfiltre." }),
+        element("p", { text: "Spectre est tombé trop souvent. La cellule Écho t'exfiltre." }),
         element("p", { className: "tip", text: "Les rondes sont toujours identiques pour un même secteur : observe-les et planifie ton chemin." }),
         element("div", { className: "row" }, [retryButton, button("Carte", onMap, "btn ghost")]),
       ]),

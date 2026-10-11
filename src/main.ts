@@ -10,7 +10,7 @@ import { CURRICULUM } from "./content/curriculum";
 import type { DevOpsModule } from "./content/types";
 import { difficultyForModule } from "./game/difficulty";
 import { buildGeneralExam, buildModuleExam, examTimeLimitSeconds, GENERAL_EXAM_ID, GENERAL_EXAM_MIN_MODULES, mentionFor, type ExamQuestion } from "./game/exam";
-import { cameraZoomForAspect, Mission, type ShotResult, type TargetRef } from "./game/mission";
+import { cameraZoomForAspect, Mission, type AimInput, type CombatEvent, type ShotResult, type TargetRef } from "./game/mission";
 import { isModuleUnlocked, LEVEL_LAYOUT_VERSION, ProgressStore, type MissionCheckpoint } from "./game/progress";
 import { decodeSaveCode, encodeSaveCode, SaveCodeError } from "./game/saveCode";
 import { computeMissionScore } from "./game/scoring";
@@ -37,6 +37,7 @@ class ShadowOpsApp {
   private readonly aimRaycaster = new THREE.Raycaster();
   private readonly groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private readonly aimPointScratch = new THREE.Vector3();
+  private readonly aimPointerScratch = new THREE.Vector2();
   private readonly camera = new THREE.PerspectiveCamera(50, 1, 0.1, 120);
   private readonly input = new InputController(window);
   private readonly audio = new AudioEngine(this.settings.soundEnabled);
@@ -58,6 +59,8 @@ class ShadowOpsApp {
   private scenarioStep = 0;
   /** Leçons déjà lues dans la mission en cours (ramassées ou transmises au terminal). */
   private readLessons = new Set<number>();
+  /** Conseils de combat déjà donnés dans la mission : on explique une fois, sans harceler. */
+  private readonly combatHintsShown = new Set<ShotResult | "alarm">();
   /** Historique des commandes du gadget, conservé entre missions comme un vrai shell. */
   private readonly commandHistory: string[] = [];
   private minimapTimer = 0;
@@ -266,8 +269,8 @@ class ShadowOpsApp {
           onIntelFound: () => this.showCollectedIntel(),
           onCommandRequested: (target) => this.openCommandPanel(target),
           onTakedown: () => this.handleTakedown(),
-          onShot: (result) => this.handleShot(result),
-          onDetected: (livesLeft) => this.handleDetected(livesLeft),
+          onCombatEvent: (event) => this.handleCombatEvent(event, module),
+          onPlayerDown: (livesLeft) => this.handlePlayerDown(livesLeft),
           onMissionFailed: () => this.handleMissionFailed(module),
           onExtraction: () => this.handleExtraction(module),
           onPauseRequested: () => this.showPause(),
@@ -284,6 +287,7 @@ class ShadowOpsApp {
     // + 1 : la console principale compte aussi dans le score.
     this.wrongAttemptsPerTerminal = [...module.challenges.map(() => 0), 0];
     this.readLessons = new Set();
+    this.combatHintsShown.clear();
     this.scenarioStep = 0;
     const resumed = checkpoint !== null && this.applyCheckpoint(this.mission, module, checkpoint);
     this.screens.hide();
@@ -473,14 +477,70 @@ class ShadowOpsApp {
     panel.open();
   }
 
-  private handleShot(result: ShotResult): void {
-    this.sound.play(result === "miss" ? "shot" : "shotHit");
-    if (result === "sentinel") {
-      this.hud.showNotice("Sentinelle neutralisée par l'IEM. Le tir a fait du bruit : reste prudent.");
-      this.saveCheckpoint();
-    } else if (result === "camera") {
-      this.hud.showNotice("Caméra brouillée 12 secondes. Passe vite… ou coupe-la au pare-feu (F) si tu as le gadget.");
+  /** Chaque évènement de combat devient un son, un flash ou un conseil (une seule fois par mission). */
+  private handleCombatEvent(event: CombatEvent, module: DevOpsModule): void {
+    switch (event.type) {
+      case "shot":
+        this.handleShot(event.result, event.impact, module);
+        break;
+      case "dryFire":
+        this.sound.play("dryFire");
+        break;
+      case "reloadStarted":
+        this.sound.play("reload");
+        break;
+      case "enemyShot":
+        this.sound.play("enemyShot");
+        break;
+      case "playerHit":
+        this.sound.play("playerHit");
+        this.flashBody("hurt-flash");
+        break;
+      case "alarm":
+        this.sound.play("alarm");
+        this.flashAlert();
+        this.showCombatHintOnce(
+          "alarm",
+          this.touchMode
+            ? "ALERTE : tu es repéré ! Les sentinelles tirent. Mets-toi derrière un rack, puis glisse le pad de tir pour viser."
+            : "ALERTE : tu es repéré ! Les sentinelles tirent. Mets-toi derrière un rack, maintiens le clic droit pour viser et riposte.",
+        );
+        break;
+      case "sentinelWoke":
+        this.sound.play("wake");
+        break;
     }
+  }
+
+  private handleShot(result: ShotResult, impact: THREE.Vector3, module: DevOpsModule): void {
+    this.sound.play("shot");
+    if (result === "miss") return;
+    this.sound.play(result === "shield" ? "shieldHit" : "shotHit");
+    const screen = impact.clone().project(this.camera);
+    this.hud.showHitMarker(((screen.x + 1) / 2) * window.innerWidth, ((1 - screen.y) / 2) * window.innerHeight, result === "shield" ? "shield" : "hit");
+    const canKill = unlockedWeapons(this.moduleIds, module.id, "sentinel").length > 0;
+    const canFirewall = unlockedWeapons(this.moduleIds, module.id, "camera").length > 0;
+    if (result === "suspended") {
+      this.showCombatHintOnce(
+        "suspended",
+        canKill
+          ? "Touché ! La sentinelle est suspendue (signal SIGSTOP) pendant 10 s. Termine-la avec F et une vraie commande avant qu'elle ne se relève."
+          : "Touché ! La sentinelle est suspendue 10 s. Tu n'as pas encore de commande pour la terminer : profites-en pour passer.",
+      );
+    } else if (result === "shield") {
+      this.showCombatHintOnce("shield", "Bouclier ! Dans ce secteur, il faut plusieurs balles rapprochées pour suspendre une sentinelle.");
+    } else {
+      this.showCombatHintOnce(
+        "camera",
+        canFirewall ? "Caméra brouillée 12 s. Coupe-la pour de bon avec F (pare-feu) avant qu'elle ne se rallume." : "Caméra brouillée 12 s : passe vite !",
+      );
+    }
+  }
+
+  private showCombatHintOnce(key: ShotResult | "alarm", message: string): void {
+    if (this.combatHintsShown.has(key)) return;
+    this.combatHintsShown.add(key);
+    this.hud.showNotice(message);
   }
 
   private handleTakedown(): void {
@@ -489,11 +549,11 @@ class ShadowOpsApp {
     this.hud.showNotice("Sentinelle neutralisée en silence.");
   }
 
-  private handleDetected(livesLeft: number): void {
+  private handlePlayerDown(livesLeft: number): void {
     this.saveCheckpoint();
     this.sound.play("alarm");
     this.flashAlert();
-    this.screens.showDetected(livesLeft, () => {
+    this.screens.showPlayerDown(livesLeft, () => {
       this.screens.hide();
       this.mission?.resume();
     });
@@ -561,12 +621,21 @@ class ShadowOpsApp {
     });
   }
 
-  /** Projette le curseur sur le sol : le pistolet vise là où pointe la souris. En tactile, auto-visée. */
-  private mouseAimPoint(): THREE.Vector3 | null {
+  /**
+   * Visée du joueur : en tactile, la direction du pad de tir ; à la souris, le point du sol sous le curseur
+   * (clic droit maintenu = visée épaulée). Aucun verrouillage automatique : on vise soi-même.
+   */
+  private currentAim(): AimInput | null {
+    if (this.touchMode) {
+      const angle = this.input.virtualAimAngle;
+      return angle === null ? null : { kind: "direction", angle, aiming: true };
+    }
     const pointer = this.input.aimPosition;
-    if (this.touchMode || !pointer) return null;
-    this.aimRaycaster.setFromCamera(new THREE.Vector2(pointer.x, pointer.y), this.camera);
-    return this.aimRaycaster.ray.intersectPlane(this.groundPlane, this.aimPointScratch);
+    if (!pointer) return null;
+    this.aimPointerScratch.set(pointer.x, pointer.y);
+    this.aimRaycaster.setFromCamera(this.aimPointerScratch, this.camera);
+    const point = this.aimRaycaster.ray.intersectPlane(this.groundPlane, this.aimPointScratch);
+    return point ? { kind: "point", x: point.x, z: point.z, aiming: this.input.isAimButtonHeld } : null;
   }
 
   private soundLabel(): string {
@@ -618,7 +687,7 @@ class ShadowOpsApp {
       this.animateIdleScene(elapsedSeconds);
       return;
     }
-    mission.setAimPoint(this.mouseAimPoint());
+    mission.setAim(this.currentAim());
     mission.tick(deltaSeconds, elapsedSeconds);
     // La mission a pu être terminée par un callback pendant tick() (échec, extraction...).
     if (this.mission !== mission) return;
@@ -634,8 +703,8 @@ class ShadowOpsApp {
         contextLabel: hudState.contextAction ? (hudState.contextAction.kind === "takedown" ? "Neutraliser" : "Pirater") : null,
         crouched: hudState.posture === "crouching",
         gadgetVisible: hudState.gadgetAvailable,
-        gadgetReady: hudState.commandTargetLabel !== null,
-        shootReady: hudState.ammo > 0,
+        gadgetReady: hudState.commandTarget !== null,
+        shootReady: hudState.magazine + hudState.reserve > 0,
       });
     }
     this.minimapTimer -= deltaSeconds;
@@ -663,10 +732,14 @@ class ShadowOpsApp {
   }
 
   private flashAlert(): void {
-    document.body.classList.remove("alert-flash");
-    // Force un reflow pour relancer l'animation CSS si deux alertes se suivent.
+    this.flashBody("alert-flash");
+  }
+
+  private flashBody(className: "alert-flash" | "hurt-flash"): void {
+    document.body.classList.remove(className);
+    // Force un reflow pour relancer l'animation CSS si deux flashs se suivent.
     void document.body.offsetWidth;
-    document.body.classList.add("alert-flash");
+    document.body.classList.add(className);
   }
 
   private resize(): void {

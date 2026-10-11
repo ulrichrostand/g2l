@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cameraZoomForAspect } from "../src/game/mission";
-import { joystickIntent } from "../src/ui/touchControls";
+import { aimPadAngle, joystickIntent } from "../src/ui/touchControls";
 
 describe("joystickIntent", () => {
   it("ignore les micro-mouvements (zone morte)", () => {
@@ -32,5 +32,16 @@ describe("cameraZoomForAspect", () => {
   it("résiste aux valeurs invalides", () => {
     expect(cameraZoomForAspect(Number.NaN)).toBe(1);
     expect(cameraZoomForAspect(0)).toBe(1);
+  });
+});
+
+describe("pad de tir", () => {
+  it("une tape (pouce immobile) ne vise pas : le tir part droit devant", () => {
+    expect(aimPadAngle(3, -4)).toBeNull();
+  });
+
+  it("glisser vers la droite vise +X, vers le haut de l'écran vise -Z", () => {
+    expect(aimPadAngle(40, 0)).toBeCloseTo(0, 10);
+    expect(aimPadAngle(0, -40)).toBeCloseTo(-Math.PI / 2, 10);
   });
 });

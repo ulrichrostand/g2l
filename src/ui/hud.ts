@@ -7,19 +7,28 @@ const MINIMAP_SCALE = 4;
 /** Les gardes n'apparaissent sur la carte que dans ce rayon : un « sonar » à courte portée. */
 const SONAR_RADIUS = 7;
 const NOTICE_DURATION_MS = 4200;
+const HIT_MARKER_MS = 220;
+const GUARD_COLORS = { calm: "#ff6a3d", hostile: "#ff2d2d", suspended: "#4fc3ff", down: "#5a6670" } as const;
 
 export class Hud {
   readonly root = element("div", { className: "hud" });
   private readonly missionLabel = element("div", { className: "hud-mission" });
   private readonly objective = element("div", { className: "hud-objective" });
-  private readonly lives = element("div", { className: "hud-lives", attributes: { "aria-label": "Intégrité" } });
+  private readonly lives = element("div", { className: "hud-lives", attributes: { "aria-label": "Vies" } });
+  private readonly healthFill = element("div", { className: "health-fill" });
+  private readonly healthLabel = element("span", { className: "health-label" });
+  private readonly magazine = element("span", { className: "ammo-magazine" });
+  private readonly reserve = element("span", { className: "ammo-reserve" });
+  private readonly reloadFill = element("div", { className: "reload-fill" });
+  private readonly alarmBanner = element("div", { className: "hud-alarm", text: "⚠ ALERTE — tu es repéré", attributes: { role: "alert" } });
+  private readonly hitMarker = element("div", { className: "hit-marker", attributes: { "aria-hidden": "true" } });
+  private hitMarkerTimer: number | undefined;
   private readonly exposureFill = element("div", { className: "exposure-fill" });
   private readonly exposureLabel = element("div", { className: "exposure-label" });
   private readonly posture = element("div", { className: "hud-posture" });
   private readonly prompt = element("div", { className: "hud-prompt" });
   private readonly gadget = element("div", { className: "hud-gadget" });
   private readonly intel = element("div", { className: "hud-intel" });
-  private readonly ammo = element("div", { className: "hud-ammo" });
   private readonly notice = element("div", { className: "hud-notice", attributes: { role: "status", "aria-live": "polite" } });
   private readonly saved = element("div", { className: "hud-saved", text: "💾 Sauvegardé", attributes: { "aria-hidden": "true" } });
   private savedTimer: number | undefined;
@@ -35,13 +44,28 @@ export class Hud {
   constructor(parent: HTMLElement) {
     this.minimapContext = this.minimap.getContext("2d");
     this.root.append(
-      element("div", { className: "hud-top-left" }, [this.missionLabel, this.objective, this.intel, this.ammo, this.gadget]),
-      element("div", { className: "hud-top-right" }, [this.lives, this.minimap]),
+      element("div", { className: "hud-top-left" }, [this.missionLabel, this.objective, this.intel, this.gadget]),
+      element("div", { className: "hud-top-right" }, [
+        this.lives,
+        element("div", { className: "health" }, [element("div", { className: "health-track" }, [this.healthFill]), this.healthLabel]),
+        this.minimap,
+      ]),
+      this.alarmBanner,
+      element("div", { className: "hud-ammo" }, [
+        element("span", { className: "ammo-icon", text: "🔫" }),
+        this.magazine,
+        this.reserve,
+        element("div", { className: "reload-track" }, [this.reloadFill]),
+      ]),
+      this.hitMarker,
       element("div", { className: "hud-bottom" }, [
         this.prompt,
         element("div", { className: "exposure" }, [element("div", { className: "exposure-track" }, [this.exposureFill]), this.exposureLabel]),
         this.posture,
-        element("div", { className: "hud-help", text: "ZQSD/WASD bouger · Souris viser · Clic/Espace tirer · Maj courir · C accroupi · E action · F gadget · N vision · Échap pause" }),
+        element("div", {
+          className: "hud-help",
+          text: "ZQSD bouger · Clic droit viser · Clic/Espace tirer · R recharger · F commande sur cible touchée · E action · C accroupi · Maj courir · Échap pause",
+        }),
       ]),
       this.notice,
       this.saved,
@@ -70,17 +94,23 @@ export class Hud {
   render(state: HudState): void {
     // Écrire dans le DOM uniquement si l'état a changé : évite des recalculs de layout à chaque frame.
     const exposurePercent = Math.round(state.exposure * 100);
+    const reloadPercent = Math.round(state.reloadProgress * 100);
+    const commandSeconds = state.commandTarget ? Math.ceil(state.commandTarget.secondsLeft) : 0;
     const signature = [
       state.livesLeft,
+      state.health,
       state.hackedCount,
       state.intelCollected,
       exposurePercent,
+      state.alarm,
       state.posture,
+      state.aiming,
       state.contextAction?.label,
-      state.charges,
-      state.commandTargetLabel,
-      state.ammo,
-      state.shotTargetLabel,
+      state.commandTarget?.name,
+      commandSeconds,
+      state.magazine,
+      state.reserve,
+      reloadPercent,
       state.nightVision,
     ].join("|");
     if (signature === this.lastRendered) return;
@@ -91,29 +121,61 @@ export class Hud {
         ? `Terminaux piratés : ${state.hackedCount}/${state.terminalCount}`
         : "Objectif : rejoindre l'extraction";
     this.intel.textContent = `📁 Dossiers : ${state.intelCollected}/${state.intelTotal}`;
-    this.ammo.textContent = `🔫 IEM : ${"▮".repeat(state.ammo)}${state.ammo === 0 ? "vide (pirate un terminal)" : ""}`;
     this.gadget.hidden = !state.gadgetAvailable;
-    this.gadget.textContent = `⚡ Gadget : ${"●".repeat(state.charges)}${state.charges === 0 ? "vide (pirate un terminal)" : ""}`;
-    this.lives.textContent = `Intégrité ${"■".repeat(state.livesLeft)}${"□".repeat(Math.max(0, 3 - state.livesLeft))}`;
+    this.gadget.textContent = "⚡ Commande : touche d'abord ta cible, puis F";
+    this.lives.textContent = `Vies ${"■".repeat(state.livesLeft)}${"□".repeat(Math.max(0, 3 - state.livesLeft))}`;
+    const healthPercent = Math.round((state.health / state.maxHealth) * 100);
+    this.healthFill.style.width = `${healthPercent}%`;
+    this.healthFill.dataset.level = healthPercent <= 30 ? "low" : healthPercent <= 60 ? "medium" : "high";
+    this.healthLabel.textContent = `Santé ${healthPercent}%`;
+    this.renderAmmo(state, reloadPercent);
+    this.alarmBanner.hidden = !state.alarm;
     this.exposureFill.style.width = `${exposurePercent}%`;
     this.exposureFill.dataset.level = exposurePercent > 66 ? "high" : exposurePercent > 25 ? "medium" : "low";
-    this.exposureLabel.textContent = exposurePercent === 0 ? "Invisible" : `Exposition ${exposurePercent}%`;
-    this.posture.textContent = `${POSTURE_LABELS[state.posture]}${state.nightVision ? " · Vision nocturne" : ""}`;
-    this.prompt.replaceChildren(...this.promptLines(state));
+    this.exposureLabel.textContent = state.alarm ? "ALERTE — combat" : exposurePercent === 0 ? "Invisible" : `Exposition ${exposurePercent}%`;
+    this.posture.textContent = `${POSTURE_LABELS[state.posture]}${state.aiming ? " · En visée" : ""}${state.nightVision ? " · Vision nocturne" : ""}`;
+    this.prompt.replaceChildren(...this.promptLines(state, commandSeconds));
     this.prompt.hidden = this.prompt.childElementCount === 0;
     this.prompt.dataset.kind = state.contextAction?.kind ?? "command";
   }
 
-  private promptLines(state: HudState): HTMLElement[] {
+  /** Marqueur de touche à l'écran (en pixels), comme dans les jeux de tir : on sait tout de suite si la balle a porté. */
+  showHitMarker(screenX: number, screenY: number, kind: "hit" | "shield"): void {
+    this.hitMarker.style.left = `${screenX}px`;
+    this.hitMarker.style.top = `${screenY}px`;
+    this.hitMarker.dataset.kind = kind;
+    this.hitMarker.classList.remove("visible");
+    // Reflow forcé : relance l'animation même si deux touches se suivent de près.
+    void this.hitMarker.offsetWidth;
+    this.hitMarker.classList.add("visible");
+    window.clearTimeout(this.hitMarkerTimer);
+    this.hitMarkerTimer = window.setTimeout(() => this.hitMarker.classList.remove("visible"), HIT_MARKER_MS);
+  }
+
+  private renderAmmo(state: HudState, reloadPercent: number): void {
+    const reloading = reloadPercent > 0;
+    this.magazine.textContent = reloading ? "RECHARGEMENT" : `${state.magazine}/${state.magazineSize}`;
+    this.reserve.textContent = reloading ? "" : `+${state.reserve}`;
+    this.magazine.dataset.level = state.magazine === 0 ? "empty" : state.magazine <= 2 ? "low" : "ok";
+    this.reloadFill.style.width = `${reloadPercent}%`;
+  }
+
+  private promptLines(state: HudState, commandSeconds: number): HTMLElement[] {
     const lines: HTMLElement[] = [];
     if (state.contextAction) {
       lines.push(element("span", { text: `${this.touchMode ? "" : "[E] "}${state.contextAction.label}` }));
     }
-    if (state.shotTargetLabel && state.ammo > 0) {
-      lines.push(element("span", { className: "prompt-shoot", text: `${this.touchMode ? "" : "[Clic] "}Tirer → ${state.shotTargetLabel}` }));
+    if (state.commandTarget) {
+      const verb = state.commandTarget.kind === "camera" ? "Couper" : "Terminer";
+      lines.push(
+        element("span", {
+          className: "prompt-gadget",
+          text: `${this.touchMode ? "" : "[F] "}${verb} → ${state.commandTarget.name} · ${commandSeconds} s`,
+        }),
+      );
     }
-    if (state.commandTargetLabel) {
-      lines.push(element("span", { className: "prompt-gadget", text: `${this.touchMode ? "" : "[F] "}Gadget → ${state.commandTargetLabel}` }));
+    if (state.magazine === 0 && state.reserve > 0 && state.reloadProgress === 0) {
+      lines.push(element("span", { className: "prompt-shoot", text: this.touchMode ? "Chargeur vide : tire pour recharger" : "[R] Recharger" }));
     }
     return lines;
   }
@@ -155,7 +217,7 @@ export class Hud {
     dot(exit.x + 0.5, exit.z + 0.5, snapshot.exitUnlocked ? "#39ff88" : "#7a5a20", 4);
     for (const guard of snapshot.guards) {
       if (guard.position.distanceTo(snapshot.player) > SONAR_RADIUS) continue;
-      dot(guard.position.x, guard.position.z, guard.neutralized ? "#5a6670" : "#ff6a3d", 2.5);
+      dot(guard.position.x, guard.position.z, GUARD_COLORS[guard.status], guard.status === "hostile" ? 3 : 2.5);
     }
     dot(snapshot.player.x, snapshot.player.z, "#e8fff0", 3);
   }

@@ -16,8 +16,7 @@ const checkpoint: Omit<MissionCheckpoint, "savedAt" | "layoutVersion"> = {
   readLessons: [0, 2],
   neutralizedGuards: [1],
   firewalledCameras: [0],
-  charges: 3,
-  ammo: 2,
+  ammo: 20,
   livesLeft: 2,
   detections: 1,
   neutralizations: 1,
@@ -42,7 +41,14 @@ describe("point de reprise", () => {
     expect(parseCheckpoint({ ...checkpoint, savedAt: "x", livesLeft: 0 })).toBeNull();
     expect(parseCheckpoint({ ...checkpoint, savedAt: "x", hackedTerminals: [-1] })).toBeNull();
     expect(parseCheckpoint({ ...checkpoint, savedAt: "x", moduleId: "../../etc" })).toBeNull();
-    expect(parseCheckpoint({ ...checkpoint, savedAt: "x", charges: 1.5 })).toBeNull();
+    expect(parseCheckpoint({ ...checkpoint, savedAt: "x", ammo: 1.5 })).toBeNull();
+  });
+
+  it("accepte un point de reprise d'avant la refonte du combat (champ charges)", () => {
+    const legacy = { ...checkpoint, charges: 3, savedAt: "x", layoutVersion: 2 };
+    const parsed = parseCheckpoint(legacy);
+    expect(parsed?.ammo).toBe(20);
+    expect(parsed && "charges" in parsed).toBe(false);
   });
 
   it("lit encore l'ancien format de sauvegarde (version 1)", () => {

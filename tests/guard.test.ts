@@ -3,7 +3,16 @@ import { describe, expect, it } from "vitest";
 import { Grid, Tile } from "../src/core/grid";
 import { Guard, type GuardTuning, type PlayerSnapshot } from "../src/entities/guard";
 
-const TUNING: GuardTuning = { walkSpeed: 0, visionRange: 6, fieldOfViewRadians: Math.PI / 2, detectionRate: 1 };
+const TUNING: GuardTuning = {
+  walkSpeed: 0,
+  visionRange: 6,
+  fieldOfViewRadians: Math.PI / 2,
+  detectionRate: 1,
+  reactionSeconds: 0.6,
+  fireIntervalSeconds: 1,
+  aimErrorRadians: 0.1,
+  hitsToSuspend: 1,
+};
 
 /** Couloir horizontal : le garde regarde vers +X depuis la case (1, 1). */
 function createCorridor(): Grid {
@@ -74,5 +83,100 @@ describe("Guard — neutralisation", () => {
     expect(guard.awareness).toBe(0);
     guard.reset();
     expect(guard.neutralized).toBe(true);
+  });
+});
+
+describe("Guard — combat", () => {
+  const route = { waypoints: [{ x: 1, z: 1 }, { x: 2, z: 1 }] };
+  const shooter = new THREE.Vector3(4.5, 0, 1.5);
+
+  function spottedGuard(tuning: GuardTuning = TUNING): Guard {
+    const guard = new Guard(createCorridor(), route, tuning, () => 0.5);
+    simulate(guard, playerAt(4), 2);
+    return guard;
+  }
+
+  it("te repère, donne l'alarme une seule fois et passe en combat", () => {
+    const guard = spottedGuard();
+    expect(guard.state).toBe("combat");
+    expect(guard.isHostile).toBe(true);
+    expect(guard.consumeAlarm()).toBe(true);
+    expect(guard.consumeAlarm()).toBe(false);
+  });
+
+  it("tire après son temps de réaction, en direction du joueur", () => {
+    const guard = new Guard(createCorridor(), route, TUNING, () => 0.5);
+    let firstShotAt = -1;
+    for (let frame = 0; frame < 300 && firstShotAt < 0; frame++) {
+      guard.update(1 / 60, playerAt(4));
+      if (guard.consumeShot()) firstShotAt = frame / 60;
+    }
+    expect(guard.state).toBe("combat");
+    // Le temps de repérer (jauge) puis de réagir : jamais un tir instantané.
+    expect(firstShotAt).toBeGreaterThan(TUNING.reactionSeconds);
+  });
+
+  it("vise le joueur avec une erreur bornée", () => {
+    const guard = new Guard(createCorridor(), route, TUNING, () => 0.999);
+    let angle: number | null = null;
+    for (let frame = 0; frame < 400 && angle === null; frame++) {
+      guard.update(1 / 60, playerAt(4));
+      angle = guard.consumeShot()?.angle ?? null;
+    }
+    expect(angle).not.toBeNull();
+    expect(Math.abs(angle as number)).toBeLessThanOrEqual(TUNING.aimErrorRadians);
+  });
+
+  it("une balle la suspend : elle ne voit plus, ne tire plus, puis se relève en combat", () => {
+    const guard = spottedGuard();
+    expect(guard.takeHit(shooter)).toBe("suspended");
+    expect(guard.isSuspended).toBe(true);
+    simulate(guard, playerAt(4), 5);
+    expect(guard.consumeShot()).toBeNull();
+    expect(guard.seesPlayer).toBe(false);
+    expect(guard.suspensionSecondsLeft).toBeGreaterThan(4);
+    simulate(guard, playerAt(4), 5.5);
+    expect(guard.isSuspended).toBe(false);
+    expect(guard.state).toBe("combat");
+  });
+
+  it("le bouclier encaisse la première balle des secteurs avancés", () => {
+    const guard = new Guard(createCorridor(), route, { ...TUNING, hitsToSuspend: 2 });
+    expect(guard.takeHit(shooter)).toBe("shield");
+    expect(guard.state).toBe("combat");
+    expect(guard.takeHit(shooter)).toBe("suspended");
+  });
+
+  it("une sentinelle suspendue se termine à la commande, pas au corps à corps", () => {
+    const guard = new Guard(createCorridor(), { waypoints: [{ x: 5, z: 1 }, { x: 6, z: 1 }] }, TUNING);
+    guard.takeHit(shooter);
+    expect(guard.canBeTakenDownFrom(new THREE.Vector3(4.6, 0, 1.5))).toBe(false);
+    guard.neutralize();
+    expect(guard.neutralized).toBe(true);
+    expect(guard.takeHit(shooter)).toBe("ignored");
+  });
+
+  it("une commande ratée raccourcit la suspension sans la faire tomber sous 1 s", () => {
+    const guard = new Guard(createCorridor(), route, TUNING);
+    guard.takeHit(shooter);
+    guard.shortenSuspension(3);
+    expect(guard.suspensionSecondsLeft).toBeCloseTo(7, 5);
+    guard.shortenSuspension(30);
+    expect(guard.suspensionSecondsLeft).toBe(1);
+  });
+
+  it("sans contact, elle fouille la zone puis retourne à sa ronde", () => {
+    const guard = spottedGuard({ ...TUNING, walkSpeed: 2 });
+    simulate(guard, null, 3);
+    expect(guard.state).toBe("search");
+    simulate(guard, null, 7);
+    expect(guard.isHostile).toBe(false);
+  });
+
+  it("une alarme l'envoie au combat sans qu'elle redonne l'alarme", () => {
+    const guard = new Guard(createCorridor(), route, TUNING);
+    guard.engage(shooter);
+    expect(guard.state).toBe("combat");
+    expect(guard.consumeAlarm()).toBe(false);
   });
 });

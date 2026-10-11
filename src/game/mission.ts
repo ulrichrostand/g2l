@@ -1,11 +1,20 @@
 import * as THREE from "three";
+import { advanceProjectile, applySpread, createProjectile, Sidearm, shotSpread, traceShot, type Projectile, type ShotTarget } from "../combat/ballistics";
 import { createCameraIdentity, createSentinelIdentity, type SentinelIdentity, type TargetKind } from "../combat/weapons";
-import { castRay, hasLineOfSight, type Cell } from "../core/grid";
+import type { Cell } from "../core/grid";
 import type { InputController } from "../core/input";
 import type { QualityProfile } from "../core/settings";
 import { seedFromString } from "../core/rng";
 import type { DevOpsModule } from "../content/types";
-import { Guard } from "../entities/guard";
+import {
+  CombatEffects,
+  ENEMY_SHOT_COLOR,
+  PLAYER_SHOT_COLOR,
+  SHIELD_SPARK_COLOR,
+  SUSPEND_SPARK_COLOR,
+  WALL_SPARK_COLOR,
+} from "../entities/combatEffects";
+import { Guard, type GuardShot } from "../entities/guard";
 import { IntelPickup } from "../entities/intel";
 import { SecurityCamera } from "../entities/securityCamera";
 import { Player, type Posture } from "../entities/player";
@@ -16,38 +25,66 @@ import type { MissionDifficulty } from "./difficulty";
 
 export type ContextActionKind = "takedown" | "hack";
 
-/** Une cible du gadget ou du pistolet : une sentinelle ou une caméra, par son index. */
+/** Une cible du pistolet ou du gadget : une sentinelle ou une caméra, par son index. */
 export interface TargetRef {
   kind: TargetKind;
   index: number;
 }
 
-export type ShotResult = "sentinel" | "camera" | "miss";
+/** suspended : sentinelle à terre (SIGSTOP) ; shield : le bouclier a encaissé ; camera : caméra brouillée. */
+export type ShotResult = "suspended" | "shield" | "camera" | "miss";
+
+/** Visée fournie par l'application : un point du sol (souris) ou une direction (pad tactile). */
+export type AimInput = { kind: "point"; x: number; z: number; aiming: boolean } | { kind: "direction"; angle: number; aiming: boolean };
+
+/** Ce qui se passe pendant un combat : l'application en fait des sons, des flashs et des messages. */
+export type CombatEvent =
+  | { type: "shot"; result: ShotResult; impact: THREE.Vector3 }
+  | { type: "dryFire" }
+  | { type: "reloadStarted" }
+  | { type: "enemyShot" }
+  | { type: "playerHit"; health: number }
+  | { type: "alarm"; source: "sentinel" | "camera" }
+  | { type: "sentinelWoke" };
+
+export interface CommandTargetInfo {
+  kind: TargetKind;
+  name: string;
+  /** Temps avant que la cible ne se relève (sentinelle) ou ne se rallume (caméra). */
+  secondsLeft: number;
+}
 
 export interface HudState {
   livesLeft: number;
+  health: number;
+  maxHealth: number;
   hackedCount: number;
   terminalCount: number;
   intelCollected: number;
   intelTotal: number;
   exposure: number;
+  /** Au moins une sentinelle te traque. */
+  alarm: boolean;
   posture: Posture;
   nightVision: boolean;
+  aiming: boolean;
   /** Action de la touche E à cet instant (neutraliser ou pirater), ou null. */
   contextAction: { kind: ContextActionKind; label: string } | null;
   gadgetAvailable: boolean;
-  charges: number;
-  /** Nom de la cible du gadget (touche F), ou null si aucune cible. */
-  commandTargetLabel: string | null;
-  ammo: number;
-  /** Nom de la cible du pistolet IEM, ou null (le tir partira droit devant). */
-  shotTargetLabel: string | null;
+  /** Cible touchée qu'on peut terminer avec une commande (touche F), ou null. */
+  commandTarget: CommandTargetInfo | null;
+  magazine: number;
+  magazineSize: number;
+  reserve: number;
+  reloadProgress: number;
 }
+
+export type GuardStatus = "calm" | "hostile" | "suspended" | "down";
 
 export interface MinimapSnapshot {
   layout: LevelLayout;
   player: THREE.Vector3;
-  guards: { position: THREE.Vector3; heading: number; neutralized: boolean }[];
+  guards: { position: THREE.Vector3; heading: number; status: GuardStatus }[];
   cameras: { cell: Cell; active: boolean }[];
   terminals: { cell: Cell; hacked: boolean }[];
   intel: { cell: Cell; collected: boolean }[];
@@ -59,8 +96,9 @@ export interface MissionCallbacks {
   onIntelFound(): void;
   onCommandRequested(target: TargetRef): void;
   onTakedown(): void;
-  onShot(result: ShotResult): void;
-  onDetected(livesLeft: number): void;
+  onCombatEvent(event: CombatEvent): void;
+  /** Le joueur est tombé : il perd une vie et repart du point d'insertion. */
+  onPlayerDown(livesLeft: number): void;
   onMissionFailed(): void;
   onExtraction(): void;
   onPauseRequested(): void;
@@ -73,7 +111,6 @@ export interface MissionProgressState {
   collectedIntel: number[];
   neutralizedGuards: number[];
   firewalledCameras: number[];
-  charges: number;
   ammo: number;
   livesLeft: number;
   detections: number;
@@ -95,20 +132,43 @@ const INTEL_PICKUP_RADIUS = 0.7;
 const EXTRACTION_RADIUS = 0.8;
 const RESPAWN_GRACE_SECONDS = 2.5;
 const NOISE_ALERT_RADIUS = 11;
-const COMMAND_RANGE = 8;
-const STARTING_CHARGES = 2;
-const MAX_CHARGES = 5;
-const STARTING_AMMO = 3;
-const MAX_AMMO = 6;
-const SHOT_RANGE = 10;
-/** Tolérance angulaire de la visée à la souris (~14°) : on vise une silhouette, pas un pixel. */
-const AIM_TOLERANCE_RADIANS = 0.25;
-const SHOT_NOISE_RADIUS = 7;
+/** Un chargeur plein + deux de réserve au départ ; chaque terminal piraté en rapporte un. */
+const STARTING_AMMO = 24;
+const AMMO_PER_TERMINAL = 8;
+const SHOT_RANGE = 14;
+const SENTINEL_HIT_RADIUS = 0.42;
+const CAMERA_HIT_RADIUS = 0.38;
+/** Pistolet silencieux : on l'entend de près seulement. */
+const SHOT_NOISE_RADIUS = 4.5;
+/** Une balle perdue qui siffle près d'une sentinelle calme l'intrigue. */
+const NEAR_MISS_RADIUS = 2.2;
 const CAMERA_EMP_SECONDS = 12;
 const CAMERA_CALL_RADIUS = 12;
 const CAMERA_CALL_COOLDOWN_SECONDS = 4;
-const TRACER_LIFETIME_SECONDS = 0.2;
+const CAMERA_ALARM_COOLDOWN_SECONDS = 6;
+/** Rayon dans lequel les sentinelles accourent quand l'alarme est donnée. */
+const ALARM_RADIUS = 13;
+/** Le gadget agit par le réseau : pas besoin de voir la cible, seulement d'être dans le secteur. */
+const COMMAND_RANGE = 14;
+/** Une mauvaise commande « réveille » un peu le processus suspendu. */
+const COMMAND_FAILURE_PENALTY_SECONDS = 3;
+const MAX_HEALTH = 100;
+const ENEMY_SHOT_DAMAGE = 20;
+const ENEMY_SHOT_SPEED = 13;
+const ENEMY_SHOT_RANGE = 16;
+const PLAYER_HIT_RADIUS = 0.3;
+const HEALTH_REGEN_DELAY_SECONDS = 4;
+const HEALTH_REGEN_PER_SECOND = 12;
+/** Pad tactile relâché : le tir part dans la dernière direction visée. */
+const AIM_MEMORY_SECONDS = 0.35;
+const SHOT_HEIGHT = 1.05;
+const CAMERA_TARGET_HEIGHT = 2;
 const CAMERA_OFFSET = new THREE.Vector3(0, 12.5, 7.5);
+/** En visée, la caméra glisse vers la cible pour voir plus loin dans cette direction. */
+const AIM_LEAD_FACTOR = 0.35;
+const MAX_AIM_LEAD = 3.5;
+const TOUCH_AIM_LEAD = 2.5;
+const SHAKE_DECAY = 10;
 const NOTICE_COOLDOWN_SECONDS = 3;
 const FOG_NEAR = 14;
 const FOG_FAR = 34;
@@ -126,16 +186,21 @@ export function cameraZoomForAspect(aspect: number): number {
   return THREE.MathUtils.clamp(0.85 / aspect, 1, MAX_CAMERA_ZOOM);
 }
 
+interface EnemyShot {
+  projectile: Projectile;
+  mesh: THREE.Mesh;
+}
+
 /** Une mission = un module de la roadmap joué dans un niveau généré. */
 export class Mission {
   readonly scene = new THREE.Scene();
   readonly terminals: HackTerminal[];
   livesLeft: number;
+  /** Nombre d'alertes déclenchées (une sentinelle ou une caméra t'a repéré). */
   detections = 0;
   neutralizations = 0;
   elapsedSeconds = 0;
-  charges = STARTING_CHARGES;
-  ammo = STARTING_AMMO;
+  health = MAX_HEALTH;
 
   private readonly layout: LevelLayout;
   private readonly player: Player;
@@ -143,17 +208,29 @@ export class Mission {
   private readonly identities: SentinelIdentity[];
   private readonly cameras: SecurityCamera[];
   private readonly cameraIdentities: SentinelIdentity[];
-  private readonly aimMarker: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
-  private readonly tracers: { mesh: THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>; life: number }[] = [];
-  /** Point visé à la souris sur le sol, ou null (tactile / pas de souris) : auto-visée. */
-  private aimPoint: THREE.Vector3 | null = null;
+  private sidearm = new Sidearm(STARTING_AMMO);
+  private readonly effects: CombatEffects;
+  private readonly enemyShots: EnemyShot[] = [];
+  private readonly wasSuspended: boolean[];
+  private aim: AimInput | null = null;
+  private lastAimAngle = 0;
+  private lastAimAt = -Infinity;
+  private lastDamageAt = -Infinity;
+  private alarmActive = false;
   private cameraCallCooldown = 0;
+  private cameraAlarmCooldown = 0;
+  private shake = 0;
   private readonly intel: IntelPickup[];
   private readonly extraction: ExtractionZone;
   private readonly targetMarker: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
   private readonly visuals: LevelVisuals;
   private readonly shadowLight: THREE.DirectionalLight | null;
-  private readonly cameraTarget = new THREE.Vector3();
+  private readonly cameraBase = new THREE.Vector3();
+  private readonly cameraLead = new THREE.Vector3();
+  /** Vecteurs de travail réutilisés à chaque frame : pas d'allocation dans la boucle de rendu. */
+  private readonly leadScratch = new THREE.Vector3();
+  private readonly focusScratch = new THREE.Vector3();
+  private readonly referenceScratch = new THREE.Vector3();
   private readonly cameraOffset = CAMERA_OFFSET.clone();
   private paused = true;
   private finished = false;
@@ -205,15 +282,16 @@ export class Mission {
 
     this.guards = this.layout.guards.map((route) => new Guard(this.layout.grid, route, difficulty.guardTuning));
     this.identities = this.guards.map((_, index) => createSentinelIdentity(seed, index + 1));
+    this.wasSuspended = this.guards.map(() => false);
     for (const guard of this.guards) this.scene.add(guard.root, guard.visionCone);
 
     this.cameras = this.layout.cameras.map((slot) => new SecurityCamera(this.layout.grid, slot));
     this.cameraIdentities = this.cameras.map((_, index) => createCameraIdentity(seed, index + 1));
     for (const camera of this.cameras) this.scene.add(camera.root);
 
+    this.effects = new CombatEffects(this.scene, options.quality.bloom);
     this.targetMarker = createTargetMarker(0x4fc3ff);
-    this.aimMarker = createTargetMarker(0xff3b4e);
-    this.scene.add(this.targetMarker, this.aimMarker);
+    this.scene.add(this.targetMarker);
 
     this.extraction = new ExtractionZone(cellToWorld(this.layout.exit));
     this.scene.add(this.extraction.root);
@@ -240,15 +318,23 @@ export class Mission {
     return this.nightVision;
   }
 
+  /** Munitions totales (chargeur + réserve). */
+  get ammo(): number {
+    return this.sidearm.total;
+  }
+
   targetIdentity(target: TargetRef): SentinelIdentity {
     const identity = target.kind === "sentinel" ? this.identities[target.index] : this.cameraIdentities[target.index];
     if (!identity) throw new RangeError(`Cible ${target.kind} ${target.index} inexistante`);
     return identity;
   }
 
-  /** Point du sol visé à la souris (calculé par l'application depuis la caméra), ou null. */
-  setAimPoint(point: THREE.Vector3 | null): void {
-    this.aimPoint = point;
+  /** Visée du joueur, recalculée par l'application à chaque frame (null = aucune visée en cours). */
+  setAim(aim: AimInput | null): void {
+    this.aim = aim;
+    if (!aim) return;
+    this.lastAimAngle = this.angleOf(aim);
+    this.lastAimAt = this.elapsedSeconds;
   }
 
   pause(): void {
@@ -276,9 +362,8 @@ export class Mission {
     const terminal = this.terminals[terminalIndex];
     if (!terminal) throw new RangeError(`Terminal ${terminalIndex} inexistant`);
     terminal.markHacked();
-    // Chaque terminal piraté recharge gadget et pistolet : apprendre donne des moyens d'agir.
-    if (this.hasAnyGadget) this.charges = Math.min(MAX_CHARGES, this.charges + 1);
-    this.ammo = Math.min(MAX_AMMO, this.ammo + 1);
+    // Chaque terminal piraté rapporte des munitions : apprendre donne des moyens d'agir.
+    this.sidearm.addAmmo(AMMO_PER_TERMINAL);
     if (this.terminals.every((candidate) => candidate.hacked)) {
       this.extraction.unlock();
       this.callbacks.onNotice("Tous les terminaux sont piratés : rejoins le point d'extraction (faisceau vert).");
@@ -304,8 +389,7 @@ export class Mission {
       collectedIntel: indexesWhere(this.intel, (pickup) => pickup.collected),
       neutralizedGuards: indexesWhere(this.guards, (guard) => guard.neutralized),
       firewalledCameras: indexesWhere(this.cameras, (camera) => camera.firewalled),
-      charges: this.charges,
-      ammo: this.ammo,
+      ammo: this.sidearm.total,
       livesLeft: this.livesLeft,
       detections: this.detections,
       neutralizations: this.neutralizations,
@@ -332,9 +416,8 @@ export class Mission {
     for (const index of state.collectedIntel) this.intel[index]?.collect();
     for (const index of state.neutralizedGuards) this.guards[index]?.neutralize(true);
     for (const index of state.firewalledCameras) this.cameras[index]?.firewall();
-    this.ammo = Math.min(MAX_AMMO, state.ammo);
+    this.sidearm = new Sidearm(state.ammo);
     if (this.terminals.every((terminal) => terminal.hacked)) this.extraction.unlock();
-    this.charges = Math.min(MAX_CHARGES, state.charges);
     this.livesLeft = state.livesLeft;
     this.detections = state.detections;
     this.neutralizations = state.neutralizations;
@@ -347,48 +430,46 @@ export class Mission {
     return true;
   }
 
-  /** Commande juste : sentinelle arrêtée ou caméra coupée au pare-feu ; une charge est consommée. */
+  /** Commande juste : sentinelle terminée ou caméra coupée au pare-feu, définitivement. */
   neutralizeByCommand(target: TargetRef): void {
     if (target.kind === "camera") {
-      const camera = this.cameras[target.index];
-      if (!camera || camera.firewalled) return;
-      camera.firewall();
-    } else {
-      const guard = this.requireGuard(target.index);
-      if (guard.neutralized) return;
-      guard.neutralize();
-      this.neutralizations++;
+      this.cameras[target.index]?.firewall();
+      return;
     }
-    this.charges = Math.max(0, this.charges - 1);
+    const guard = this.requireGuard(target.index);
+    if (guard.neutralized) return;
+    guard.neutralize();
+    this.neutralizations++;
   }
 
-  /** Commande ratée : du bruit près du joueur, la cible (si c'est une sentinelle) vient voir. */
+  /** Commande ratée : du bruit autour du joueur, et le processus suspendu reprend plus tôt. */
   commandFailedOn(target: TargetRef): void {
-    const playerCell = { x: Math.floor(this.player.position.x), z: Math.floor(this.player.position.z) };
-    if (target.kind === "sentinel") this.requireGuard(target.index).alertTo(playerCell);
-    else this.alertGuardsNear(this.player.position, SHOT_NOISE_RADIUS, playerCell);
+    if (target.kind === "sentinel") this.requireGuard(target.index).shortenSuspension(COMMAND_FAILURE_PENALTY_SECONDS);
+    this.alertGuardsNear(this.player.position, SHOT_NOISE_RADIUS * 2, this.playerCell());
   }
 
   hudState(): HudState {
-    const commandTarget = this.commandTargetIndex();
+    const commandTarget = this.commandTarget();
     return {
       livesLeft: this.livesLeft,
+      health: Math.ceil(this.health),
+      maxHealth: MAX_HEALTH,
       hackedCount: this.hackedCount,
       terminalCount: this.terminals.length,
       intelCollected: this.intelCollected,
       intelTotal: this.intelTotal,
-      exposure: Math.max(
-        this.guards.reduce((highest, guard) => Math.max(highest, guard.awareness), 0),
-        this.cameras.reduce((highest, camera) => Math.max(highest, camera.alarm), 0),
-      ),
+      exposure: this.exposure(),
+      alarm: this.alarmActive,
       posture: this.player.posture,
       nightVision: this.nightVision,
+      aiming: this.player.isAiming,
       contextAction: this.contextAction(),
       gadgetAvailable: this.hasAnyGadget,
-      charges: this.charges,
-      commandTargetLabel: commandTarget === null ? null : this.targetIdentity(commandTarget).containerName,
-      ammo: this.ammo,
-      shotTargetLabel: this.shotLabel(),
+      commandTarget: commandTarget ? this.describeCommandTarget(commandTarget) : null,
+      magazine: this.sidearm.magazine,
+      magazineSize: this.sidearm.magazineSize,
+      reserve: this.sidearm.reserve,
+      reloadProgress: this.sidearm.reloadProgress,
     };
   }
 
@@ -396,7 +477,7 @@ export class Mission {
     return {
       layout: this.layout,
       player: this.player.position,
-      guards: this.guards.map((guard) => ({ position: guard.position, heading: guard.heading, neutralized: guard.neutralized })),
+      guards: this.guards.map((guard) => ({ position: guard.position, heading: guard.heading, status: guardStatus(guard) })),
       cameras: this.cameras.map((camera) => ({ cell: camera.slot.floorCell, active: camera.isActive(this.elapsedSeconds) })),
       terminals: this.terminals.map((terminal) => ({ cell: terminal.slot.cell, hacked: terminal.hacked })),
       intel: this.intel.map((pickup) => ({ cell: pickup.cell, collected: pickup.collected })),
@@ -414,13 +495,20 @@ export class Mission {
     this.elapsedSeconds += deltaSeconds;
     this.noticeCooldown = Math.max(0, this.noticeCooldown - deltaSeconds);
     this.cameraCallCooldown = Math.max(0, this.cameraCallCooldown - deltaSeconds);
-    this.updateTracers(deltaSeconds);
+    this.cameraAlarmCooldown = Math.max(0, this.cameraAlarmCooldown - deltaSeconds);
+    this.effects.update(deltaSeconds);
+    this.sidearm.update(deltaSeconds);
+    this.player.setAim(this.aim?.aiming ? this.angleOf(this.aim) : null);
     if (this.handleActions()) return;
 
     this.player.update(deltaSeconds, this.input.moveIntent());
     if (this.collectNearbyIntel()) return;
     this.updateGuards(deltaSeconds);
     if (this.finished || this.paused) return;
+    this.updateEnemyShots(deltaSeconds);
+    if (this.finished || this.paused) return;
+    this.regenerateHealth(deltaSeconds);
+    this.updateLaser();
     this.updateTargetMarker(elapsedSeconds);
     this.checkExtraction();
     this.followCamera(deltaSeconds);
@@ -441,6 +529,7 @@ export class Mission {
     if (this.input.consume("nightVision")) this.nightVision = !this.nightVision;
     if (this.input.consume("interact") && this.performContextAction()) return true;
     if (this.input.consume("command")) return this.requestCommand();
+    if (this.input.consume("reload") && this.sidearm.startReload()) this.callbacks.onCombatEvent({ type: "reloadStarted" });
     if (this.input.consume("shoot")) this.shoot();
     return false;
   }
@@ -472,22 +561,23 @@ export class Mission {
     return this.options.gadgetTargets.sentinel || this.options.gadgetTargets.camera;
   }
 
+  /** La commande n'est possible que sur une cible qu'on vient de toucher : pas de balle au but, pas de kill. */
   private requestCommand(): boolean {
     if (!this.hasAnyGadget) {
       this.notice("Aucun gadget pour l'instant : approche les sentinelles par derrière (E) pour les neutraliser.");
       return false;
     }
-    if (this.charges === 0) {
-      this.notice("Gadget déchargé : pirate un terminal pour gagner une charge.");
-      return false;
-    }
-    const targetIndex = this.commandTargetIndex();
-    if (targetIndex === null) {
-      this.notice(this.options.gadgetTargets.camera ? "Aucune sentinelle ni caméra en vue à portée du gadget." : "Aucune sentinelle en vue à portée du gadget.");
+    const target = this.commandTarget();
+    if (!target) {
+      this.notice(
+        this.options.gadgetTargets.camera
+          ? "Touche d'abord ta cible au pistolet : une sentinelle touchée est suspendue, une caméra touchée est brouillée. Ensuite seulement, F pour la commande."
+          : "Touche d'abord une sentinelle au pistolet : la balle la suspend (SIGSTOP). Ensuite seulement, F pour la terminer avec kill.",
+      );
       return false;
     }
     this.pause();
-    this.callbacks.onCommandRequested(targetIndex);
+    this.callbacks.onCommandRequested(target);
     return true;
   }
 
@@ -496,148 +586,134 @@ export class Mission {
   }
 
   /**
-   * Cible du gadget : à la souris, la cible compatible pointée (on choisit qui viser quand une caméra
-   * et une sentinelle sont visibles) ; sinon la cible compatible la plus proche.
+   * Cible du gadget : une sentinelle suspendue ou une caméra brouillée par une balle.
+   * À la souris, celle qu'on pointe ; sinon la plus proche.
    */
-  private commandTargetIndex(): TargetRef | null {
-    if (!this.hasAnyGadget || this.charges === 0) return null;
-    const accept = (target: TargetRef): boolean => this.options.gadgetTargets[target.kind];
-    if (this.aimPoint) {
-      const aimed = this.aimedTarget(COMMAND_RANGE, accept);
-      if (aimed) return aimed.ref;
+  private commandTarget(): TargetRef | null {
+    if (!this.hasAnyGadget) return null;
+    const candidates: { ref: TargetRef; position: THREE.Vector3 }[] = [];
+    if (this.options.gadgetTargets.sentinel) {
+      this.guards.forEach((guard, index) => {
+        if (guard.isSuspended && !guard.neutralized) candidates.push({ ref: { kind: "sentinel", index }, position: guard.position });
+      });
     }
-    return this.nearestTarget(COMMAND_RANGE, accept);
+    if (this.options.gadgetTargets.camera) {
+      this.cameras.forEach((camera, index) => {
+        if (camera.disabledSecondsLeft(this.elapsedSeconds) > 0) candidates.push({ ref: { kind: "camera", index }, position: camera.position });
+      });
+    }
+    const inRange = candidates.filter((candidate) => planarDistance(candidate.position, this.player.position) <= COMMAND_RANGE);
+    const reference = this.aim?.kind === "point" ? this.referenceScratch.set(this.aim.x, 0, this.aim.z) : this.player.position;
+    let best: TargetRef | null = null;
+    let bestDistance = Infinity;
+    for (const candidate of inRange) {
+      const distance = planarDistance(candidate.position, reference);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = candidate.ref;
+      }
+    }
+    return best;
   }
 
-  /** Toutes les cibles encore actives, avec leur position au sol. */
-  private liveTargets(): { ref: TargetRef; position: THREE.Vector3 }[] {
-    const targets: { ref: TargetRef; position: THREE.Vector3 }[] = [];
+  private describeCommandTarget(target: TargetRef): CommandTargetInfo {
+    const secondsLeft =
+      target.kind === "sentinel"
+        ? this.requireGuard(target.index).suspensionSecondsLeft
+        : (this.cameras[target.index]?.disabledSecondsLeft(this.elapsedSeconds) ?? 0);
+    return { kind: target.kind, name: this.targetIdentity(target).containerName, secondsLeft };
+  }
+
+  private angleOf(aim: AimInput): number {
+    return aim.kind === "direction" ? aim.angle : Math.atan2(aim.z - this.player.position.z, aim.x - this.player.position.x);
+  }
+
+  /** Direction du tir : la visée en cours, sinon la dernière (pad relâché), sinon droit devant. */
+  private currentAimAngle(): number {
+    if (this.aim) return this.angleOf(this.aim);
+    if (this.elapsedSeconds - this.lastAimAt <= AIM_MEMORY_SECONDS) return this.lastAimAngle;
+    return this.player.facingMathAngle;
+  }
+
+  /** Tout ce qu'une balle peut toucher : sentinelles debout ou à terre, caméras pas encore coupées. */
+  private shotTargets(): ShotTarget<TargetRef>[] {
+    const targets: ShotTarget<TargetRef>[] = [];
     this.guards.forEach((guard, index) => {
-      if (!guard.neutralized) targets.push({ ref: { kind: "sentinel", index }, position: guard.position });
+      if (!guard.neutralized) targets.push({ id: { kind: "sentinel", index }, x: guard.position.x, z: guard.position.z, radius: SENTINEL_HIT_RADIUS });
     });
     this.cameras.forEach((camera, index) => {
-      if (camera.isActive(this.elapsedSeconds)) targets.push({ ref: { kind: "camera", index }, position: camera.position });
+      if (!camera.firewalled) targets.push({ id: { kind: "camera", index }, x: camera.position.x, z: camera.position.z, radius: CAMERA_HIT_RADIUS });
     });
     return targets;
   }
 
-  private isInSight(position: THREE.Vector3, range: number): boolean {
-    const distance = Math.hypot(position.x - this.player.position.x, position.z - this.player.position.z);
-    return distance <= range && hasLineOfSight(this.layout.grid, this.player.position.x, this.player.position.z, position.x, position.z);
-  }
-
-  private nearestTarget(range: number, accept: (target: TargetRef) => boolean): TargetRef | null {
-    let best: TargetRef | null = null;
-    let bestDistance = Infinity;
-    for (const target of this.liveTargets()) {
-      if (!accept(target.ref) || !this.isInSight(target.position, range)) continue;
-      const distance = target.position.distanceTo(this.player.position);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = target.ref;
-      }
-    }
-    return best;
-  }
-
   /**
-   * Cible du pistolet : à la souris, la cible la plus proche de la direction visée (tolérance ~14°) ;
-   * sans souris (tactile), la cible visible la plus proche — l'auto-visée compense l'absence de curseur.
+   * Tir réel : la balle part dans la direction visée, dispersion comprise, et ne touche que ce
+   * qu'elle croise. On peut rater, et un mur ou un rack arrête la balle.
    */
-  private shotTarget(): { ref: TargetRef; position: THREE.Vector3 } | null {
-    const visible = this.liveTargets().filter((target) => this.isInSight(target.position, SHOT_RANGE));
-    if (visible.length === 0) return null;
-    if (!this.aimPoint) {
-      return visible.reduce((best, target) =>
-        target.position.distanceTo(this.player.position) < best.position.distanceTo(this.player.position) ? target : best,
-      );
-    }
-    return this.aimedTarget(SHOT_RANGE, () => true);
-  }
-
-  /** Cible visible la plus proche de la direction pointée par la souris (tolérance ~14°). */
-  private aimedTarget(range: number, accept: (target: TargetRef) => boolean): { ref: TargetRef; position: THREE.Vector3 } | null {
-    if (!this.aimPoint) return null;
-    const visible = this.liveTargets().filter((target) => accept(target.ref) && this.isInSight(target.position, range));
-    const aimAngle = Math.atan2(this.aimPoint.z - this.player.position.z, this.aimPoint.x - this.player.position.x);
-    let best: { ref: TargetRef; position: THREE.Vector3 } | null = null;
-    let bestOffset = AIM_TOLERANCE_RADIANS;
-    for (const target of visible) {
-      const angle = Math.atan2(target.position.z - this.player.position.z, target.position.x - this.player.position.x);
-      const offset = Math.abs(Math.atan2(Math.sin(angle - aimAngle), Math.cos(angle - aimAngle)));
-      if (offset <= bestOffset) {
-        bestOffset = offset;
-        best = target;
-      }
-    }
-    return best;
-  }
-
-  private shotLabel(): string | null {
-    const target = this.shotTarget();
-    return target ? this.targetIdentity(target.ref).containerName : null;
-  }
-
-  /** Tir IEM : touche la cible visée, sinon part dans la direction de visée jusqu'au premier mur. */
   private shoot(): void {
-    if (this.ammo === 0) {
-      this.notice("Plus de munitions IEM : pirate un terminal pour recharger.");
+    const spread = shotSpread({ posture: this.player.posture, isMoving: this.player.isMoving, aiming: this.player.isAiming, recoil: this.sidearm.recoil });
+    const fire = this.sidearm.tryFire();
+    if (fire === "empty") {
+      this.callbacks.onCombatEvent({ type: "dryFire" });
+      if (this.sidearm.isReloading) this.callbacks.onCombatEvent({ type: "reloadStarted" });
+      else this.notice("Plus de munitions : pirate un terminal pour en récupérer, ou neutralise en silence par derrière (E).");
       return;
     }
-    this.ammo--;
-    const target = this.shotTarget();
-    let impact: THREE.Vector3;
-    let result: ShotResult = "miss";
-    if (target) {
-      impact = new THREE.Vector3(target.position.x, target.ref.kind === "camera" ? 2 : 1, target.position.z);
-      if (target.ref.kind === "sentinel") {
-        this.requireGuard(target.ref.index).neutralize();
-        this.neutralizations++;
-        result = "sentinel";
-      } else {
-        this.cameras[target.ref.index]?.disableUntil(this.elapsedSeconds + CAMERA_EMP_SECONDS);
-        result = "camera";
-      }
-    } else {
-      const angle = this.aimPoint
-        ? Math.atan2(this.aimPoint.z - this.player.position.z, this.aimPoint.x - this.player.position.x)
-        : this.player.facingMathAngle;
-      const reach = castRay(this.layout.grid, this.player.position.x, this.player.position.z, angle, SHOT_RANGE);
-      impact = new THREE.Vector3(this.player.position.x + Math.cos(angle) * reach, 1, this.player.position.z + Math.sin(angle) * reach);
+    if (fire !== "fired") return;
+
+    const aimAngle = this.currentAimAngle();
+    const angle = applySpread(aimAngle, spread, Math.random);
+    const trace = traceShot(this.layout.grid, this.player.position.x, this.player.position.z, angle, SHOT_RANGE, this.shotTargets());
+    this.player.faceShot(aimAngle);
+    const muzzle = this.player.muzzlePosition();
+    const result = this.applyShotHit(trace.hit);
+    const impact = new THREE.Vector3(trace.impactX, result === "camera" ? CAMERA_TARGET_HEIGHT : SHOT_HEIGHT, trace.impactZ);
+    this.showShotImpact(impact, result, angle);
+    this.effects.tracer(muzzle, impact, PLAYER_SHOT_COLOR);
+    this.effects.muzzleFlash(muzzle);
+    this.shake = Math.max(this.shake, 0.05);
+    if (result === "miss") this.alertGuardsNear(impact, NEAR_MISS_RADIUS, this.playerCell());
+    // Silencieux, mais pas muet : les sentinelles tout près entendent le tir.
+    this.alertGuardsNear(this.player.position, SHOT_NOISE_RADIUS, this.playerCell());
+    this.callbacks.onCombatEvent({ type: "shot", result, impact });
+  }
+
+  private applyShotHit(hit: TargetRef | null): ShotResult {
+    if (!hit) return "miss";
+    if (hit.kind === "camera") {
+      this.cameras[hit.index]?.disableUntil(this.elapsedSeconds + CAMERA_EMP_SECONDS);
+      return "camera";
     }
-    this.player.aimAt(impact.x, impact.z);
-    this.spawnTracer(this.player.muzzlePosition(), impact);
-    // L'IEM claque : les sentinelles proches viennent voir d'où vient le bruit.
-    this.alertGuardsNear(this.player.position, SHOT_NOISE_RADIUS, { x: Math.floor(this.player.position.x), z: Math.floor(this.player.position.z) });
-    this.callbacks.onShot(result);
+    const outcome = this.requireGuard(hit.index).takeHit(this.player.position);
+    if (outcome === "suspended") return "suspended";
+    // Le bouclier a tenu : la sentinelle sait où tu es et donne l'alarme.
+    if (outcome === "shield") this.raiseAlarm("sentinel");
+    return outcome === "shield" ? "shield" : "miss";
+  }
+
+  private showShotImpact(impact: THREE.Vector3, result: ShotResult, angle: number): void {
+    if (result === "suspended" || result === "camera") this.effects.burst(impact, SUSPEND_SPARK_COLOR, 18);
+    else if (result === "shield") this.effects.burst(impact, SHIELD_SPARK_COLOR, 14);
+    // Ricochet : la gerbe repart vers le tireur, comme sur un vrai mur.
+    else this.effects.burst(impact, WALL_SPARK_COLOR, 8, angle + Math.PI);
+  }
+
+  /** Alarme : compte une détection (une seule par alerte) et fait converger les sentinelles proches. */
+  private raiseAlarm(source: "sentinel" | "camera"): void {
+    if (!this.alarmActive) {
+      this.detections++;
+      this.callbacks.onCombatEvent({ type: "alarm", source });
+    }
+    this.alarmActive = true;
+    for (const guard of this.guards) {
+      if (!guard.neutralized && planarDistance(guard.position, this.player.position) <= ALARM_RADIUS) guard.engage(this.player.position);
+    }
   }
 
   private alertGuardsNear(origin: THREE.Vector3, radius: number, noiseCell: Cell): void {
     for (const guard of this.guards) {
-      if (!guard.neutralized && guard.position.distanceTo(origin) <= radius) guard.investigate(noiseCell);
-    }
-  }
-
-  private spawnTracer(from: THREE.Vector3, to: THREE.Vector3): void {
-    const length = from.distanceTo(to);
-    const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 4, 5), transparent: true, opacity: 1, depthWrite: false });
-    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, length, 6, 1, true), material);
-    mesh.position.copy(from).add(to).multiplyScalar(0.5);
-    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize());
-    this.scene.add(mesh);
-    this.tracers.push({ mesh, life: TRACER_LIFETIME_SECONDS });
-  }
-
-  private updateTracers(deltaSeconds: number): void {
-    for (let index = this.tracers.length - 1; index >= 0; index--) {
-      const tracer = this.tracers[index] as (typeof this.tracers)[number];
-      tracer.life -= deltaSeconds;
-      tracer.mesh.material.opacity = Math.max(0, tracer.life / TRACER_LIFETIME_SECONDS);
-      if (tracer.life > 0) continue;
-      this.scene.remove(tracer.mesh);
-      tracer.mesh.geometry.dispose();
-      tracer.mesh.material.dispose();
-      this.tracers.splice(index, 1);
+      if (!guard.neutralized && planarDistance(guard.position, origin) <= radius) guard.alertTo(noiseCell);
     }
   }
 
@@ -660,36 +736,123 @@ export class Mission {
       this.graceSeconds > 0
         ? null
         : { position: this.player.position, posture: this.player.posture, isMoving: this.player.isMoving };
-    for (const guard of this.guards) guard.update(deltaSeconds, playerSnapshot);
+    this.guards.forEach((guard, index) => {
+      guard.update(deltaSeconds, playerSnapshot);
+      if (guard.consumeAlarm()) this.raiseAlarm("sentinel");
+      const shot = guard.consumeShot();
+      if (shot && playerSnapshot) this.fireEnemyShot(shot);
+      if (this.wasSuspended[index] && !guard.isSuspended && !guard.neutralized) {
+        this.callbacks.onCombatEvent({ type: "sentinelWoke" });
+        this.notice(`${this.identities[index]?.containerName ?? "Une sentinelle"} reprend du service (SIGCONT) : elle est furieuse !`);
+      }
+      this.wasSuspended[index] = guard.isSuspended;
+    });
     for (const camera of this.cameras) {
       camera.update(deltaSeconds, this.elapsedSeconds, playerSnapshot);
       // Une caméra qui te voit appelle les sentinelles proches avant même de déclencher l'alarme.
       if (camera.alarm >= 0.5 && this.cameraCallCooldown === 0) {
-        this.alertGuardsNear(camera.position, CAMERA_CALL_RADIUS, { x: Math.floor(this.player.position.x), z: Math.floor(this.player.position.z) });
+        this.alertGuardsNear(camera.position, CAMERA_CALL_RADIUS, this.playerCell());
         this.cameraCallCooldown = CAMERA_CALL_COOLDOWN_SECONDS;
         this.notice("Une caméra t'a repéré : des sentinelles arrivent !");
       }
+      if (camera.alarm >= 1 && this.cameraAlarmCooldown === 0) {
+        this.raiseAlarm("camera");
+        camera.resetAlarm();
+        this.cameraAlarmCooldown = CAMERA_ALARM_COOLDOWN_SECONDS;
+      }
     }
-    if (this.guards.some((guard) => guard.awareness >= 1) || this.cameras.some((camera) => camera.alarm >= 1)) this.handleDetection();
+    this.alarmActive = this.guards.some((guard) => !guard.neutralized && guard.isHostile);
   }
 
-  private handleDetection(): void {
-    this.detections++;
+  private fireEnemyShot(shot: GuardShot): void {
+    const projectile = createProjectile(shot.x, shot.z, shot.angle, ENEMY_SHOT_SPEED, ENEMY_SHOT_RANGE);
+    const mesh = this.effects.createProjectileMesh();
+    mesh.position.set(shot.x, SHOT_HEIGHT, shot.z);
+    // La capsule est verticale par défaut : on la couche dans l'axe du tir.
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(projectile.directionX, 0, projectile.directionZ));
+    this.enemyShots.push({ projectile, mesh });
+    this.effects.burst(mesh.position, ENEMY_SHOT_COLOR, 4, shot.angle);
+    this.callbacks.onCombatEvent({ type: "enemyShot" });
+  }
+
+  private updateEnemyShots(deltaSeconds: number): void {
+    const target = this.graceSeconds > 0 ? null : { x: this.player.position.x, z: this.player.position.z, radius: PLAYER_HIT_RADIUS };
+    for (let index = this.enemyShots.length - 1; index >= 0; index--) {
+      const shot = this.enemyShots[index] as EnemyShot;
+      const outcome = advanceProjectile(this.layout.grid, shot.projectile, deltaSeconds, target);
+      shot.mesh.position.set(shot.projectile.x, SHOT_HEIGHT, shot.projectile.z);
+      if (outcome === "flying") continue;
+      if (outcome === "wall") {
+        const backwards = Math.atan2(-shot.projectile.directionZ, -shot.projectile.directionX);
+        this.effects.burst(shot.mesh.position, ENEMY_SHOT_COLOR, 6, backwards);
+      }
+      this.effects.removeProjectileMesh(shot.mesh);
+      this.enemyShots.splice(index, 1);
+      if (outcome === "hit") {
+        this.effects.burst(shot.mesh.position, ENEMY_SHOT_COLOR, 12);
+        this.damagePlayer(ENEMY_SHOT_DAMAGE);
+        if (this.finished || this.paused) return;
+      }
+    }
+  }
+
+  private clearEnemyShots(): void {
+    for (const shot of this.enemyShots) this.effects.removeProjectileMesh(shot.mesh);
+    this.enemyShots.length = 0;
+  }
+
+  private damagePlayer(amount: number): void {
+    this.health = Math.max(0, this.health - amount);
+    this.lastDamageAt = this.elapsedSeconds;
+    this.shake = Math.max(this.shake, 0.22);
+    this.callbacks.onCombatEvent({ type: "playerHit", health: this.health });
+    if (this.health === 0) this.playerDown();
+  }
+
+  /** Santé à zéro : une vie en moins, retour au point d'insertion. Terminaux et sentinelles terminées restent acquis. */
+  private playerDown(): void {
     this.livesLeft--;
+    this.clearEnemyShots();
     if (this.livesLeft <= 0) {
       this.finished = true;
       this.callbacks.onMissionFailed();
       return;
     }
-    // Les terminaux piratés et les sentinelles neutralisées restent acquis : on pénalise sans tout faire rejouer.
     this.player.placeAt(cellToWorld(this.layout.start));
     this.player.crouched = false;
+    this.health = MAX_HEALTH;
     for (const guard of this.guards) guard.reset();
     for (const camera of this.cameras) camera.resetAlarm();
+    this.wasSuspended.fill(false);
+    this.alarmActive = false;
     this.graceSeconds = RESPAWN_GRACE_SECONDS;
     this.snapCamera();
     this.pause();
-    this.callbacks.onDetected(this.livesLeft);
+    this.callbacks.onPlayerDown(this.livesLeft);
+  }
+
+  /** Comme dans la plupart des jeux d'action : quelques secondes à l'abri et la santé remonte. */
+  private regenerateHealth(deltaSeconds: number): void {
+    if (this.health >= MAX_HEALTH || this.elapsedSeconds - this.lastDamageAt < HEALTH_REGEN_DELAY_SECONDS) return;
+    this.health = Math.min(MAX_HEALTH, this.health + HEALTH_REGEN_PER_SECOND * deltaSeconds);
+  }
+
+  private exposure(): number {
+    if (this.alarmActive) return 1;
+    const guardAwareness = this.guards.reduce((highest, guard) => (guard.neutralized || guard.isSuspended ? highest : Math.max(highest, guard.awareness)), 0);
+    return Math.max(guardAwareness, this.cameras.reduce((highest, camera) => Math.max(highest, camera.alarm), 0));
+  }
+
+  /** Laser de visée : on voit exactement l'axe du canon (la dispersion peut quand même dévier la balle). */
+  private updateLaser(): void {
+    if (!this.player.isAiming) {
+      this.effects.hideLaser();
+      return;
+    }
+    const angle = this.currentAimAngle();
+    const muzzle = this.player.muzzlePosition();
+    const trace = traceShot(this.layout.grid, this.player.position.x, this.player.position.z, angle, SHOT_RANGE, this.shotTargets());
+    this.effects.showLaser(muzzle, new THREE.Vector3(trace.impactX, muzzle.y, trace.impactZ), trace.hit !== null);
   }
 
   private checkExtraction(): void {
@@ -726,21 +889,14 @@ export class Mission {
     return null;
   }
 
+  /** Anneau bleu sous la cible qu'on peut terminer à la commande (touche F). */
   private updateTargetMarker(elapsedSeconds: number): void {
-    const commandTarget = this.commandTargetIndex();
-    const commandPosition = commandTarget ? this.targetPosition(commandTarget) : null;
-    this.targetMarker.visible = commandPosition !== null;
-    if (commandPosition) {
-      this.targetMarker.position.set(commandPosition.x, 0.05, commandPosition.z);
-      this.targetMarker.rotation.z = elapsedSeconds * 1.5;
-    }
-    // Réticule rouge du pistolet : seulement quand on vise à la souris une cible précise.
-    const shotTarget = this.aimPoint && this.ammo > 0 ? this.shotTarget() : null;
-    this.aimMarker.visible = shotTarget !== null;
-    if (shotTarget) {
-      this.aimMarker.position.set(shotTarget.position.x, 0.07, shotTarget.position.z);
-      this.aimMarker.rotation.z = -elapsedSeconds * 2.5;
-    }
+    const target = this.commandTarget();
+    const position = target ? this.targetPosition(target) : null;
+    this.targetMarker.visible = position !== null;
+    if (!position) return;
+    this.targetMarker.position.set(position.x, 0.05, position.z);
+    this.targetMarker.rotation.z = elapsedSeconds * 1.5;
   }
 
   private targetPosition(target: TargetRef): THREE.Vector3 | null {
@@ -753,12 +909,32 @@ export class Mission {
     return guard;
   }
 
+  private playerCell(): Cell {
+    return { x: Math.floor(this.player.position.x), z: Math.floor(this.player.position.z) };
+  }
+
   private followCamera(deltaSeconds: number): void {
     this.followShadowLight();
-    this.cameraTarget.copy(this.player.position).add(this.cameraOffset);
     // Lissage indépendant du framerate (exponentiel) : même ressenti à 30 ou 144 FPS.
-    this.camera.position.lerp(this.cameraTarget, 1 - Math.exp(-deltaSeconds * 6));
-    this.camera.lookAt(this.player.position.x, 0.5, this.player.position.z);
+    this.cameraLead.lerp(this.aimLead(), 1 - Math.exp(-deltaSeconds * 4));
+    this.focusScratch.set(this.player.position.x + this.cameraLead.x, 0, this.player.position.z + this.cameraLead.z).add(this.cameraOffset);
+    this.cameraBase.lerp(this.focusScratch, 1 - Math.exp(-deltaSeconds * 6));
+    // Secousse appliquée par-dessus la position lissée : elle ne « traîne » pas dans le suivi.
+    this.shake *= Math.exp(-deltaSeconds * SHAKE_DECAY);
+    this.camera.position.set(
+      this.cameraBase.x + (Math.random() - 0.5) * 2 * this.shake,
+      this.cameraBase.y + (Math.random() - 0.5) * 2 * this.shake,
+      this.cameraBase.z + (Math.random() - 0.5) * 2 * this.shake,
+    );
+    this.camera.lookAt(this.cameraBase.x - this.cameraOffset.x, 0.5, this.cameraBase.z - this.cameraOffset.z);
+  }
+
+  /** En visée, la caméra anticipe : on voit plus loin là où l'on vise, comme dans les jeux de tir vus de dessus. */
+  private aimLead(): THREE.Vector3 {
+    const lead = this.leadScratch.set(0, 0, 0);
+    if (!this.player.isAiming || !this.aim) return lead;
+    if (this.aim.kind === "direction") return lead.set(Math.cos(this.aim.angle), 0, Math.sin(this.aim.angle)).multiplyScalar(TOUCH_AIM_LEAD);
+    return lead.set(this.aim.x - this.player.position.x, 0, this.aim.z - this.player.position.z).multiplyScalar(AIM_LEAD_FACTOR).clampLength(0, MAX_AIM_LEAD);
   }
 
   /** La carte d'ombres ne couvre que les alentours du joueur : on la déplace avec lui (bien plus net que tout le niveau). */
@@ -770,12 +946,25 @@ export class Mission {
 
   private snapCamera(): void {
     this.followShadowLight();
-    this.camera.position.copy(this.player.position).add(this.cameraOffset);
+    this.cameraLead.set(0, 0, 0);
+    this.shake = 0;
+    this.cameraBase.copy(this.player.position).setY(0).add(this.cameraOffset);
+    this.camera.position.copy(this.cameraBase);
     this.camera.lookAt(this.player.position.x, 0.5, this.player.position.z);
   }
 }
 
-/** Réticule au sol sous la cible visée (bleu : gadget, rouge : pistolet). */
+function guardStatus(guard: Guard): GuardStatus {
+  if (guard.neutralized) return "down";
+  if (guard.isSuspended) return "suspended";
+  return guard.isHostile ? "hostile" : "calm";
+}
+
+function planarDistance(first: THREE.Vector3, second: THREE.Vector3): number {
+  return Math.hypot(first.x - second.x, first.z - second.z);
+}
+
+/** Réticule au sol sous la cible du gadget. */
 function createTargetMarker(color: number): THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial> {
   const marker = new THREE.Mesh(
     new THREE.RingGeometry(0.5, 0.62, 4, 1),

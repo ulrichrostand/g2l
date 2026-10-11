@@ -29,6 +29,11 @@ export function difficultyForModule(moduleIndex: number): MissionDifficulty {
       visionRange: 5 + level * 0.12,
       fieldOfViewRadians: (70 + level) * DEGREES,
       detectionRate: 0.8 + level * 0.04,
+      reactionSeconds: Math.max(0.4, 0.8 - level * 0.025),
+      fireIntervalSeconds: Math.max(0.85, 1.4 - level * 0.035),
+      aimErrorRadians: Math.max(0.07, 0.17 - level * 0.006),
+      // Bouclier : 1 balle suffit au début, 2 à partir du module 6, 3 pour les derniers secteurs.
+      hitsToSuspend: 1 + Math.floor(level / 6),
     },
   };
 }

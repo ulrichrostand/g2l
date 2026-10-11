@@ -22,7 +22,7 @@ export interface MissionCheckpoint {
   readLessons: number[];
   neutralizedGuards: number[];
   firewalledCameras: number[];
-  charges: number;
+  /** Munitions du pistolet (chargeur + réserve). */
   ammo: number;
   livesLeft: number;
   detections: number;
@@ -117,7 +117,6 @@ export function parseCheckpoint(candidate: unknown): MissionCheckpoint | null {
     Array.isArray(candidate.wrongAttemptsPerTerminal) &&
     candidate.wrongAttemptsPerTerminal.length <= MAX_INDEX + 1 &&
     candidate.wrongAttemptsPerTerminal.every((item) => isBoundedInteger(item, MAX_COUNTER)) &&
-    isBoundedInteger(candidate.charges, 99) &&
     isBoundedInteger(candidate.livesLeft, 9) &&
     (candidate.livesLeft as number) > 0 &&
     isBoundedInteger(candidate.detections, MAX_COUNTER) &&
@@ -142,7 +141,6 @@ export function parseCheckpoint(candidate: unknown): MissionCheckpoint | null {
     neutralizedGuards: [...(candidate.neutralizedGuards as number[])],
     firewalledCameras: [...(candidate.firewalledCameras as number[])],
     ammo: candidate.ammo as number,
-    charges: candidate.charges as number,
     livesLeft: candidate.livesLeft as number,
     detections: candidate.detections as number,
     neutralizations: candidate.neutralizations as number,
