@@ -23,6 +23,38 @@ export function aimPadAngle(deltaX: number, deltaY: number): number | null {
   return Math.atan2(deltaY, deltaX);
 }
 
+export type AimPadRelease = "fire" | "cancel";
+
+/**
+ * Ce que fait le relâchement du pad de tir. Une simple tape tire droit devant ; mais si le pouce a visé puis
+ * est revenu au centre, c'est une annulation (comme dans les jeux mobiles) : aucun coup ne doit partir.
+ */
+export function aimPadRelease(hasAimed: boolean, deltaX: number, deltaY: number): AimPadRelease {
+  if (!hasAimed) return "fire";
+  return aimPadAngle(deltaX, deltaY) === null ? "cancel" : "fire";
+}
+
+/** Silhouette accroupie : une icône se lit d'un coup d'œil et laisse le bouton rond (le mot « Accroupir » le débordait). */
+function crouchIcon(): SVGSVGElement {
+  const namespace = "http://www.w3.org/2000/svg";
+  const icon = document.createElementNS(namespace, "svg");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("class", "touch-icon");
+  icon.setAttribute("aria-hidden", "true");
+  const head = document.createElementNS(namespace, "circle");
+  head.setAttribute("cx", "15.5");
+  head.setAttribute("cy", "5");
+  head.setAttribute("r", "2.2");
+  head.setAttribute("fill", "currentColor");
+  icon.append(head);
+  for (const path of ["M14 8.5 L10 13", "M13 10 L17.5 12.5", "M10 13 L15 15.5 L12.5 20.5", "M10 13 L6 17 L8 20.5"]) {
+    const limb = document.createElementNS(namespace, "path");
+    limb.setAttribute("d", path);
+    icon.append(limb);
+  }
+  return icon;
+}
+
 /**
  * Convertit le déplacement du pouce (en pixels, Y écran vers le bas) en intention de mouvement.
  * Le Z du jeu suit le Y de l'écran : la caméra regarde vers -Z, donc « haut » = avancer.
@@ -51,6 +83,8 @@ export class TouchControls {
   private readonly aimPad = element("div", { className: "touch-btn aim-pad", attributes: { role: "button", "aria-label": "Tirer : glisser pour viser, relâcher pour tirer" } });
   private readonly aimKnob = element("div", { className: "aim-knob", text: "Tirer" });
   private aimPointerId: number | null = null;
+  /** Le pouce est sorti de la zone morte depuis la pose : distingue une tape d'une visée annulée. */
+  private hasAimed = false;
   private activePointerId: number | null = null;
   private originX = 0;
   private originY = 0;
@@ -63,7 +97,7 @@ export class TouchControls {
     this.joystickBase.append(this.joystickKnob);
     this.joystickZone.append(this.joystickBase);
     this.interactButton = this.actionButton("Pirater", "interact", "touch-btn primary");
-    this.crouchButton = this.actionButton("Accroupir", "crouch", "touch-btn crouch");
+    this.crouchButton = this.actionButton("Accroupir", "crouch", "touch-btn crouch", crouchIcon());
     this.commandButton = this.actionButton("Gadget", "command", "touch-btn gadget");
     this.exitFullscreenButton = element("button", { className: "touch-pill exit-fullscreen", text: "Réduire", attributes: { type: "button", "aria-label": "Quitter le plein écran", title: "Quitter le plein écran" } });
     this.exitFullscreenButton.hidden = true;
@@ -115,8 +149,9 @@ export class TouchControls {
     if (this.crouchButton.classList.contains("active") !== state.crouched) this.crouchButton.classList.toggle("active", state.crouched);
   }
 
-  private actionButton(label: string, action: GameAction, className: string): HTMLButtonElement {
-    const node = element("button", { className, text: label, attributes: { type: "button", "aria-label": label } });
+  private actionButton(label: string, action: GameAction, className: string, icon?: SVGElement): HTMLButtonElement {
+    const node = element("button", { className, text: icon ? undefined : label, attributes: { type: "button", "aria-label": label } });
+    if (icon) node.append(icon);
     // pointerdown plutôt que click : réaction immédiate, sans attendre le relâchement du doigt.
     node.addEventListener("pointerdown", (event) => {
       event.preventDefault();
@@ -159,12 +194,14 @@ export class TouchControls {
       if (this.aimPointerId !== null) return;
       event.preventDefault();
       this.aimPointerId = event.pointerId;
+      this.hasAimed = false;
       this.aimPad.setPointerCapture(event.pointerId);
       this.aimPad.classList.add("aiming");
     });
     this.aimPad.addEventListener("pointermove", (event) => {
       if (event.pointerId !== this.aimPointerId) return;
       const { deltaX, deltaY } = this.aimPadDelta(event);
+      if (aimPadAngle(deltaX, deltaY) !== null) this.hasAimed = true;
       this.input.setVirtualAim(aimPadAngle(deltaX, deltaY));
       const distance = Math.hypot(deltaX, deltaY);
       const clampScale = distance > AIM_PAD_RADIUS_PX ? AIM_PAD_RADIUS_PX / distance : 1;
@@ -172,8 +209,10 @@ export class TouchControls {
     });
     this.aimPad.addEventListener("pointerup", (event) => {
       if (event.pointerId !== this.aimPointerId) return;
-      // Le tir part au relâchement, dans la dernière direction visée (la mission s'en souvient un instant).
-      this.input.trigger("shoot");
+      const { deltaX, deltaY } = this.aimPadDelta(event);
+      // Le tir part au relâchement, dans la dernière direction visée (la mission s'en souvient un instant),
+      // sauf si le pouce est revenu au centre : visée annulée.
+      if (aimPadRelease(this.hasAimed, deltaX, deltaY) === "fire") this.input.trigger("shoot");
       swallowGhostClick();
       this.releaseAimPad();
     });
@@ -189,6 +228,7 @@ export class TouchControls {
 
   private releaseAimPad(): void {
     this.aimPointerId = null;
+    this.hasAimed = false;
     this.input.setVirtualAim(null);
     this.aimKnob.style.transform = "";
     this.aimPad.classList.remove("aiming");

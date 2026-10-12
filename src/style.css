@@ -678,6 +678,7 @@ body.touch .keyboard-only, body:not(.touch) .touch-only { display: none; }
 }
 .touch-btn.crouch { width: 60px; height: 60px; right: 108px; bottom: 95px; }
 .touch-btn.gadget { width: 60px; height: 60px; right: 46px; bottom: 130px; border-color: var(--info); color: var(--info); }
+.touch-icon { width: 60%; height: 60%; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .touch-btn.gadget:disabled { opacity: 0.4; }
 .touch-btn.vision { width: 46px; height: 46px; right: -17px; bottom: 125px; font-size: 0.6rem; }
 /* Pad de tir : on glisse le pouce pour viser, on relâche pour tirer. */

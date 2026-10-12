@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cameraZoomForAspect } from "../src/game/mission";
-import { aimPadAngle, joystickIntent } from "../src/ui/touchControls";
+import { aimPadAngle, aimPadRelease, joystickIntent } from "../src/ui/touchControls";
 
 describe("joystickIntent", () => {
   it("ignore les micro-mouvements (zone morte)", () => {
@@ -43,5 +43,20 @@ describe("pad de tir", () => {
   it("glisser vers la droite vise +X, vers le haut de l'écran vise -Z", () => {
     expect(aimPadAngle(40, 0)).toBeCloseTo(0, 10);
     expect(aimPadAngle(0, -40)).toBeCloseTo(-Math.PI / 2, 10);
+  });
+});
+
+describe("relâchement du pad de tir", () => {
+  it("une simple tape tire droit devant", () => {
+    expect(aimPadRelease(false, 2, -3)).toBe("fire");
+  });
+
+  it("visée puis relâchée loin du centre : tir", () => {
+    expect(aimPadRelease(true, 40, -20)).toBe("fire");
+  });
+
+  it("visée puis ramenée au centre : annulation, aucun tir", () => {
+    expect(aimPadRelease(true, 3, -4)).toBe("cancel");
+    expect(aimPadRelease(true, 0, 0)).toBe("cancel");
   });
 });

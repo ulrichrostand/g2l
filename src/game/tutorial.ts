@@ -158,7 +158,7 @@ export function tutorialInstruction(id: TutorialStepId, touch: boolean): { title
         : { title: "Tire", hint: "Clic gauche ou Espace. Tu peux rater : une balle qui touche suspend une sentinelle." };
     case "crouch":
       return touch
-        ? { title: "Accroupis-toi", hint: "Touche le bouton Accroupir : tu es moins visible et moins bruyant." }
+        ? { title: "Accroupis-toi", hint: "Touche le bouton à l'icône de personnage accroupi : tu es moins visible et moins bruyant." }
         : { title: "Accroupis-toi", hint: "Appuie sur C : tu es moins visible et moins bruyant. Rappuie pour te relever." };
     case "takedown":
       return touch
