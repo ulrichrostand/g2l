@@ -58,6 +58,8 @@ export interface PauseScreenOptions {
   onToggleSound(): string;
   onResume(): void;
   onQuit(): void;
+  /** Absent si le plein écran n'a pas de sens (ordinateur, navigateur sans plein écran). Renvoie le libellé suivant. */
+  fullscreen: { label: string; onToggle(): Promise<string> } | null;
 }
 
 export interface SaveManagerOptions {
@@ -384,6 +386,7 @@ export class ScreenManager {
         ...controlsList(),
         element("div", { className: "row" }, [
           resumeButton,
+          ...(options.fullscreen ? [fullscreenButton(options.fullscreen)] : []),
           qualityButton(options.qualityLabel, options.onCycleQuality),
           toggleButton(options.soundLabel, options.onToggleSound, "Ambiance sonore et effets du jeu."),
           button("Quitter la mission", options.onQuit, "btn ghost"),
@@ -554,6 +557,16 @@ function starPips(stars: number): HTMLElement {
 
 function qualityButton(label: string, onCycle: () => string): HTMLButtonElement {
   return toggleButton(label, onCycle, "Haute : ombres et effets lumineux. Basse : le plus fluide sur les appareils modestes.");
+}
+
+/** Le plein écran est asynchrone : le libellé change une fois la réponse du navigateur connue, pas avant. */
+function fullscreenButton(options: { label: string; onToggle(): Promise<string> }): HTMLButtonElement {
+  const node = button(options.label, () => {
+    void options.onToggle().then((label) => {
+      node.textContent = label;
+    });
+  }, "btn small");
+  return node;
 }
 
 /** Bouton de réglage dont le libellé reflète la valeur courante (renvoyée par le callback). */

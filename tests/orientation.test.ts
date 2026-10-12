@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { enterLandscapeFullscreen, fullscreenSupported, isPortrait, shouldSuggestLandscape, type FullscreenHost, type OrientationHost } from "../src/core/orientation";
+import { enterLandscapeFullscreen, exitLandscapeFullscreen, isFullscreen, fullscreenSupported, isPortrait, shouldSuggestLandscape, type FullscreenHost, type OrientationHost } from "../src/core/orientation";
 
 function host(overrides: Partial<FullscreenHost> & { request?: () => Promise<void> } = {}): FullscreenHost {
   const { request, ...rest } = overrides;
@@ -74,5 +74,33 @@ describe("enterLandscapeFullscreen", () => {
     expect(await enterLandscapeFullscreen({ documentElement: {} }, { orientation: { lock } })).toBe("unavailable");
     expect(lock).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalled();
+  });
+});
+
+describe("exitLandscapeFullscreen", () => {
+  const inFullscreen = (exit: () => Promise<void>): FullscreenHost => host({ fullscreenElement: {} as Element, exitFullscreen: exit });
+
+  it("quitte le plein écran et rend l'orientation au téléphone", async () => {
+    const exit = vi.fn(() => Promise.resolve());
+    const unlock = vi.fn();
+    expect(await exitLandscapeFullscreen(inFullscreen(exit), { orientation: { unlock } })).toBe(true);
+    expect(exit).toHaveBeenCalledOnce();
+    expect(unlock).toHaveBeenCalledOnce();
+  });
+
+  it("pas en plein écran : rien à quitter, succès", async () => {
+    const exit = vi.fn(() => Promise.resolve());
+    expect(await exitLandscapeFullscreen(host({ exitFullscreen: exit }), {})).toBe(true);
+    expect(exit).not.toHaveBeenCalled();
+    expect(isFullscreen(host())).toBe(false);
+  });
+
+  it("refus ou API absente : renvoie false sans lever d'erreur", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    expect(await exitLandscapeFullscreen(inFullscreen(() => Promise.reject(new TypeError("non"))), {})).toBe(false);
+    expect(await exitLandscapeFullscreen(host({ fullscreenElement: {} as Element }), {})).toBe(false);
+    const throwingUnlock = { orientation: { unlock: () => { throw new DOMException("non", "InvalidStateError"); } } };
+    expect(await exitLandscapeFullscreen(inFullscreen(() => Promise.resolve()), throwingUnlock)).toBe(true);
+    warn.mockRestore();
   });
 });

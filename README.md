@@ -208,6 +208,12 @@ propose « Plein écran », qui verrouille le paysage quand le navigateur l'auto
 sans API plein écran, il invite seulement à tourner le téléphone. « Plus tard » l'écarte pour la session. Installé
 sur l'écran d'accueil, le jeu s'ouvre directement en paysage plein écran sur Android (`public/manifest.webmanifest`).
 
+**Commandes tactiles** (disposition façon jeux mobiles) : joystick flottant à gauche ; à droite, un gros pad de tir
+(glisser pour viser, relâcher pour tirer) avec Action, Accroupir, Gadget et Vision en arc autour, à distance du pad
+et loin du bord (un glissé trop près du bord déclenche les gestes système en plein écran). La pause est en haut
+de l'écran ; en plein écran, un bouton « Réduire » en haut et l'entrée « Quitter le plein écran » du menu pause
+permettent d'en sortir, et le menu pause propose « Plein écran » sinon.
+
 ## Limites connues
 
 - Nécessite WebGL.

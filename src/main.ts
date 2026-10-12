@@ -33,7 +33,7 @@ import { RenderPipeline } from "./render/renderPipeline";
 import { ScreenManager, type CampaignSummary } from "./ui/screens";
 import { placeMarker, TutorialSession } from "./game/tutorial";
 import { MARKER_EDGE_MARGIN, TutorialGuide } from "./ui/tutorialGuide";
-import { isPortrait, shouldSuggestLandscape } from "./core/orientation";
+import { enterLandscapeFullscreen, exitLandscapeFullscreen, fullscreenSupported, isFullscreen, isPortrait, shouldSuggestLandscape } from "./core/orientation";
 import { OrientationHint } from "./ui/orientationHint";
 import { prefersTouchControls, TouchControls } from "./ui/touchControls";
 
@@ -64,7 +64,7 @@ class ShadowOpsApp {
   private readonly orientationHint = new OrientationHint(this.hud.root, document, screen, { onDismiss: () => this.dismissOrientationHint() });
   /** Le conseil a déjà été montré pendant ce passage en portrait : il ne revient pas à chaque redimensionnement. */
   private orientationHintOffered = false;
-  private readonly touchControls = new TouchControls(requireElement("#ui"), this.input);
+  private readonly touchControls = new TouchControls(requireElement("#ui"), this.input, { onExitFullscreen: () => void this.exitFullscreen() });
   private readonly challengeContainer = requireElement<HTMLElement>("#challenge");
   private readonly lessonPanel = new LessonPanel(this.challengeContainer);
   private readonly clock = new THREE.Clock();
@@ -99,6 +99,8 @@ class ShadowOpsApp {
     this.progress.onSaved = () => {
       if (this.mission && !this.hud.root.hidden) this.hud.showSaved();
     };
+    // Le plein écran peut aussi se quitter par le geste du système : le bouton du jeu suit l'état réel.
+    document.addEventListener("fullscreenchange", () => this.touchControls.setFullscreen(isFullscreen(document)));
     this.resize();
     this.pipeline.renderer.setAnimationLoop(() => this.frame());
     this.showTitle();
@@ -785,7 +787,23 @@ class ShadowOpsApp {
         this.saveCheckpoint();
         this.showTitle();
       },
+      fullscreen: this.touchMode && fullscreenSupported(document) ? { label: this.fullscreenLabel(), onToggle: () => this.toggleFullscreen() } : null,
     });
+  }
+
+  private fullscreenLabel(): string {
+    return isFullscreen(document) ? "Quitter le plein écran" : "Plein écran";
+  }
+
+  private async toggleFullscreen(): Promise<string> {
+    if (isFullscreen(document)) await this.exitFullscreen();
+    else await enterLandscapeFullscreen(document, screen);
+    return this.fullscreenLabel();
+  }
+
+  private async exitFullscreen(): Promise<void> {
+    const exited = await exitLandscapeFullscreen(document, screen);
+    if (!exited) this.hud.showNotice("Impossible de quitter le plein écran d'ici : utilise le geste ou le bouton Retour de ton téléphone.");
   }
 
   /**

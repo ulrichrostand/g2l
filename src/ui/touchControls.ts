@@ -8,7 +8,8 @@ const DEAD_ZONE = 0.15;
 const RUN_THRESHOLD = 1.35;
 /** Durée pendant laquelle le clic émis au relâchement du doigt est ignoré. */
 const GHOST_CLICK_WINDOW_MS = 450;
-const AIM_PAD_RADIUS_PX = 44;
+/** Le bouton de visée reste dans l'anneau du pad (116 px) même si le pouce va plus loin. */
+const AIM_PAD_RADIUS_PX = 46;
 /** En deçà, c'est une simple tape : on tire droit devant au lieu de viser. */
 const AIM_DEAD_ZONE_PX = 12;
 
@@ -46,6 +47,7 @@ export class TouchControls {
   private readonly interactButton: HTMLButtonElement;
   private readonly crouchButton: HTMLButtonElement;
   private readonly commandButton: HTMLButtonElement;
+  private readonly exitFullscreenButton: HTMLButtonElement;
   private readonly aimPad = element("div", { className: "touch-btn aim-pad", attributes: { role: "button", "aria-label": "Tirer : glisser pour viser, relâcher pour tirer" } });
   private readonly aimKnob = element("div", { className: "aim-knob", text: "Tirer" });
   private aimPointerId: number | null = null;
@@ -56,22 +58,26 @@ export class TouchControls {
   constructor(
     parent: HTMLElement,
     private readonly input: InputController,
+    private readonly handlers: { onExitFullscreen: () => void },
   ) {
     this.joystickBase.append(this.joystickKnob);
     this.joystickZone.append(this.joystickBase);
     this.interactButton = this.actionButton("Pirater", "interact", "touch-btn primary");
     this.crouchButton = this.actionButton("Accroupir", "crouch", "touch-btn crouch");
     this.commandButton = this.actionButton("Gadget", "command", "touch-btn gadget");
+    this.exitFullscreenButton = element("button", { className: "touch-pill exit-fullscreen", text: "Réduire", attributes: { type: "button", "aria-label": "Quitter le plein écran", title: "Quitter le plein écran" } });
+    this.exitFullscreenButton.hidden = true;
+    this.exitFullscreenButton.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      this.handlers.onExitFullscreen();
+      swallowGhostClick();
+    });
     this.root.append(
       this.joystickZone,
-      element("div", { className: "touch-actions" }, [
-        this.actionButton("❚❚", "pause", "touch-btn small pause"),
-        this.actionButton("Vision", "nightVision", "touch-btn small vision"),
-        this.crouchButton,
-        this.interactButton,
-        this.commandButton,
-        this.aimPad,
-      ]),
+      // Pause en haut de l'écran, loin des pouces : on ne l'appuie pas par erreur en plein combat.
+      element("div", { className: "touch-topbar" }, [this.exitFullscreenButton, this.actionButton("Pause", "pause", "touch-pill pause")]),
+      // Disposition façon jeux mobiles : le gros pad de tir dans le coin, les actions en arc autour (voir style.css).
+      element("div", { className: "touch-actions" }, [this.crouchButton, this.interactButton, this.commandButton, this.actionButton("Vision", "nightVision", "touch-btn vision"), this.aimPad]),
     );
     this.aimPad.append(this.aimKnob);
     this.bindJoystick();
@@ -90,6 +96,11 @@ export class TouchControls {
     this.releaseAimPad();
   }
 
+  /** Le bouton « Quitter le plein écran » n'existe que tant qu'on y est : sinon c'est du bruit. */
+  setFullscreen(active: boolean): void {
+    this.exitFullscreenButton.hidden = !active;
+  }
+
   /** Mise à jour à chaque frame : on ne touche au DOM que si l'état change. */
   sync(state: { contextLabel: string | null; crouched: boolean; gadgetVisible: boolean; gadgetReady: boolean; shootReady: boolean }): void {
     const interactLabel = state.contextLabel ?? "Action";
@@ -105,7 +116,7 @@ export class TouchControls {
   }
 
   private actionButton(label: string, action: GameAction, className: string): HTMLButtonElement {
-    const node = element("button", { className, text: label, attributes: { type: "button", "aria-label": label === "❚❚" ? "Pause" : label } });
+    const node = element("button", { className, text: label, attributes: { type: "button", "aria-label": label } });
     // pointerdown plutôt que click : réaction immédiate, sans attendre le relâchement du doigt.
     node.addEventListener("pointerdown", (event) => {
       event.preventDefault();

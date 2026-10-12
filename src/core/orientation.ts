@@ -69,3 +69,29 @@ export async function enterLandscapeFullscreen(host: FullscreenHost, screenHost:
     return "fullscreen-only";
   }
 }
+
+export function isFullscreen(host: Pick<FullscreenHost, "fullscreenElement">): boolean {
+  return Boolean(host.fullscreenElement);
+}
+
+/**
+ * Sort du plein écran et rend l'orientation au téléphone. Ne lève jamais : si le navigateur refuse,
+ * le joueur garde le plein écran (il peut toujours utiliser le geste système), le jeu continue.
+ */
+export async function exitLandscapeFullscreen(host: FullscreenHost, screenHost: OrientationHost): Promise<boolean> {
+  try {
+    screenHost.orientation?.unlock?.();
+  } catch (error) {
+    // Le déverrouillage est facultatif : sortir du plein écran suffit à rendre la main au joueur.
+    console.warn("Déverrouillage de l'orientation refusé par le navigateur.", error);
+  }
+  if (!isFullscreen(host)) return true;
+  if (typeof host.exitFullscreen !== "function") return false;
+  try {
+    await host.exitFullscreen();
+    return true;
+  } catch (error) {
+    console.warn("Sortie du plein écran refusée par le navigateur.", error);
+    return false;
+  }
+}
