@@ -179,6 +179,10 @@ et qu'aucune commande n'est posée deux fois).
   65 os, et `sentinel.glb` n'est même pas téléchargé) ; passer en Basse en pleine mission, à la main ou
   automatiquement, les remplace immédiatement.
 
+**Mes compétences** (depuis l'accueil ou la carte) : bilan par secteur (À faire, À consolider, Acquis, Maîtrisé),
+moyenne des examens, et liste des notions à revoir avec leur point clé. Une notion est « à revoir » si son défi a
+été raté au moins une fois lors de la dernière mission du secteur (champ `missed` de la sauvegarde, facultatif).
+
 ### Choix techniques
 
 - **Three.js + Vite + TypeScript strict**, aucune dépendance runtime autre que Three.js (le personnage glTF

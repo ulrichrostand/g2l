@@ -904,3 +904,30 @@ body.touch .keyboard-only, body:not(.touch) .touch-only { display: none; }
 .orientation-hint-text { margin: 0; font-family: var(--sans); font-size: 0.88rem; line-height: 1.4; color: var(--text); }
 .orientation-hint-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .orientation-hint.inline { position: static; transform: none; width: 100%; margin-top: 1.2em; background: rgba(79, 195, 255, 0.07); box-shadow: none; }
+
+/* --- Mes compétences --- */
+.panel.skills { max-width: 880px; }
+.skills-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 1rem 0 0.5rem; }
+.skills-stat { display: flex; flex-direction: column; gap: 2px; padding: 12px; border: 1px solid var(--panel-border); border-radius: 10px; background: rgba(9, 15, 20, 0.5); }
+.skills-stat strong { font-size: 1.4rem; font-family: var(--mono); color: var(--accent); }
+.skills-stat span { font-size: 0.78rem; color: var(--muted); }
+.skills-empty, .skills-legend { color: var(--muted); font-size: 0.88rem; }
+.skills-review, .skills-list { list-style: none; margin: 0.5rem 0 1rem; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.skills-review li { padding: 10px 14px; border-left: 3px solid var(--warn); background: rgba(255, 176, 32, 0.06); border-radius: 0 8px 8px 0; }
+.skills-review-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 4px; }
+.skills-review-title .tag { margin-left: 0; }
+.skills-review-point { margin: 0; font-size: 0.92rem; }
+.skills-row { padding: 12px 14px; border: 1px solid var(--panel-border); border-radius: 10px; background: rgba(9, 15, 20, 0.4); }
+.skills-row.level-todo { opacity: 0.6; }
+.skills-row-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; align-items: center; }
+.skills-row-title { margin: 0; font-weight: 700; }
+.skills-row-section { margin: 0; font-size: 0.8rem; color: var(--muted); }
+.skills-row-status { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.skills-row-meta { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); }
+.skills-badge { font-family: var(--mono); font-size: 0.74rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--panel-border); color: var(--muted); }
+.skills-badge.level-learning { color: var(--warn); border-color: var(--warn); }
+.skills-badge.level-solid { color: var(--info); border-color: var(--info); }
+.skills-badge.level-mastered { color: var(--accent); border-color: var(--accent); }
+@media (max-width: 600px) {
+  .skills-stats { grid-template-columns: repeat(2, 1fr); }
+}

@@ -1,3 +1,4 @@
+import { skillLevelLabel, type SkillReport } from "../game/skills";
 import { ROADMAP_URL } from "../content/curriculum";
 import { recapOf, type DevOpsModule } from "../content/types";
 import type { MissionScore } from "../game/scoring";
@@ -22,6 +23,7 @@ export interface CampaignMapActions {
   onDossier(module: DevOpsModule): void;
   onExam(module: DevOpsModule): void;
   onGeneralExam(): void;
+  onSkills(): void;
   onBack(): void;
 }
 
@@ -41,6 +43,7 @@ export interface TitleScreenOptions {
   /** Ouvre le créateur d'agent (apparence façon Sims). */
   onCustomize(): void;
   onSaveManager(): void;
+  onSkills(): void;
   onReset(): void;
   qualityLabel: string;
   /** Passe à la qualité suivante et renvoie le nouveau libellé du bouton. */
@@ -150,6 +153,7 @@ export class ScreenManager {
           options.resume ? element("p", { className: "resume-detail", text: `Partie en cours · ${options.resume.detail}` }) : null,
           element("div", { className: "title-toolbar" }, [
             button("Personnaliser l'agent", options.onCustomize, "btn ghost small"),
+            button("Mes compétences", options.onSkills, "btn ghost small"),
             button("Sauvegarde", options.onSaveManager, "btn ghost small"),
             qualityButton(options.qualityLabel, options.onCycleQuality),
             toggleButton(options.soundLabel, options.onToggleSound, "Ambiance sonore et effets du jeu."),
@@ -285,7 +289,7 @@ export class ScreenManager {
       element("div", { className: "panel campaign" }, [
         element("div", { className: "campaign-header" }, [
           element("div", {}, [element("p", { className: "eyebrow", text: "Carte des opérations" }), element("h1", { text: "Parcours DevOps" })]),
-          button("← Menu", actions.onBack, "btn ghost"),
+          element("div", { className: "row" }, [button("Mes compétences", actions.onSkills, "btn ghost small"), button("← Menu", actions.onBack, "btn ghost")]),
         ]),
         element("div", { className: "progress" }, [
           element("div", { className: "progress-track" }, [progressFill]),
@@ -302,6 +306,63 @@ export class ScreenManager {
       ]),
     );
     timeline.querySelector<HTMLButtonElement>(".campaign-card.in-progress .btn.primary, .campaign-card.available .btn.primary")?.focus({ preventScroll: false });
+  }
+
+  /** Bilan de compétences : ce qui est acquis, ce qu'il faut consolider, les notions à relire. */
+  showSkills(report: SkillReport, onBack: () => void, onOpenCampaign: () => void): void {
+    const stat = (value: string, label: string): HTMLElement =>
+      element("div", { className: "skills-stat" }, [element("strong", { text: value }), element("span", { text: label })]);
+    const grade = (value: number | null): string => (value === null ? "—" : formatGrade(value));
+    const total = report.entries.length;
+
+    const review =
+      report.reviewList.length === 0
+        ? element("p", { className: "skills-empty", text: report.completedCount === 0 ? "Termine un secteur : les notions à revoir apparaîtront ici." : "Rien à revoir : aucune faute lors de tes dernières missions." })
+        : element(
+            "ul",
+            { className: "skills-review" },
+            report.reviewList.map((notion) =>
+              element("li", {}, [
+                element("p", { className: "skills-review-title" }, [element("strong", { text: notion.title }), element("span", { className: "tag", text: notion.codename })]),
+                richText("p", notion.keyPoint, "skills-review-point"),
+              ]),
+            ),
+          );
+
+    const rows = report.entries.map((entry) => {
+      const examText = entry.examGrade === null ? null : `Examen ${formatGrade(entry.examGrade)}`;
+      return element("li", { className: `skills-row level-${entry.level}` }, [
+        element("div", { className: "skills-row-head" }, [
+          element("div", {}, [element("p", { className: "skills-row-title", text: entry.codename }), element("p", { className: "skills-row-section", text: entry.roadmapSection })]),
+          element("div", { className: "skills-row-status" }, [element("span", { className: `skills-badge level-${entry.level}`, text: skillLevelLabel(entry.level) }), entry.stars > 0 ? starPips(entry.stars) : null, examText ? element("span", { className: "skills-row-meta", text: examText }) : null]),
+        ]),
+        element("ul", { className: "chips" }, entry.topics.map((topic) => element("li", { text: topic }))),
+      ]);
+    });
+
+    const backButton = button("← Retour", onBack, "btn ghost");
+    this.show(
+      element("div", { className: "panel skills" }, [
+        element("div", { className: "campaign-header" }, [
+          element("div", {}, [element("p", { className: "eyebrow", text: "Bilan" }), element("h1", { text: "Mes compétences" })]),
+          backButton,
+        ]),
+        element("div", { className: "skills-stats" }, [
+          stat(`${report.completedCount}/${total}`, "secteurs terminés"),
+          stat(`${report.masteredCount}`, "maîtrisés"),
+          stat(grade(report.averageExamGrade), "moyenne aux examens"),
+          stat(grade(report.generalExamGrade), "examen général"),
+        ]),
+        element("h2", { text: "À revoir" }),
+        review,
+        element("h2", { text: "Par secteur" }),
+        element("p", { className: "skills-legend", text: "Maîtrisé : sans faute et examen réussi. Acquis : sans faute. À consolider : des défis ratés ou un score minimal." }),
+        element("ul", { className: "skills-list" }, rows),
+        element("div", { className: "row" }, [button("Carte des opérations", onOpenCampaign, "btn primary")]),
+        this.roadmapCredit(),
+      ]),
+    );
+    backButton.focus({ preventScroll: true });
   }
 
   /** `addTip` : l'appelant ajoute un encart au briefing (conseil d'orientation sur mobile) dans le conteneur donné. */

@@ -11,6 +11,7 @@ import type { DevOpsModule } from "./content/types";
 import { difficultyForModule } from "./game/difficulty";
 import { buildGeneralExam, buildModuleExam, examTimeLimitSeconds, GENERAL_EXAM_ID, GENERAL_EXAM_MIN_MODULES, mentionFor, type ExamQuestion } from "./game/exam";
 import { cameraZoomForAspect, Mission, type AimInput, type CombatEvent, type ShotResult, type TargetRef } from "./game/mission";
+import { buildSkillReport } from "./game/skills";
 import { isModuleUnlocked, LEVEL_LAYOUT_VERSION, ProgressStore, type MissionCheckpoint } from "./game/progress";
 import { decodeSaveCode, encodeSaveCode, SaveCodeError } from "./game/saveCode";
 import { computeMissionScore } from "./game/scoring";
@@ -172,6 +173,7 @@ class ShadowOpsApp {
       onCampaign: () => (this.progress.avatar === null ? this.openCharacterCreator(true, () => this.showCampaignMap()) : this.showCampaignMap()),
       onCustomize: () => this.openCharacterCreator(false, () => this.showTitle()),
       onSaveManager: () => this.showSaveManager(),
+      onSkills: () => this.showSkills(() => this.showTitle()),
       qualityLabel: this.qualityLabel(),
       onCycleQuality: () => this.cycleQuality(),
       soundLabel: this.soundLabel(),
@@ -212,6 +214,7 @@ class ShadowOpsApp {
       onDossier: (module) => this.screens.showDossier(module, () => this.showCampaignMap()),
       onExam: (module) => this.openModuleExam(module),
       onGeneralExam: () => this.openGeneralExam(),
+      onSkills: () => this.showSkills(() => this.showCampaignMap()),
       onBack: () => this.showTitle(),
     });
   }
@@ -277,6 +280,12 @@ class ShadowOpsApp {
       if (!wanted) return;
       new OrientationHint(container, document, screen, { onDismiss: () => this.dismissOrientationHint() }, { autoHideMs: null, inline: true }).show();
     });
+  }
+
+  private showSkills(onBack: () => void): void {
+    this.endMission();
+    const report = buildSkillReport(CURRICULUM, this.progress.snapshot, GENERAL_EXAM_ID);
+    this.screens.showSkills(report, onBack, () => this.showCampaignMap());
   }
 
   private showSaveManager(): void {
@@ -747,7 +756,9 @@ class ShadowOpsApp {
       intelCollected: mission.intelCollected,
       intelTotal: mission.intelTotal,
     });
-    this.progress.saveResult(module.id, { bestScore: score.score, stars: score.stars, ghost: score.ghost });
+    // Le dernier terminal est la console principale : elle n'a pas de défi ni de leçon, on ne compte que les défis.
+    const missed = this.wrongAttemptsPerTerminal.slice(0, module.challenges.length).flatMap((attempts, index) => (attempts > 0 ? [index] : []));
+    this.progress.saveResult(module.id, { bestScore: score.score, stars: score.stars, ghost: score.ghost, missed });
     this.hideMissionUi();
 
     const moduleIndex = CURRICULUM.indexOf(module);

@@ -5,6 +5,11 @@ export interface ModuleRecord {
   stars: 1 | 2 | 3;
   ghost: boolean;
   completedAt: string;
+  /**
+   * Défis (index dans le module) ratés au moins une fois lors de la dernière mission : la page « Mes compétences »
+   * s'en sert pour dire quoi revoir. Absent des sauvegardes antérieures : lu comme « aucune information ».
+   */
+  missed?: number[];
 }
 
 /** Meilleure note obtenue à un examen (clé : id du module, ou « general »). */
@@ -84,8 +89,16 @@ function isModuleRecord(candidate: unknown): candidate is ModuleRecord {
     (candidate.stars === 1 || candidate.stars === 2 || candidate.stars === 3) &&
     typeof candidate.ghost === "boolean" &&
     typeof candidate.completedAt === "string" &&
-    candidate.completedAt.length <= MAX_ID_LENGTH
+    candidate.completedAt.length <= MAX_ID_LENGTH &&
+    (candidate.missed === undefined || isIndexList(candidate.missed))
   );
+}
+
+/** Copie champ par champ : aucune propriété inattendue d'un code collé ne survit. */
+function copyModuleRecord(record: ModuleRecord): ModuleRecord {
+  const copy: ModuleRecord = { bestScore: record.bestScore, stars: record.stars, ghost: record.ghost, completedAt: record.completedAt };
+  if (record.missed) copy.missed = [...record.missed];
+  return copy;
 }
 
 function isExamRecord(candidate: unknown): candidate is ExamRecord {
@@ -175,7 +188,7 @@ export function progressFromUnknown(parsed: unknown): PlayerProgress {
   if (isRecordObject(rawRecords)) {
     for (const [moduleId, record] of Object.entries(rawRecords)) {
       // SAFE_ID écarte aussi « __proto__ » et consorts : pas de pollution de prototype possible.
-      if (SAFE_ID.test(moduleId) && isModuleRecord(record)) progress.records[moduleId] = { ...record };
+      if (SAFE_ID.test(moduleId) && isModuleRecord(record)) progress.records[moduleId] = copyModuleRecord(record);
     }
   }
   const rawExams = parsed.exams;
@@ -241,6 +254,9 @@ export class ProgressStore {
       ghost: result.ghost || (previous?.ghost ?? false),
       completedAt: new Date().toISOString(),
     };
+    // Les notions à revoir reflètent la dernière mission, même si son score ne bat pas le record.
+    const missed = result.missed ?? previous?.missed;
+    if (missed) merged.missed = [...missed];
     this.progress.records[moduleId] = merged;
     if (this.progress.checkpoint?.moduleId === moduleId) this.progress.checkpoint = null;
     this.persist();
