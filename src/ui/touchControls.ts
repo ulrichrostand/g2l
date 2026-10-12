@@ -203,6 +203,8 @@ export class TouchControls {
       const { deltaX, deltaY } = this.aimPadDelta(event);
       if (aimPadAngle(deltaX, deltaY) !== null) this.hasAimed = true;
       this.input.setVirtualAim(aimPadAngle(deltaX, deltaY));
+      // Revenu au centre après avoir visé : le pad change de couleur, relâcher n'ira pas tirer.
+      this.aimPad.classList.toggle("cancel", aimPadRelease(this.hasAimed, deltaX, deltaY) === "cancel");
       const distance = Math.hypot(deltaX, deltaY);
       const clampScale = distance > AIM_PAD_RADIUS_PX ? AIM_PAD_RADIUS_PX / distance : 1;
       this.aimKnob.style.transform = `translate(${deltaX * clampScale}px, ${deltaY * clampScale}px)`;
@@ -231,7 +233,7 @@ export class TouchControls {
     this.hasAimed = false;
     this.input.setVirtualAim(null);
     this.aimKnob.style.transform = "";
-    this.aimPad.classList.remove("aiming");
+    this.aimPad.classList.remove("aiming", "cancel");
   }
 
   private updateJoystick(event: PointerEvent): void {

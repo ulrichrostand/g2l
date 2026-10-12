@@ -694,6 +694,8 @@ body.touch .keyboard-only, body:not(.touch) .touch-only { display: none; }
   justify-content: center;
 }
 .touch-btn.aim-pad.aiming { background: rgba(255, 59, 78, 0.18); box-shadow: 0 0 16px rgba(255, 59, 78, 0.45); }
+.touch-btn.aim-pad.aiming.cancel { background: rgba(120, 130, 145, 0.25); border-color: var(--muted); box-shadow: none; }
+.touch-btn.aim-pad.aiming.cancel .aim-knob { background: rgba(150, 160, 175, 0.85); }
 .touch-btn.aim-pad.dry { opacity: 0.45; }
 .aim-knob {
   width: 64px;
