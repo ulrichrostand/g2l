@@ -20,7 +20,7 @@ export class Hud {
   private readonly magazine = element("span", { className: "ammo-magazine" });
   private readonly reserve = element("span", { className: "ammo-reserve" });
   private readonly reloadFill = element("div", { className: "reload-fill" });
-  private readonly alarmBanner = element("div", { className: "hud-alarm", text: "⚠ ALERTE — tu es repéré", attributes: { role: "alert" } });
+  private readonly alarmBanner = element("div", { className: "hud-alarm", text: "ALERTE — tu es repéré", attributes: { role: "alert" } });
   private readonly bossName = element("span", { className: "boss-bar-name" });
   private readonly bossStatus = element("span", { className: "boss-bar-status", attributes: { "aria-hidden": "true" } });
   /**
@@ -44,7 +44,7 @@ export class Hud {
   private readonly gadget = element("div", { className: "hud-gadget" });
   private readonly intel = element("div", { className: "hud-intel" });
   private readonly notice = element("div", { className: "hud-notice", attributes: { role: "status", "aria-live": "polite" } });
-  private readonly saved = element("div", { className: "hud-saved", text: "💾 Sauvegardé", attributes: { "aria-hidden": "true" } });
+  private readonly saved = element("div", { className: "hud-saved", text: "Sauvegardé", attributes: { "aria-hidden": "true" } });
   private savedTimer: number | undefined;
   private readonly minimap = element("canvas", { className: "minimap", attributes: { "aria-hidden": "true" } });
   private readonly minimapContext: CanvasRenderingContext2D | null;
@@ -67,7 +67,7 @@ export class Hud {
       this.alarmBanner,
       this.bossBar,
       element("div", { className: "hud-ammo" }, [
-        element("span", { className: "ammo-icon", text: "🔫" }),
+        element("span", { className: "ammo-icon", text: "MUN", attributes: { "aria-label": "Munitions" } }),
         this.magazine,
         this.reserve,
         element("div", { className: "reload-track" }, [this.reloadFill]),
@@ -141,9 +141,9 @@ export class Hud {
         : state.bossDefeated
           ? "Objectif : rejoindre l'extraction"
           : "Objectif : vaincre le boss (salle d'extraction)";
-    this.intel.textContent = `📁 Dossiers : ${state.intelCollected}/${state.intelTotal}`;
+    this.intel.textContent = `Dossiers : ${state.intelCollected}/${state.intelTotal}`;
     this.gadget.hidden = !state.gadgetAvailable;
-    this.gadget.textContent = "⚡ Commande : touche d'abord ta cible, puis F";
+    this.gadget.textContent = "Commande : touche d'abord ta cible, puis F";
     this.lives.textContent = `Vies ${"■".repeat(state.livesLeft)}${"□".repeat(Math.max(0, 3 - state.livesLeft))}`;
     const healthPercent = Math.round((state.health / state.maxHealth) * 100);
     this.healthFill.style.width = `${healthPercent}%`;
@@ -183,7 +183,7 @@ export class Hud {
       this.bossAnnouncedKey = "";
       return;
     }
-    this.bossName.textContent = `☠ ${boss.name}`;
+    this.bossName.textContent = boss.name;
     const exposed = boss.state === "exposed";
     this.bossStatus.textContent =
       boss.state === "awakening"

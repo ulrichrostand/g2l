@@ -135,8 +135,6 @@
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
 }
-.creator-tab-icon { font-size: 1.2rem; line-height: 1; filter: grayscale(0.6); opacity: 0.8; }
-.creator-tab[aria-selected="true"] .creator-tab-icon { filter: none; opacity: 1; }
 .creator-tab:hover { color: var(--text); }
 .creator-tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
 

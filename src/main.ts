@@ -30,7 +30,7 @@ import { requireElement } from "./ui/dom";
 import { Hud } from "./ui/hud";
 import { LessonPanel } from "./ui/lessonPanel";
 import { RenderPipeline } from "./render/renderPipeline";
-import { ScreenManager } from "./ui/screens";
+import { ScreenManager, type CampaignSummary } from "./ui/screens";
 import { prefersTouchControls, TouchControls } from "./ui/touchControls";
 
 const MAX_FRAME_DELTA_SECONDS = 0.05;
@@ -142,6 +142,7 @@ class ShadowOpsApp {
     const resumeModule = checkpoint ? this.moduleById(checkpoint.moduleId) : undefined;
     this.screens.showTitle({
       hasProgress: Object.keys(this.progress.snapshot.records).length > 0 || checkpoint !== null,
+      campaign: this.campaignSummary(),
       resume:
         checkpoint && resumeModule
           ? {
@@ -163,6 +164,17 @@ class ShadowOpsApp {
         this.showTitle();
       },
     });
+  }
+
+  /** Avancement affiché à l'accueil : secteurs libérés et prochain secteur à jouer. */
+  private campaignSummary(): CampaignSummary {
+    const completed = this.completedModules().length;
+    const next = CURRICULUM.find((module) => this.progress.recordFor(module.id) === undefined && isModuleUnlocked(this.moduleIds, module.id, this.progress.snapshot));
+    return {
+      completed,
+      total: CURRICULUM.length,
+      next: next ? { codename: next.codename, title: next.title, section: next.roadmapSection } : null,
+    };
   }
 
   private showCampaignMap(): void {
@@ -326,7 +338,7 @@ class ShadowOpsApp {
         ? "Mission reprise depuis ta dernière sauvegarde."
         : checkpoint
           ? "Ta sauvegarde de mission date d'une ancienne version du jeu : le secteur repart de zéro (ta campagne est intacte)."
-          : "Ramasse les dossiers 📁, pirate les terminaux rouges et résous l'incident sur la console principale bleue.",
+          : "Ramasse les dossiers jaunes, pirate les terminaux rouges et résous l'incident sur la console principale bleue.",
     );
     this.mission.resume();
     this.ambience.start();

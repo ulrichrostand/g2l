@@ -7,14 +7,14 @@ export function lessonCard(lesson: Lesson): HTMLElement {
     element("h2", { className: "lesson-title", text: lesson.title }),
     richText("p", lesson.summary, "lesson-summary"),
     element("div", { className: "lesson-block analogy" }, [
-      element("span", { className: "lesson-label", text: "💡 Pour imaginer" }),
+      element("span", { className: "lesson-label", text: "Pour imaginer" }),
       richText("p", lesson.analogy),
     ]),
   ];
   if (lesson.example) {
     sections.push(
       element("div", { className: "lesson-block example" }, [
-        element("span", { className: "lesson-label", text: "⌨️ Exemple" }),
+        element("span", { className: "lesson-label", text: "Exemple" }),
         element("pre", { className: "lesson-code", text: lesson.example.code }),
         richText("p", lesson.example.meaning),
       ]),
@@ -22,7 +22,7 @@ export function lessonCard(lesson: Lesson): HTMLElement {
   }
   sections.push(
     element("div", { className: "lesson-block keypoint" }, [
-      element("span", { className: "lesson-label", text: "✅ À retenir" }),
+      element("span", { className: "lesson-label", text: "À retenir" }),
       richText("p", lesson.keyPoint),
     ]),
   );
@@ -47,7 +47,7 @@ export class LessonPanel {
     }, "btn primary");
     this.container.replaceChildren(
       element("div", { className: "panel lesson-panel", attributes: { role: "dialog", "aria-modal": "true" } }, [
-        element("p", { className: "eyebrow", text: `📁 ${options.eyebrow}` }),
+        element("p", { className: "eyebrow", text: options.eyebrow }),
         options.intro ? element("p", { className: "lesson-intro", text: options.intro }) : null,
         lessonCard(lesson),
         element("div", { className: "row" }, [continueButton]),

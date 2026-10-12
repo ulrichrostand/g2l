@@ -25,8 +25,17 @@ export interface CampaignMapActions {
   onBack(): void;
 }
 
+/** Avancement de la campagne, résumé dans le « dossier de mission » de l'accueil. */
+export interface CampaignSummary {
+  completed: number;
+  total: number;
+  /** Prochain secteur à libérer (le premier débloqué et pas encore réussi), ou null si tout est libéré. */
+  next: { codename: string; title: string; section: string } | null;
+}
+
 export interface TitleScreenOptions {
   hasProgress: boolean;
+  campaign: CampaignSummary;
   resume: { label: string; detail: string; onResume(): void } | null;
   onCampaign(): void;
   /** Ouvre le créateur d'agent (apparence façon Sims). */
@@ -117,41 +126,79 @@ export class ScreenManager {
   showTitle(options: TitleScreenOptions): void {
     const resetButton = button("Réinitialiser la progression", () => {
       if (window.confirm("Effacer toute la progression de la campagne ? Pense à copier ton code de sauvegarde avant.")) options.onReset();
-    }, "btn ghost");
+    }, "btn ghost small");
     resetButton.hidden = !options.hasProgress;
     const campaignButton = button(
       options.hasProgress ? "Carte des opérations" : "Commencer la campagne",
       options.onCampaign,
       options.resume ? "btn big" : "btn primary big",
     );
-    const resumeBlock = options.resume
-      ? element("div", { className: "resume-block" }, [
-          button(options.resume.label, options.resume.onResume, "btn primary big"),
-          element("span", { className: "resume-detail", text: `💾 ${options.resume.detail}` }),
-        ])
-      : null;
+    const resumeButton = options.resume ? button(options.resume.label, options.resume.onResume, "btn primary big") : null;
     this.show(
       element("div", { className: "panel title-screen" }, [
-        element("p", { className: "eyebrow", text: "Cellule Écho — dossier classifié" }),
-        element("h1", { className: "logo", text: "SHADOW OPS" }),
-        element("p", { className: "logo-sub", text: "DevOps Infiltration" }),
-        element("p", {
-          className: "lead",
-          text: "Le collectif ENTROPIA a pris le contrôle de toute l'infrastructure d'Helix Corp. Tu es Spectre, agent d'infiltration de la cellule Écho. Traverse 16 secteurs : ramasse les dossiers pour apprendre, pirate les terminaux pour le prouver. Touche les sentinelles au pistolet, puis termine-les avec de vraies commandes. Aucune connaissance requise, on part de zéro.",
-        }),
-        resumeBlock,
-        element("div", { className: "row" }, [
-          campaignButton,
-          button("🧑 Personnaliser l'agent", options.onCustomize, "btn ghost"),
-          button("💾 Sauvegarde", options.onSaveManager, "btn ghost"),
-          qualityButton(options.qualityLabel, options.onCycleQuality),
-          toggleButton(options.soundLabel, options.onToggleSound, "Ambiance sonore et effets du jeu."),
-          resetButton,
+        element("section", { className: "title-hero" }, [
+          element("p", { className: "eyebrow", text: "Cellule Écho — dossier classifié" }),
+          element("h1", { className: "logo", text: "SHADOW OPS" }),
+          element("p", { className: "logo-sub", text: "DevOps Infiltration" }),
+          element("p", {
+            className: "lead",
+            text: "ENTROPIA a pris le contrôle de l'infrastructure d'Helix Corp. Tu es Spectre, agent de la cellule Écho : traverse 16 secteurs, apprends le DevOps dans les dossiers, prouve-le sur les terminaux et neutralise les sentinelles avec de vraies commandes. Aucune connaissance requise.",
+          }),
+          element("div", { className: "title-actions" }, [resumeButton, campaignButton]),
+          options.resume ? element("p", { className: "resume-detail", text: `Partie en cours · ${options.resume.detail}` }) : null,
+          element("div", { className: "title-toolbar" }, [
+            button("Personnaliser l'agent", options.onCustomize, "btn ghost small"),
+            button("Sauvegarde", options.onSaveManager, "btn ghost small"),
+            qualityButton(options.qualityLabel, options.onCycleQuality),
+            toggleButton(options.soundLabel, options.onToggleSound, "Ambiance sonore et effets du jeu."),
+            resetButton,
+          ]),
         ]),
+        this.missionFile(options.campaign),
         this.roadmapCredit(),
       ]),
     );
-    (resumeBlock?.querySelector("button") ?? campaignButton).focus({ preventScroll: true });
+    (resumeButton ?? campaignButton).focus({ preventScroll: true });
+  }
+
+  /** Encadré « dossier de mission » : où en est la campagne, quel secteur vient ensuite, et la boucle de jeu. */
+  private missionFile(campaign: CampaignSummary): HTMLElement {
+    const percent = campaign.total > 0 ? Math.round((campaign.completed / campaign.total) * 100) : 0;
+    const fill = element("div", { className: "progress-fill" });
+    fill.style.width = `${percent}%`;
+    const next = campaign.next
+      ? element("div", { className: "mission-next" }, [
+          element("span", { className: "mission-label", text: campaign.completed === 0 ? "Premier secteur" : "Prochain secteur" }),
+          element("strong", { text: campaign.next.codename }),
+          element("span", { text: campaign.next.title }),
+          element("span", { className: "mission-section", text: campaign.next.section }),
+        ])
+      : element("div", { className: "mission-next" }, [
+          element("span", { className: "mission-label", text: "Campagne terminée" }),
+          element("strong", { text: "Les 16 secteurs sont libérés" }),
+          element("span", { text: "Rejoue un secteur pour viser trois étoiles, ou passe l'examen général." }),
+        ]);
+    const steps: [string, string, string][] = [
+      ["01", "Apprendre", "Ramasse les dossiers : chaque notion expliquée simplement, avec un exemple."],
+      ["02", "Prouver", "Pirate les terminaux en répondant ou en tapant la vraie commande."],
+      ["03", "Neutraliser", "Touche une sentinelle au pistolet, puis termine-la avec kill, docker ou kubectl."],
+    ];
+    return element("aside", { className: "mission-file", attributes: { "aria-label": "Dossier de mission" } }, [
+      element("p", { className: "mission-label", text: "Dossier de mission" }),
+      element("div", { className: "mission-progress" }, [
+        element("span", { className: "mission-count", text: `${campaign.completed}/${campaign.total}` }),
+        element("span", { className: "mission-label", text: "secteurs libérés" }),
+      ]),
+      element("div", { className: "progress-track" }, [fill]),
+      next,
+      element(
+        "ol",
+        { className: "mission-steps" },
+        steps.map(([number, title, text]) =>
+          element("li", {}, [element("span", { className: "step-number", text: number }), element("div", {}, [element("strong", { text: title }), element("p", { text })])]),
+        ),
+      ),
+    ]);
   }
 
   showSaveManager(options: SaveManagerOptions): void {
@@ -164,7 +211,7 @@ export class ScreenManager {
     const copyButton = button("Copier le code", () => {
       void copyToClipboard(codeField).then((copied) => {
         copyStatus.textContent = copied
-          ? "✔ Code copié. Colle-le dans le jeu sur ton autre appareil (menu 💾 Sauvegarde)."
+          ? "✔ Code copié. Colle-le dans le jeu sur ton autre appareil (menu Sauvegarde)."
           : "Copie automatique impossible : le code est sélectionné, copie-le manuellement (appui long ou Ctrl+C).";
       });
     }, "btn primary");
@@ -189,13 +236,13 @@ export class ScreenManager {
     this.show(
       element("div", { className: "panel save-manager" }, [
         element("p", { className: "eyebrow", text: "Sauvegarde" }),
-        element("h1", { text: "💾 Ta progression" }),
+        element("h1", { text: "Ta progression" }),
         element("p", { className: "lead", text: options.summary }),
         element("p", {
           className: options.persistent ? "save-status" : "save-status warn",
           text: options.persistent
             ? `Sauvegarde automatique activée${options.savedAt ? ` · dernière sauvegarde : ${formatDate(options.savedAt)}` : ""}. Elle a lieu à chaque terminal piraté, dossier ramassé, sentinelle neutralisée et à chaque pause.`
-            : "⚠️ Ton navigateur bloque le stockage (navigation privée ?) : la progression sera perdue en fermant la page. Utilise le code ci-dessous pour la garder.",
+            : "Ton navigateur bloque le stockage (navigation privée ?) : la progression sera perdue en fermant la page. Utilise le code ci-dessous pour la garder.",
         }),
         element("h2", { text: "Changer d'appareil" }),
         element("p", { text: "La sauvegarde est enregistrée dans ce navigateur. Pour continuer sur un autre appareil (téléphone ↔ PC), copie ce code puis importe-le là-bas." }),
@@ -217,36 +264,42 @@ export class ScreenManager {
     this.show(content);
   }
 
+  /**
+   * Carte façon roadmap.sh : une colonne vertébrale verticale qui se colore avec la progression, chaque secteur
+   * comme un nœud dessus, ses notions en pastilles d'un côté, son état et ses actions de l'autre (en alternance),
+   * et l'examen général comme nœud final.
+   */
   showCampaignMap(entries: CampaignEntry[], generalExamRecord: ExamRecord | undefined, actions: CampaignMapActions): void {
     const completedCount = entries.filter((entry) => entry.record).length;
     const progressPercent = Math.round((completedCount / entries.length) * 100);
     const progressFill = element("div", { className: "progress-fill" });
     progressFill.style.width = `${progressPercent}%`;
 
-    const list = element("ol", { className: "campaign-list" });
-    entries.forEach((entry, index) => list.append(this.campaignCard(entry, index, actions)));
+    const timeline = element("ol", { className: "timeline" });
+    entries.forEach((entry, index) => timeline.append(this.timelineItem(entry, index, actions)));
+    timeline.append(this.generalExamNode(completedCount, generalExamRecord, actions.onGeneralExam));
 
     this.show(
       element("div", { className: "panel campaign" }, [
         element("div", { className: "campaign-header" }, [
-          element("div", {}, [
-            element("p", { className: "eyebrow", text: "Carte des opérations" }),
-            element("h1", { text: "Parcours DevOps" }),
-          ]),
+          element("div", {}, [element("p", { className: "eyebrow", text: "Carte des opérations" }), element("h1", { text: "Parcours DevOps" })]),
           button("← Menu", actions.onBack, "btn ghost"),
         ]),
         element("div", { className: "progress" }, [
           element("div", { className: "progress-track" }, [progressFill]),
           element("span", { text: `${completedCount}/${entries.length} secteurs libérés · ${progressPercent}%` }),
         ]),
-        this.generalExamBlock(completedCount, generalExamRecord, actions.onGeneralExam),
-        list,
+        element("ul", { className: "timeline-legend", attributes: { "aria-label": "Légende" } }, [
+          element("li", { className: "legend-completed", text: "Libéré" }),
+          element("li", { className: "legend-available", text: "Disponible" }),
+          element("li", { className: "legend-in-progress", text: "En cours" }),
+          element("li", { className: "legend-locked", text: "Verrouillé" }),
+        ]),
+        timeline,
         this.roadmapCredit(),
       ]),
     );
-    list
-      .querySelector<HTMLButtonElement>(".campaign-card.in-progress .btn.primary, .campaign-card.available .btn.primary")
-      ?.focus({ preventScroll: true });
+    timeline.querySelector<HTMLButtonElement>(".campaign-card.in-progress .btn.primary, .campaign-card.available .btn.primary")?.focus({ preventScroll: false });
   }
 
   showBriefing(module: DevOpsModule, moduleNumber: number, warning: string | null, onLaunch: () => void, onBack: () => void): void {
@@ -263,9 +316,9 @@ export class ScreenManager {
         ...controlsList(),
         element("p", {
           className: "tip",
-          text: "Astuce : les dossiers jaunes 📁 contiennent les leçons. Les racks bloquent la vue et les balles des sentinelles : observe leurs rondes avant de bouger. Si elles te voient, elles tirent.",
+          text: "Astuce : les dossiers jaunes contiennent les leçons. Les racks bloquent la vue et les balles des sentinelles : observe leurs rondes avant de bouger. Si elles te voient, elles tirent.",
         }),
-        warning ? element("p", { className: "save-status warn", text: `💾 ${warning}` }) : null,
+        warning ? element("p", { className: "save-status warn", text: warning }) : null,
         element("div", { className: "row" }, [launchButton, button("Retour", onBack, "btn ghost")]),
       ]),
     );
@@ -287,7 +340,7 @@ export class ScreenManager {
           this.stat("Score", `${score.score} / ${score.maxScore}`),
           this.stat("Précision 1er essai", `${Math.round(score.firstTryAccuracy * 100)} %`),
           this.stat("Dossiers", `${data.intelCollected}/${data.intelTotal}`),
-          this.stat("Détections", score.ghost ? "0 — Fantôme 👻" : String(data.detections)),
+          this.stat("Détections", score.ghost ? "0 — Fantôme" : String(data.detections)),
           this.stat("Neutralisations", String(data.neutralizations)),
           this.stat("Boss vaincu", data.bossName),
           this.stat("Durée", formatDuration(data.elapsedSeconds)),
@@ -321,8 +374,8 @@ export class ScreenManager {
         element("p", {
           className: persistent ? "save-status" : "save-status warn",
           text: persistent
-            ? "💾 Progression sauvegardée. Tu peux quitter et reprendre plus tard depuis l'écran titre."
-            : "⚠️ Stockage bloqué par le navigateur : la progression sera perdue en fermant la page.",
+            ? "Progression sauvegardée. Tu peux quitter et reprendre plus tard depuis l'écran titre."
+            : "Stockage bloqué par le navigateur : la progression sera perdue en fermant la page.",
         }),
         ...controlsList(),
         element("div", { className: "row" }, [
@@ -372,19 +425,25 @@ export class ScreenManager {
   }
 
   /** L'examen général se débloque dès que deux secteurs sont libérés : avant, il doublerait l'examen du module. */
-  private generalExamBlock(completedCount: number, record: ExamRecord | undefined, onGeneralExam: () => void): HTMLElement {
+  /** Nœud final de la timeline : l'examen général, ouvert après quelques secteurs libérés. */
+  private generalExamNode(completedCount: number, record: ExamRecord | undefined, onGeneralExam: () => void): HTMLLIElement {
     const available = completedCount >= GENERAL_EXAM_MIN_MODULES;
-    const examButton = button("🎓 Examen général", onGeneralExam, available ? "btn" : "btn ghost");
+    const examButton = button("Examen général", onGeneralExam, available ? "btn primary" : "btn ghost");
     examButton.disabled = !available;
     const detail = !available
       ? `Disponible après ${GENERAL_EXAM_MIN_MODULES} secteurs libérés : des questions mélangées de tous tes modules, chronométrées.`
       : record
         ? `Meilleure note : ${formatGrade(record.bestGrade)} · ${record.attempts} tentative${record.attempts > 1 ? "s" : ""}`
         : "Des questions mélangées de tous les secteurs libérés, chronométrées et notées sur 20.";
-    return element("div", { className: "general-exam" }, [examButton, element("span", { className: "general-exam-detail", text: detail })]);
+    const status = record ? "completed" : available ? "available" : "locked";
+    return element("li", { className: `timeline-item timeline-final ${status}` }, [
+      element("div", { className: "timeline-node" }, [element("span", { className: "node-section", text: "Validation finale" }), element("strong", { text: "Examen général" })]),
+      element("div", { className: "campaign-card final-card" }, [element("p", { className: "card-detail", text: detail }), element("div", { className: "card-actions" }, [examButton])]),
+    ]);
   }
 
-  private campaignCard(entry: CampaignEntry, index: number, handlers: CampaignMapActions): HTMLLIElement {
+  /** Un secteur de la timeline : nœud sur la colonne, notions d'un côté, état et actions de l'autre. */
+  private timelineItem(entry: CampaignEntry, index: number, handlers: CampaignMapActions): HTMLLIElement {
     const { module, unlocked, record, inProgress, examRecord } = entry;
     const status = inProgress ? "in-progress" : record ? "completed" : unlocked ? "available" : "locked";
     const actions = element("div", { className: "card-actions" });
@@ -393,20 +452,22 @@ export class ScreenManager {
     if (record) actions.append(button("Dossier", () => handlers.onDossier(module), "btn ghost"));
     // L'examen d'un module n'est proposé qu'une fois le module joué : on ne note pas ce qu'on n'a pas appris.
     if (record) actions.append(button("Examen", () => handlers.onExam(module), "btn ghost"));
-    const stars = record ? `${"★".repeat(record.stars)}${"☆".repeat(3 - record.stars)}${record.ghost ? " 👻" : ""}` : "";
-    const badge = inProgress ? `💾 En cours ${stars}`.trim() : record ? stars : unlocked ? "Disponible" : "🔒 Verrouillé";
-    return element("li", { className: `campaign-card ${status}` }, [
-      element("span", { className: "card-index", text: String(index).padStart(2, "0") }),
-      element("div", { className: "card-body" }, [
-        element("p", { className: "card-codename", text: module.codename }),
-        element("h3", { text: module.title }),
-        element("p", { className: "card-section", text: module.roadmapSection }),
+    const statusLabel = inProgress ? "En cours" : record ? "Libéré" : unlocked ? "Disponible" : "Verrouillé";
+    const tags = element("div", { className: "card-tags" }, [
+      element("span", { className: "card-status", text: statusLabel }),
+      record ? starPips(record.stars) : null,
+      record?.ghost ? element("span", { className: "tag", text: "Fantôme" }) : null,
+      examRecord ? element("span", { className: "card-exam", text: `Examen ${formatGrade(examRecord.bestGrade)}` }) : null,
+    ]);
+    const side = index % 2 === 0 ? "left" : "right";
+    return element("li", { className: `timeline-item ${status} topics-${side}` }, [
+      element("ul", { className: "timeline-topics", attributes: { "aria-label": "Notions de la roadmap" } }, module.roadmapTopics.map((topic) => element("li", { text: topic }))),
+      element("div", { className: "timeline-node" }, [
+        element("span", { className: "node-index", text: `Secteur ${String(index).padStart(2, "0")}` }),
+        element("strong", { text: module.title }),
+        element("span", { className: "node-section", text: module.roadmapSection }),
       ]),
-      element("div", { className: "card-side" }, [
-        element("span", { className: "card-badge", text: badge }),
-        examRecord ? element("span", { className: "card-exam", text: `🎓 ${formatGrade(examRecord.bestGrade)}` }) : null,
-        actions,
-      ]),
+      element("div", { className: `campaign-card ${status}` }, [element("p", { className: "card-codename", text: module.codename }), tags, actions]),
     ]);
   }
 
@@ -427,7 +488,7 @@ export class ScreenManager {
     // Chaque dossier est dépliable : on relit le cours sans noyer le récapitulatif.
     const lessons = module.lessons.map((lesson, index) => {
       const details = element("details", { className: "lesson-details" }, [
-        element("summary", { text: `📁 Dossier ${index + 1} — ${lesson.title}` }),
+        element("summary", { text: `Dossier ${index + 1} — ${lesson.title}` }),
         lessonCard(lesson),
       ]);
       details.open = lessonsOpen && index === 0;
@@ -481,6 +542,12 @@ async function copyToClipboard(field: HTMLTextAreaElement): Promise<boolean> {
   }
 }
 
+/** Étoiles du record (0 à 3) en pastilles dessinées en CSS, lisibles par les lecteurs d'écran. */
+function starPips(stars: number): HTMLElement {
+  const pips = [0, 1, 2].map((index) => element("span", { className: index < stars ? "pip on" : "pip", attributes: { "aria-hidden": "true" } }));
+  return element("span", { className: "pips", attributes: { role: "img", "aria-label": `${stars} étoile${stars > 1 ? "s" : ""} sur 3` } }, pips);
+}
+
 function qualityButton(label: string, onCycle: () => string): HTMLButtonElement {
   return toggleButton(label, onCycle, "Haute : ombres et effets lumineux. Basse : le plus fluide sur les appareils modestes.");
 }
@@ -489,7 +556,7 @@ function qualityButton(label: string, onCycle: () => string): HTMLButtonElement 
 function toggleButton(label: string, onToggle: () => string, title: string): HTMLButtonElement {
   const node = button(label, () => {
     node.textContent = onToggle();
-  }, "btn ghost");
+  }, "btn ghost small");
   node.title = title;
   return node;
 }

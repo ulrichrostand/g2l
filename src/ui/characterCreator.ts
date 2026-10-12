@@ -35,11 +35,11 @@ export interface CreatorHint {
   text: string;
 }
 
-export const CREATOR_TABS: readonly { id: CreatorTabId; label: string; icon: string }[] = [
-  { id: "body", label: "Corps", icon: "🧍" },
-  { id: "hair", label: "Cheveux", icon: "💇" },
-  { id: "outfit", label: "Tenue", icon: "🦺" },
-  { id: "gear", label: "Équipement", icon: "🥽" },
+export const CREATOR_TABS: readonly { id: CreatorTabId; label: string }[] = [
+  { id: "body", label: "Corps" },
+  { id: "hair", label: "Cheveux" },
+  { id: "outfit", label: "Tenue" },
+  { id: "gear", label: "Équipement" },
 ];
 
 /** Taille réelle affichée pour l'échelle 1 : « 1,75 m » parle plus à un joueur qu'un facteur 1,00. */
@@ -341,7 +341,7 @@ export class CharacterCreator {
       return;
     }
     this.replaceConfig(drawn, "now");
-    this.announce("🎲 Nouvel agent tiré au hasard. Clique encore pour un autre look !");
+    this.announce("Nouvel agent tiré au hasard. Clique encore pour un autre look !");
   }
 
   private reset(): void {
@@ -444,16 +444,15 @@ export class CharacterCreator {
   private buildPanel(): HTMLElement {
     const tabList = element("div", { className: "creator-tabs", attributes: { role: "tablist", "aria-label": "Catégories de personnalisation" } });
     const body = element("div", { className: "creator-body" });
-    for (const { id, label, icon } of CREATOR_TABS) {
+    for (const { id, label } of CREATOR_TABS) {
       const selected = id === this.activeTab;
-      // Icône + libellé sur deux lignes : les cinq onglets tiennent sur la largeur, même sur téléphone.
       const tab = element(
         "button",
         {
           className: "creator-tab",
           attributes: { type: "button", role: "tab", id: `creator-tab-${id}`, "aria-controls": `creator-tabpanel-${id}`, "aria-selected": String(selected) },
         },
-        [element("span", { className: "creator-tab-icon", text: icon, attributes: { "aria-hidden": "true" } }), element("span", { text: label })],
+        [element("span", { text: label })],
       );
       tab.addEventListener("click", () => this.selectTab(id));
       // Un seul onglet dans l'ordre de tabulation : les flèches passent d'un onglet à l'autre (motif ARIA).
@@ -481,7 +480,7 @@ export class CharacterCreator {
       body,
       element("footer", { className: "creator-actions" }, [
         this.status,
-        button("🎲 Aléatoire", () => this.randomize(), "btn"),
+        button("Aléatoire", () => this.randomize(), "btn"),
         button("Réinitialiser", () => this.reset(), "btn ghost"),
         button("Annuler", () => this.cancel(), "btn ghost"),
         button("Valider l'agent", () => this.save(), "btn primary"),
@@ -560,7 +559,7 @@ export class CharacterCreator {
       // Ne touche au DOM que si le contenu change : pas de relecture inutile par les lecteurs d'écran.
       if (entry.hints.dataset.key === key) continue;
       entry.hints.dataset.key = key;
-      entry.hints.replaceChildren(...texts.map((text) => element("p", { className: "creator-hint", text: `💡 ${text}` })));
+      entry.hints.replaceChildren(...texts.map((text) => element("p", { className: "creator-hint", text })));
     }
   }
 

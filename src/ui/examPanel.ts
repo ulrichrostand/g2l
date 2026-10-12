@@ -98,7 +98,7 @@ export class ExamPanel {
       return;
     }
     const remaining = this.remainingSeconds;
-    this.timerLabel.textContent = `⏱ ${formatClock(remaining)}`;
+    this.timerLabel.textContent = formatClock(remaining);
     this.timerLabel.classList.toggle("low", remaining <= LOW_TIME_SECONDS);
     if (remaining <= 0) this.finish(true);
   }
@@ -209,11 +209,11 @@ export class ExamPanel {
         element("p", { className: "eyebrow", text: `Résultat · ${this.plan.title}` }),
         element("p", { className: mention.passed ? "exam-grade passed" : "exam-grade failed", text: formatGrade(outcome.grade) }),
         element("p", { className: mention.passed ? "exam-mention passed" : "exam-mention failed", text: mention.label }),
-        outcome.timedOut ? element("p", { className: "save-status warn", text: "⏱ Temps écoulé : les questions restantes sont comptées fausses." }) : null,
+        outcome.timedOut ? element("p", { className: "save-status warn", text: "Temps écoulé : les questions restantes sont comptées fausses." }) : null,
         element("div", { className: "stats" }, [
           stat("Bonnes réponses", `${outcome.correctCount}/${outcome.questionCount}`),
           stat("Temps", formatClock(outcome.elapsedSeconds)),
-          stat("Meilleure note", `${formatGrade(best.bestGrade)}${best.improved ? " 🏆" : ""}`),
+          stat("Meilleure note", `${formatGrade(best.bestGrade)}${best.improved ? " · record" : ""}`),
         ]),
         best.improved ? element("p", { className: "granted", text: "Nouveau record enregistré !" }) : null,
         element("h2", { text: "Correction" }),

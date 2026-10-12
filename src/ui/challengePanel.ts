@@ -151,9 +151,9 @@ export class ChallengePanel {
   }
 
   private secondaryActions(): HTMLButtonElement[] {
-    const reviewButton = button(this.lessonBox.hidden ? "📁 Revoir le dossier" : "📁 Masquer le dossier", () => {
+    const reviewButton = button(this.lessonBox.hidden ? "Revoir le dossier" : "Masquer le dossier", () => {
       this.lessonBox.hidden = !this.lessonBox.hidden;
-      reviewButton.textContent = this.lessonBox.hidden ? "📁 Revoir le dossier" : "📁 Masquer le dossier";
+      reviewButton.textContent = this.lessonBox.hidden ? "Revoir le dossier" : "Masquer le dossier";
     }, "btn ghost");
     return [reviewButton, this.disconnectButton()];
   }
