@@ -66,6 +66,23 @@ describe("Boss avec l'androïde", () => {
     expect(visiblePlates).toBeGreaterThan(0);
   });
 
+  it("revient au colosse procédural (plaques comprises) quand l'appareil ne suit plus, même si l'androïde arrive après", async () => {
+    const boss = new Boss(arenaGrid(), { ...options, androidModel: Promise.resolve(fakeSentinelAsset()) });
+    await flush();
+    expect(boss.usesAndroidModel).toBe(true);
+    boss.dropAndroid();
+    expect(boss.usesAndroidModel).toBe(false);
+    expect(() => boss.update(1 / 30, null)).not.toThrow();
+    expect(boss.root.getObjectByName("Mannequin")).toBeUndefined();
+
+    let deliver: (asset: ReturnType<typeof fakeSentinelAsset>) => void = () => undefined;
+    const late = new Boss(arenaGrid(), { ...options, androidModel: new Promise((resolve) => (deliver = resolve)) });
+    late.dropAndroid();
+    deliver(fakeSentinelAsset());
+    await flush();
+    expect(late.usesAndroidModel).toBe(false);
+  });
+
   it("un téléchargement raté laisse le colosse procédural, sans erreur", async () => {
     const warn = console.warn;
     console.warn = () => undefined;

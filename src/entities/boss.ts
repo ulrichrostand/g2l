@@ -142,6 +142,7 @@ export class Boss {
   private readonly bounds: ArenaBounds;
   private readonly home = new THREE.Vector3();
   private readonly model: BossModel;
+  private androidDropped = false;
   private readonly visual: BossVisualState;
 
   private currentState: BossState = "dormant";
@@ -222,9 +223,16 @@ export class Boss {
     return this.model.usesAndroid;
   }
 
+  /** Revient au colosse procédural, et empêche l'androïde de s'afficher s'il arrive après coup. */
+  dropAndroid(): void {
+    this.androidDropped = true;
+    this.model.dropAndroid();
+  }
+
   private async attachAndroid(androidModel: Promise<SentinelAsset>): Promise<void> {
     try {
-      this.model.attachAndroid(await androidModel);
+      const asset = await androidModel;
+      if (!this.androidDropped) this.model.attachAndroid(asset);
     } catch (error) {
       console.warn("Androïde du boss indisponible : le colosse procédural reste affiché.", error);
     }
@@ -804,6 +812,7 @@ class BossModel {
    * Celles du corps affiché : du colosse procédural, ou de l'androïde une fois chargé.
    */
   private plates: THREE.Mesh[] = [];
+  private proceduralPlates: THREE.Mesh[] = [];
   private android: BossAndroid | null = null;
   private androidSpeed = 0;
   private readonly shieldFill: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
@@ -926,8 +935,18 @@ class BossModel {
     android.root.rotation.y = this.yaw.rotation.y;
     this.group.add(android.root);
     this.yaw.visible = false;
+    this.proceduralPlates = this.plates;
     this.plates = android.plates;
     this.android = android;
+  }
+
+  /** Revient au colosse procédural, plaques comprises (appareil qui n'arrive plus à suivre). */
+  dropAndroid(): void {
+    if (!this.android) return;
+    this.android.dispose();
+    this.android = null;
+    this.plates = this.proceduralPlates;
+    this.yaw.visible = true;
   }
 
   update(deltaSeconds: number, view: BossVisualState, position: THREE.Vector3): void {

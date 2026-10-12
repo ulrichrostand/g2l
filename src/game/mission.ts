@@ -345,7 +345,9 @@ export class Mission {
     this.intel = this.layout.intel.map((cell) => new IntelPickup(cell));
     for (const pickup of this.intel) this.scene.add(pickup.root);
 
-    this.guards = this.layout.guards.map((route) => new Guard(this.layout.grid, route, difficulty.guardTuning, undefined, options.sentinelModel ?? null));
+    // Qualité basse : on ne passe même pas le modèle, les robots procéduraux restent (et rien n'est animé en 3D riggée).
+    const androidModel = options.quality.detailedAndroids ? (options.sentinelModel ?? null) : null;
+    this.guards = this.layout.guards.map((route) => new Guard(this.layout.grid, route, difficulty.guardTuning, undefined, androidModel));
     this.identities = this.guards.map((_, index) => createSentinelIdentity(seed, index + 1));
     this.wasSuspended = this.guards.map(() => false);
     for (const guard of this.guards) this.scene.add(guard.root, guard.visionCone);
@@ -360,7 +362,7 @@ export class Mission {
       color: options.boss.color,
       level: options.moduleIndex,
       arena: this.arena,
-      androidModel: options.sentinelModel ?? null,
+      androidModel,
     });
     this.scene.add(this.boss.root);
 
@@ -448,6 +450,15 @@ export class Mission {
 
   pause(): void {
     this.paused = true;
+  }
+
+  /**
+   * Remplace les androïdes animés par les robots procéduraux, bien plus légers (appareil qui ne suit plus).
+   * Visuel seulement : rondes, vision et combat ne changent pas. Irréversible pour ce secteur.
+   */
+  useSimpleAndroids(): void {
+    for (const guard of this.guards) guard.dropAndroid();
+    this.boss.dropAndroid();
   }
 
   setCameraZoom(zoom: number): void {

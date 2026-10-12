@@ -122,6 +122,7 @@ export class Guard {
   private hitFlash = 0;
   /** Androïde riggé : null tant qu'il charge (ou s'il n'a pas pu charger), le robot procédural le remplace. */
   private android: SentinelAndroid | null = null;
+  private androidDropped = false;
   private groundSpeed = 0;
   private pendingShot: GuardShot | null = null;
   private alarmPending = false;
@@ -159,7 +160,10 @@ export class Guard {
    */
   private async attachAndroid(androidModel: Promise<SentinelAsset>): Promise<void> {
     try {
-      const android = new SentinelAndroid(await androidModel, this.visorMaterial);
+      const asset = await androidModel;
+      // Renoncé pendant le téléchargement : l'appareil est trop lent, on ne l'affiche pas à l'arrivée.
+      if (this.androidDropped) return;
+      const android = new SentinelAndroid(asset, this.visorMaterial);
       android.root.rotation.y = this.body.rotation.y;
       this.root.add(android.root);
       this.body.visible = false;
@@ -169,6 +173,18 @@ export class Guard {
     } catch (error) {
       console.warn("Androïde des sentinelles indisponible : le robot procédural reste affiché.", error);
     }
+  }
+
+  /**
+   * Revient au robot procédural (appareil qui n'arrive plus à suivre). Sans effet si l'androïde n'est pas affiché ;
+   * une sentinelle déjà neutralisée garde sa pose couchée via le robot, comme avant l'androïde.
+   */
+  dropAndroid(): void {
+    this.androidDropped = true;
+    if (!this.android) return;
+    this.android.dispose();
+    this.android = null;
+    this.body.visible = true;
   }
 
   /** Mesh à ajouter séparément : le cône est en coordonnées monde, pas enfant du garde. */

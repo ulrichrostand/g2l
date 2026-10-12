@@ -11,12 +11,17 @@ export interface QualityProfile {
   dustParticles: number;
   /** Chaque PointLight alourdit tous les shaders : on plafonne selon l'appareil. */
   roomLights: number;
+  /**
+   * Androïdes animés (squelette de 65 os, ~14 000 triangles chacun) pour les sentinelles et le boss. Désactivé,
+   * ils restent de simples robots procéduraux : bien moins de calcul d'animation et de sommets à skinner.
+   */
+  detailedAndroids: boolean;
 }
 
 export const QUALITY_PROFILES: Record<GraphicsQuality, QualityProfile> = {
-  high: { label: "Haute", pixelRatioCap: 2, bloom: true, vignette: true, shadows: true, dustParticles: 500, roomLights: 6 },
-  medium: { label: "Moyenne", pixelRatioCap: 1.25, bloom: true, vignette: true, shadows: false, dustParticles: 220, roomLights: 4 },
-  low: { label: "Basse", pixelRatioCap: 1, bloom: false, vignette: false, shadows: false, dustParticles: 0, roomLights: 3 },
+  high: { label: "Haute", pixelRatioCap: 2, bloom: true, vignette: true, shadows: true, dustParticles: 500, roomLights: 6, detailedAndroids: true },
+  medium: { label: "Moyenne", pixelRatioCap: 1.25, bloom: true, vignette: true, shadows: false, dustParticles: 220, roomLights: 4, detailedAndroids: true },
+  low: { label: "Basse", pixelRatioCap: 1, bloom: false, vignette: false, shadows: false, dustParticles: 0, roomLights: 3, detailedAndroids: false },
 };
 
 const QUALITY_ORDER: readonly GraphicsQuality[] = ["high", "medium", "low"];

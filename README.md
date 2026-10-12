@@ -175,6 +175,9 @@ et qu'aucune commande n'est posée deux fois).
 - Cônes de vision en dégradé ; écrans de terminaux animés.
 - **Qualité réglable** (Haute / Moyenne / Basse) depuis l'écran titre ou la pause, choisie
   automatiquement (Moyenne sur mobile) et **abaissée automatiquement** si le jeu passe sous ~40 images/s.
+  En **Basse**, les sentinelles et le boss restent de simples robots procéduraux (pas d'androïde animé à
+  65 os, et `sentinel.glb` n'est même pas téléchargé) ; passer en Basse en pleine mission, à la main ou
+  automatiquement, les remplace immédiatement.
 
 ### Choix techniques
 

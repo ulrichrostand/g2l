@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultQuality, FrameRateMonitor, lowerQuality, nextQuality, SettingsStore } from "../src/core/settings";
+import { defaultQuality, FrameRateMonitor, lowerQuality, nextQuality, QUALITY_PROFILES, SettingsStore } from "../src/core/settings";
 
 class MemoryStorage {
   values = new Map<string, string>();
@@ -17,6 +17,12 @@ describe("qualité graphique", () => {
     expect(lowerQuality("high")).toBe("medium");
     expect(lowerQuality("low")).toBeNull();
     expect(nextQuality("low")).toBe("high");
+  });
+
+  it("garde les androïdes animés en haute et moyenne, des robots simples en basse", () => {
+    expect(QUALITY_PROFILES.high.detailedAndroids).toBe(true);
+    expect(QUALITY_PROFILES.medium.detailedAndroids).toBe(true);
+    expect(QUALITY_PROFILES.low.detailedAndroids).toBe(false);
   });
 
   it("mémorise le choix et ignore un réglage corrompu", () => {

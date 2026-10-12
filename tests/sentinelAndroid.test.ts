@@ -107,6 +107,23 @@ describe("Guard avec l'androïde", () => {
     expect(() => guard.update(1 / 30, null)).not.toThrow();
   });
 
+  it("revient au robot procédural quand l'appareil ne suit plus, même si l'androïde arrive après", async () => {
+    const shown = new Guard(corridor(), route, tuning, () => 0.5, Promise.resolve(fakeSentinelAsset()));
+    for (let round = 0; round < 5; round++) await Promise.resolve();
+    expect(shown.usesAndroidModel).toBe(true);
+    shown.dropAndroid();
+    expect(shown.usesAndroidModel).toBe(false);
+    expect(shown.root.getObjectByName("Mannequin")).toBeUndefined();
+    expect(() => shown.update(1 / 30, null)).not.toThrow();
+
+    let deliver: (asset: ReturnType<typeof fakeSentinelAsset>) => void = () => undefined;
+    const late = new Guard(corridor(), route, tuning, () => 0.5, new Promise((resolve) => (deliver = resolve)));
+    late.dropAndroid();
+    deliver(fakeSentinelAsset());
+    for (let round = 0; round < 5; round++) await Promise.resolve();
+    expect(late.usesAndroidModel).toBe(false);
+  });
+
   it("un téléchargement raté laisse le robot procédural, sans erreur", async () => {
     const warn = console.warn;
     console.warn = () => undefined;

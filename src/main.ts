@@ -106,7 +106,10 @@ class ShadowOpsApp {
     loadHumanCharacterAsset((this.progress.avatar ?? DEFAULT_AVATAR).body).catch((error: unknown) =>
       console.warn("Préchargement du personnage humain impossible (nouvel essai au lancement).", error),
     );
-    loadSentinelAsset().catch((error: unknown) => console.warn("Préchargement des sentinelles impossible (nouvel essai au lancement).", error));
+    // Qualité basse : les robots simples n'ont pas besoin du modèle, on économise ce téléchargement sur mobile.
+    if (QUALITY_PROFILES[this.settings.quality].detailedAndroids) {
+      loadSentinelAsset().catch((error: unknown) => console.warn("Préchargement des sentinelles impossible (nouvel essai au lancement).", error));
+    }
     // Raccourcis de test : bloc éliminé du build de production (import.meta.env.DEV vaut false).
     if (import.meta.env.DEV) {
       Object.assign(window, {
@@ -331,7 +334,7 @@ class ShadowOpsApp {
           quality: QUALITY_PROFILES[this.settings.quality],
           avatar: this.progress.avatar ?? DEFAULT_AVATAR,
           playerModel: loadHumanCharacterAsset((this.progress.avatar ?? DEFAULT_AVATAR).body),
-          sentinelModel: loadSentinelAsset(),
+          sentinelModel: QUALITY_PROFILES[this.settings.quality].detailedAndroids ? loadSentinelAsset() : null,
           boss: { name: bossFor(module.id).name, color: bossFor(module.id).color },
         },
       );
@@ -829,6 +832,8 @@ class ShadowOpsApp {
   private applyQuality(quality: GraphicsQuality): void {
     this.settings.setQuality(quality);
     this.pipeline.applyProfile(QUALITY_PROFILES[quality]);
+    // En pleine mission, passer en « Basse » allège aussi les personnages tout de suite (le retour en arrière attend le secteur suivant).
+    if (!QUALITY_PROFILES[quality].detailedAndroids) this.mission?.useSimpleAndroids();
     this.frameRateMonitor.reset();
   }
 
