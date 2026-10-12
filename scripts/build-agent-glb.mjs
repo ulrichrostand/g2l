@@ -1,5 +1,6 @@
 /**
  * Construit public/models/characters/agent-male.glb et agent-female.glb, les deux corps de l'agent du joueur,
+ * et sentinel.glb, l'androïde des sentinelles (mannequin de l'Universal Animation Library, même squelette),
  * à partir des packs CC0 de Quaternius : Universal Base Characters (tête), Modular Character Outfits –
  * Fantasy (vêtements) et Universal Animation Library (animations). Provenance et licences :
  * public/models/characters/README.md.
@@ -86,8 +87,43 @@ const TINTABLE_MEAN_LUMINANCE = 0.72;
 
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 
+/** Animations de la sentinelle : ronde, poursuite, combat, suspension (à genoux) et chute. */
+const SENTINEL_CLIPS = new Set(["Idle_Loop", "Walk_Loop", "Jog_Fwd_Loop", "Pistol_Aim_Neutral", "Pistol_Shoot", "Hit_Chest", "Death01", "Fixing_Kneeling"]);
+
 async function main() {
   for (const variant of VARIANTS) await buildVariant(variant);
+  await buildSentinel();
+}
+
+/**
+ * Androïde des sentinelles : le mannequin de la bibliothèque d'animations, tel quel (ses matériaux sont
+ * remplacés en jeu par le métal noir et les lignes rouges d'ENTROPIA). Mêmes allègements que l'agent.
+ */
+async function buildSentinel() {
+  const outputPath = path.join(outputDir, "sentinel.glb");
+  const document = await io.read(path.join(sourceDir, "gaits.glb"));
+  const root = document.getRoot();
+  for (const animation of root.listAnimations()) {
+    if (SENTINEL_CLIPS.has(animation.getName())) continue;
+    for (const channel of animation.listChannels()) channel.dispose();
+    for (const sampler of animation.listSamplers()) sampler.dispose();
+    animation.dispose();
+  }
+  const missing = [...SENTINEL_CLIPS].filter((name) => !root.listAnimations().some((animation) => animation.getName() === name));
+  if (missing.length > 0) throw new Error(`Animations absentes de gaits.glb : ${missing.join(", ")}`);
+  for (const animation of root.listAnimations()) {
+    for (const channel of animation.listChannels()) {
+      const name = channel.getTargetNode()?.getName() ?? "";
+      const pathName = channel.getTargetPath();
+      if (pathName === "rotation" || (pathName === "translation" && TRANSLATED_JOINTS.has(name))) continue;
+      channel.getSampler()?.dispose();
+      channel.dispose();
+    }
+  }
+  await document.transform(resample(), dedup(), unpartition(), prune({ keepLeaves: false }));
+  disposeOrphanAccessors(document);
+  await io.write(outputPath, document);
+  report(document, outputPath);
 }
 
 async function buildVariant(variant) {

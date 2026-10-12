@@ -4,6 +4,7 @@ import type { GuardRoute } from "../level/generator";
 import { cellToWorld } from "../level/levelScene";
 import type { Posture } from "./player";
 import { createSentinelRig, poseRig, type HumanoidRig } from "./rig";
+import { SentinelAndroid, type SentinelAsset } from "./sentinelAndroid";
 
 /**
  * patrol → suspicious → investigate → returning : l'infiltration classique.
@@ -119,6 +120,9 @@ export class Guard {
   private shieldHits = 0;
   private sinceLastHit = Infinity;
   private hitFlash = 0;
+  /** Androïde riggé : null tant qu'il charge (ou s'il n'a pas pu charger), le robot procédural le remplace. */
+  private android: SentinelAndroid | null = null;
+  private groundSpeed = 0;
   private pendingShot: GuardShot | null = null;
   private alarmPending = false;
 
@@ -127,6 +131,7 @@ export class Guard {
     private readonly route: GuardRoute,
     private readonly tuning: GuardTuning,
     private readonly random: () => number = Math.random,
+    androidModel: Promise<SentinelAsset> | null = null,
   ) {
     const model = createSentinelRig();
     this.rig = model.rig;
@@ -140,6 +145,30 @@ export class Guard {
     this.cone = mesh;
     this.conePositions = positions;
     this.reset();
+    if (androidModel) void this.attachAndroid(androidModel);
+  }
+
+  /** Vrai une fois l'androïde affiché (sinon, c'est le robot procédural). */
+  get usesAndroidModel(): boolean {
+    return this.android !== null;
+  }
+
+  /**
+   * Remplace le robot procédural par l'androïde dès qu'il est prêt. Sans lui (tests, échec réseau), le robot
+   * procédural reste affiché : le jeu est inchangé.
+   */
+  private async attachAndroid(androidModel: Promise<SentinelAsset>): Promise<void> {
+    try {
+      const android = new SentinelAndroid(await androidModel, this.visorMaterial);
+      android.root.rotation.y = this.body.rotation.y;
+      this.root.add(android.root);
+      this.body.visible = false;
+      // Neutralisée pendant le téléchargement (ou restaurée à terre) : directement au sol.
+      if (this.neutralized) android.snapFallen();
+      this.android = android;
+    } catch (error) {
+      console.warn("Androïde des sentinelles indisponible : le robot procédural reste affiché.", error);
+    }
   }
 
   /** Mesh à ajouter séparément : le cône est en coordonnées monde, pas enfant du garde. */
@@ -278,6 +307,7 @@ export class Guard {
     if (instant) {
       this.fallProgress = 0.999;
       this.animateFall(1);
+      this.android?.snapFallen();
     }
     this.awareness = 0;
     this.seesPlayerNow = false;
@@ -412,6 +442,7 @@ export class Guard {
       z: this.position.z + Math.sin(this.heading) * MUZZLE_OFFSET,
       angle: angleToPlayer + error,
     };
+    this.android?.playShot();
     this.fireCooldown = this.tuning.fireIntervalSeconds * (0.8 + this.random() * 0.4);
   }
 
@@ -552,6 +583,8 @@ export class Guard {
   }
 
   private animateFall(deltaSeconds: number): void {
+    // L'androïde a sa propre animation d'effondrement.
+    this.android?.update(deltaSeconds, { speed: 0, hostile: false, aim: 0, pose: "fallen" });
     if (this.fallProgress >= 1) return;
     this.fallProgress = Math.min(1, this.fallProgress + deltaSeconds * FALL_SPEED * (0.4 + this.fallProgress));
     // Bascule vers l'arrière autour des pieds, comme un robot qui s'effondre.
@@ -569,6 +602,7 @@ export class Guard {
     if (deltaSeconds > 0) {
       // La foulée suit la vitesse réelle : pause en bout de ronde = jambes immobiles.
       const speed = travelled / deltaSeconds;
+      this.groundSpeed += (speed - this.groundSpeed) * (1 - Math.exp(-deltaSeconds * 8));
       this.walkPhase += travelled * 5.5;
       const smoothing = 1 - Math.exp(-deltaSeconds * 8);
       this.stride += (Math.min(1, speed / 2) - this.stride) * smoothing;
@@ -581,6 +615,15 @@ export class Guard {
     this.root.position.copy(this.position);
     // Le modèle regarde vers +Z : conversion du cap mathématique vers la rotation Y de Three.js.
     this.body.rotation.y = Math.PI / 2 - this.heading;
+    if (this.android && deltaSeconds > 0) {
+      this.android.root.rotation.y = this.body.rotation.y;
+      this.android.update(deltaSeconds, {
+        speed: this.groundSpeed,
+        hostile: this.isHostile,
+        aim: this.aimAmount * (1 - this.kneelAmount),
+        pose: this.isSuspended ? "kneel" : null,
+      });
+    }
     this.syncVisor();
     this.badge.show(this.badgeKind(), this.suspendedRemaining / SUSPEND_SECONDS);
     this.updateCone();

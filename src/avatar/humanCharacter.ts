@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { AvatarConfig, BodyBuild, BodyType, HairStyle } from "./avatarConfig";
+import { LayeredAnimator, prepareClips, type ClipLayers } from "./layeredAnimator";
+import { createPistolProp } from "./props";
 
 /**
  * Personnage humain riggé (glTF) qui habille l'agent du joueur : corps, tête et vêtements Quaternius (CC0),
@@ -94,17 +96,13 @@ const MIN_TIME_SCALE = 0.6;
 const MAX_TIME_SCALE = 2.2;
 /** En dessous, on marche ; au-dessus, on trottine (un agent à 3 cases/s ne marche pas). */
 const WALK_TO_JOG_SPEED = 2;
-const BLEND_RATE = 10;
 const MISSION_GLOW_INTENSITY = 2.4;
-const SHOT_BLEND_SECONDS = 0.3;
 
-/** Os du haut du corps : la visée les pilote pendant que les jambes continuent de marcher. */
-const UPPER_BODY_PREFIXES = ["spine_", "neck_", "Head", "clavicle_", "upperarm_", "lowerarm_", "hand_", "index_", "middle_", "pinky_", "ring_", "thumb_"];
 
 export interface HumanCharacterAsset {
   body: BodyType;
   scene: THREE.Group;
-  clips: ReadonlyMap<ClipName, { lower: THREE.AnimationClip; upper: THREE.AnimationClip }>;
+  clips: ReadonlyMap<ClipName, ClipLayers>;
 }
 
 export interface HumanMotionState {
@@ -133,12 +131,7 @@ export function loadHumanCharacterAsset(body: BodyType): Promise<HumanCharacterA
 }
 
 function prepareAsset(gltf: GLTF, body: BodyType): HumanCharacterAsset {
-  const clips = new Map<ClipName, { lower: THREE.AnimationClip; upper: THREE.AnimationClip }>();
-  for (const name of REQUIRED_CLIPS) {
-    const clip = gltf.animations.find((candidate) => candidate.name === name);
-    if (!clip) throw new Error(`Modèle ${body} : animation « ${name} » absente`);
-    clips.set(name, splitClip(clip));
-  }
+  const clips = prepareClips(gltf.animations, REQUIRED_CLIPS, `Modèle ${body}`);
   const present = new Set<PartRole>();
   gltf.scene.traverse((object) => {
     const role = object instanceof THREE.Mesh ? partRole(object.name) : null;
@@ -149,20 +142,7 @@ function prepareAsset(gltf: GLTF, body: BodyType): HumanCharacterAsset {
   return { body, scene: gltf.scene, clips };
 }
 
-export function isUpperBodyTrack(trackName: string): boolean {
-  const boneName = trackName.split(".")[0] ?? "";
-  return UPPER_BODY_PREFIXES.some((prefix) => boneName.startsWith(prefix));
-}
-
-/** Coupe un clip en deux couches indépendantes (jambes et bassin / buste et bras), mêlées ensuite par poids. */
-function splitClip(clip: THREE.AnimationClip): { lower: THREE.AnimationClip; upper: THREE.AnimationClip } {
-  const upperTracks = clip.tracks.filter((track) => isUpperBodyTrack(track.name));
-  const lowerTracks = clip.tracks.filter((track) => !isUpperBodyTrack(track.name));
-  return {
-    lower: new THREE.AnimationClip(`${clip.name}:lower`, clip.duration, lowerTracks),
-    upper: new THREE.AnimationClip(`${clip.name}:upper`, clip.duration, upperTracks),
-  };
-}
+export { isUpperBodyTrack } from "./layeredAnimator";
 
 /** Choix du cycle de locomotion selon la posture et la vitesse réelle. */
 export function locomotionClip(state: HumanMotionState): ClipName {
@@ -190,12 +170,6 @@ export function skinTint(skinTone: string, target: THREE.Color = new THREE.Color
   );
 }
 
-interface LayeredAction {
-  lower: THREE.AnimationAction;
-  upper: THREE.AnimationAction;
-  weight: number;
-}
-
 interface TintedPart {
   role: PartRole;
   mesh: THREE.Mesh;
@@ -211,10 +185,7 @@ export class HumanCharacter {
   readonly root = new THREE.Group();
   readonly body: BodyType;
   private readonly model: THREE.Object3D;
-  private readonly mixer: THREE.AnimationMixer;
-  private readonly locomotion = new Map<ClipName, LayeredAction>();
-  private readonly aimAction: THREE.AnimationAction;
-  private readonly shotAction: THREE.AnimationAction;
+  private readonly animator: LayeredAnimator<ClipName>;
   private readonly parts: TintedPart[] = [];
   private readonly ownedMaterials: THREE.Material[] = [];
   private readonly ownedGeometries: THREE.BufferGeometry[] = [];
@@ -223,8 +194,6 @@ export class HumanCharacter {
   private readonly hand: THREE.Object3D;
   private readonly skinTintScratch = new THREE.Color();
   private modelScale = 1;
-  private aimWeight = 0;
-  private shotTimer = 0;
 
   /**
    * `glowIntensity` : éclat des optiques et de la bobine. Fort en mission (quelques pixels vus de dessus, la
@@ -246,17 +215,12 @@ export class HumanCharacter {
     this.attachProps();
     this.setAppearance(avatar);
 
-    this.mixer = new THREE.AnimationMixer(this.model);
-    for (const [name, layers] of asset.clips) {
-      if (name === "Pistol_Aim_Neutral" || name === "Pistol_Shoot") continue;
-      this.locomotion.set(name, { lower: this.startLayer(layers.lower), upper: this.startLayer(layers.upper), weight: name === "Idle_Loop" ? 1 : 0 });
-    }
-    this.aimAction = this.startLayer(requireClip(asset, "Pistol_Aim_Neutral").upper);
-    const shot = requireClip(asset, "Pistol_Shoot").upper;
-    this.shotAction = this.mixer.clipAction(shot);
-    this.shotAction.setLoop(THREE.LoopOnce, 1);
-    this.shotAction.clampWhenFinished = true;
-    this.shotAction.setEffectiveWeight(0);
+    this.animator = new LayeredAnimator(this.model, asset.clips, {
+      locomotion: ["Idle_Loop", "Walk_Loop", "Jog_Fwd_Loop", "Sprint_Loop", "Crouch_Idle_Loop", "Crouch_Fwd_Loop"],
+      idle: "Idle_Loop",
+      aim: "Pistol_Aim_Neutral",
+      shot: "Pistol_Shoot",
+    });
   }
 
   /** Échelle du modèle (taille de l'agent comprise) : sert à caler la cadence des pas sur la vitesse. */
@@ -317,48 +281,25 @@ export class HumanCharacter {
 
   /** Recul du tir : rejoue la pose de tir du buste, qui s'efface en quelques dixièmes de seconde. */
   playShot(): void {
-    this.shotTimer = SHOT_BLEND_SECONDS;
-    this.shotAction.reset().play();
+    this.animator.playShot();
   }
 
   update(deltaSeconds: number, state: HumanMotionState): void {
-    const smoothing = 1 - Math.exp(-deltaSeconds * BLEND_RATE);
-    const activeClip = locomotionClip(state);
-    this.aimWeight += (THREE.MathUtils.clamp(state.aim, 0, 1) - this.aimWeight) * smoothing;
-    this.shotTimer = Math.max(0, this.shotTimer - deltaSeconds);
-    const shotWeight = this.aimWeight * (this.shotTimer / SHOT_BLEND_SECONDS);
-    const upperFree = 1 - this.aimWeight;
-
-    let total = 0;
-    for (const [name, layer] of this.locomotion) {
-      layer.weight += ((name === activeClip ? 1 : 0) - layer.weight) * smoothing;
-      total += layer.weight;
-    }
-    for (const [name, layer] of this.locomotion) {
-      // Normalisé : la somme des poids reste 1, aucun os ne revient vers la pose de liaison (T-pose) en transition.
-      const weight = total > 0 ? layer.weight / total : 0;
-      const timeScale = locomotionTimeScale(name, state.speed, this.modelScale);
-      layer.lower.setEffectiveWeight(weight).setEffectiveTimeScale(timeScale);
-      layer.upper.setEffectiveWeight(weight * upperFree).setEffectiveTimeScale(timeScale);
-    }
-    this.aimAction.setEffectiveWeight(this.aimWeight - shotWeight);
-    this.shotAction.setEffectiveWeight(shotWeight);
-    this.mixer.update(deltaSeconds);
+    const locomotion = locomotionClip(state);
+    this.animator.update(deltaSeconds, {
+      locomotion,
+      timeScale: locomotionTimeScale(locomotion, state.speed, this.modelScale),
+      aim: state.aim,
+      pose: null,
+    });
   }
 
   /** Géométries et textures appartiennent à l'asset partagé : seuls les clones propres à l'instance sont libérés. */
   dispose(): void {
-    this.mixer.stopAllAction();
-    this.mixer.uncacheRoot(this.model);
+    this.animator.dispose();
     this.root.removeFromParent();
     for (const material of this.ownedMaterials) material.dispose();
     for (const geometry of this.ownedGeometries) geometry.dispose();
-  }
-
-  private startLayer(clip: THREE.AnimationClip): THREE.AnimationAction {
-    const action = this.mixer.clipAction(clip);
-    action.setEffectiveWeight(0).play();
-    return action;
   }
 
   /** Matériaux clonés par pièce : chacune prend sa couleur sans toucher l'asset partagé entre instances. */
@@ -397,17 +338,7 @@ export class HumanCharacter {
     const gear = new THREE.MeshStandardMaterial({ color: 0x1b2026, roughness: 0.5, metalness: 0.6 });
     this.ownedMaterials.push(gear);
 
-    // Repère de la main droite : Y suit les doigts (le canon), Z sort du dos de la main (le dessus de l'arme).
-    const pistol = new THREE.Group();
-    const slide = new THREE.Mesh(this.ownGeometry(new THREE.BoxGeometry(0.034, 0.2, 0.05)), gear);
-    slide.position.set(0, 0.11, 0.06);
-    const grip = new THREE.Mesh(this.ownGeometry(new THREE.BoxGeometry(0.03, 0.05, 0.09)), gear);
-    grip.position.set(0, 0.06, 0.02);
-    // Bobine IEM au bout du canon : CylinderGeometry est déjà dans l'axe Y, celui du canon.
-    const coil = new THREE.Mesh(this.ownGeometry(new THREE.CylinderGeometry(0.024, 0.024, 0.04, 10)), this.glow);
-    coil.position.set(0, 0.22, 0.06);
-    pistol.add(slide, grip, coil);
-    this.hand.add(pistol);
+    this.hand.add(createPistolProp(gear, this.glow, (geometry) => this.ownGeometry(geometry)));
 
     // Repère de la tête : Y vers le haut, Z vers l'avant. Optiques relevées sur le front, lentilles vers le ciel
     // (et donc vers la caméra du dessus), comme sur l'agent procédural.
@@ -434,8 +365,3 @@ const GOGGLES_HEIGHT = 0.19;
 const GOGGLES_FORWARD = 0.08;
 const GOGGLES_TILT = 0.5;
 
-function requireClip(asset: HumanCharacterAsset, name: ClipName): { lower: THREE.AnimationClip; upper: THREE.AnimationClip } {
-  const clip = asset.clips.get(name);
-  if (!clip) throw new Error(`Modèle ${asset.body} : animation « ${name} » absente`);
-  return clip;
-}

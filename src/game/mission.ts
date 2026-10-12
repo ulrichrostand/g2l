@@ -7,6 +7,7 @@ import type { QualityProfile } from "../core/settings";
 import { seedFromString } from "../core/rng";
 import type { AvatarConfig } from "../avatar/avatarConfig";
 import type { HumanCharacterAsset } from "../avatar/humanCharacter";
+import type { SentinelAsset } from "../entities/sentinelAndroid";
 import type { DevOpsModule } from "../content/types";
 import {
   CombatEffects,
@@ -161,6 +162,8 @@ export interface MissionOptions {
   avatar: AvatarConfig;
   /** Modèle humain riggé de l'agent (chargé une fois pour la session) ; absent : agent procédural. */
   playerModel?: Promise<HumanCharacterAsset> | null;
+  /** Androïde riggé des sentinelles (chargé une fois pour la session) ; absent : robots procéduraux. */
+  sentinelModel?: Promise<SentinelAsset> | null;
   /** Identité du boss de fin de secteur (le contenu pédagogique reste côté application). */
   boss: { name: string; color: number };
 }
@@ -334,7 +337,7 @@ export class Mission {
     this.intel = this.layout.intel.map((cell) => new IntelPickup(cell));
     for (const pickup of this.intel) this.scene.add(pickup.root);
 
-    this.guards = this.layout.guards.map((route) => new Guard(this.layout.grid, route, difficulty.guardTuning));
+    this.guards = this.layout.guards.map((route) => new Guard(this.layout.grid, route, difficulty.guardTuning, undefined, options.sentinelModel ?? null));
     this.identities = this.guards.map((_, index) => createSentinelIdentity(seed, index + 1));
     this.wasSuspended = this.guards.map(() => false);
     for (const guard of this.guards) this.scene.add(guard.root, guard.visionCone);

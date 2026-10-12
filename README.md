@@ -160,7 +160,10 @@ et qu'aucune commande n'est posée deux fois).
   mêlés séparément). **Créateur « façon Sims »** sur ce même modèle : silhouette homme ou femme, carrure,
   taille, peau, 5 coupes, barbe, couleurs du gilet, de la chemise, du pantalon, des bottes et des optiques,
   appliquées en direct sans reconstruire le personnage. Si le modèle ne charge pas, un agent procédural
-  simplifié prend le relais. Les ennemis restent des robots : on les distingue d'un coup d'œil.
+  simplifié prend le relais.
+- **Sentinelles androïdes** sur le même squelette (mannequin Quaternius, CC0) : métal anthracite et lignes
+  rouges lumineuses, elles marchent en ronde, courent et tirent en combat, tombent à genoux une fois
+  suspendues (lignes bleues) et s'effondrent neutralisées. On les distingue de l'agent d'un coup d'œil.
 - Cônes de vision en dégradé ; écrans de terminaux animés.
 - **Qualité réglable** (Haute / Moyenne / Basse) depuis l'écran titre ou la pause, choisie
   automatiquement (Moyenne sur mobile) et **abaissée automatiquement** si le jeu passe sous ~40 images/s.
@@ -181,7 +184,7 @@ et qu'aucune commande n'est posée deux fois).
 |---|---|---|---|
 | Universal Base Characters (tête, yeux, sourcils, cheveux) | [Quaternius](https://quaternius.com/packs/universalbasecharacters.html) | CC0 1.0 | `public/models/characters/agent-male.glb`, `agent-female.glb` |
 | Modular Character Outfits – Fantasy (chemise, pantalon, gilet, bottes) | [Quaternius](https://quaternius.com/packs/modularcharacteroutfitsfantasy.html) | CC0 1.0 | idem |
-| Universal Animation Library (12 animations) | [Quaternius](https://quaternius.itch.io/universal-animation-library) | CC0 1.0 | idem |
+| Universal Animation Library (animations, androïde des sentinelles) | [Quaternius](https://quaternius.itch.io/universal-animation-library) | CC0 1.0 | idem, et `sentinel.glb` |
 
 Provenance exacte, empreintes SHA-256 des sources et reconstruction : `public/models/characters/README.md`
 (script : `scripts/build-agent-glb.mjs`). Textes de licence : `public/models/characters/licenses/`.

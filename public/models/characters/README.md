@@ -7,13 +7,20 @@ textures WebP de 1024 px au plus, 12 animations, ~2,6 Mo chacune. Le jeu ne tél
 choisi. Chaque fichier contient toutes les coupes du créateur (rasé, court, longs, chignon) et, pour l'homme,
 la barbe : le jeu n'affiche que la pièce choisie.
 
+## sentinel.glb — androïde des sentinelles
+
+Le mannequin de l'Universal Animation Library (même squelette de 65 os que l'agent), environ 13 700
+triangles, sans texture, 8 animations (repos, marche, course, visée, tir, impact, chute, à genoux). ~0,8 Mo.
+Ses matériaux sont remplacés en jeu : métal anthracite, articulations sombres parcourues de lignes rouges
+qui suivent la visière (bleues quand la sentinelle est suspendue).
+
 ### Sources (toutes CC0 1.0, créateur : Quaternius)
 
 | Pack (édition Standard gratuite) | Pièces utilisées |
 |---|---|
 | Universal Base Characters | tête, cou, yeux et sourcils extraits de `Superhero_Male_FullBody` et `Superhero_Female_FullBody` ; cheveux `Hair_Buzzed`, `Hair_BuzzedFemale`, `Hair_SimpleParted`, `Hair_Long`, `Hair_Buns`, barbe `Hair_Beard` |
 | Modular Character Outfits – Fantasy | manches et pantalon de `Male_Peasant` / `Female_Peasant`, gilet sanglé `Male_Ranger_Body` / `Female_Ranger_Body`, bottes `Male_Ranger_Feet_Boots` / `Female_Ranger_Feet` |
-| Universal Animation Library | `Idle_Loop`, `Walk_Loop`, `Jog_Fwd_Loop`, `Sprint_Loop`, `Crouch_Idle_Loop`, `Crouch_Fwd_Loop`, `Pistol_Idle_Loop`, `Pistol_Aim_Neutral`, `Pistol_Shoot`, `Hit_Chest`, `Death01`, `Interact` |
+| Universal Animation Library | mannequin (androïde des sentinelles) ; animations `Idle_Loop`, `Walk_Loop`, `Jog_Fwd_Loop`, `Sprint_Loop`, `Crouch_Idle_Loop`, `Crouch_Fwd_Loop`, `Pistol_Idle_Loop`, `Pistol_Aim_Neutral`, `Pistol_Shoot`, `Hit_Chest`, `Death01`, `Interact`, `Fixing_Kneeling` |
 
 Les textes de licence fournis avec les packs sont dans `licenses/`. CC0 : aucune attribution exigée,
 redistribution autorisée ; Quaternius est crédité quand même.

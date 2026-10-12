@@ -18,6 +18,7 @@ import { SCENARIOS } from "./content/scenarios";
 import { bossFor } from "./content/bosses";
 import { DEFAULT_AVATAR } from "./avatar/avatarConfig";
 import { loadHumanCharacterAsset } from "./avatar/humanCharacter";
+import { loadSentinelAsset } from "./entities/sentinelAndroid";
 import { AvatarStudio } from "./render/avatarStudio";
 import { BossPanel } from "./ui/bossPanel";
 import { CharacterCreator } from "./ui/characterCreator";
@@ -94,6 +95,7 @@ class ShadowOpsApp {
     loadHumanCharacterAsset((this.progress.avatar ?? DEFAULT_AVATAR).body).catch((error: unknown) =>
       console.warn("Préchargement du personnage humain impossible (nouvel essai au lancement).", error),
     );
+    loadSentinelAsset().catch((error: unknown) => console.warn("Préchargement des sentinelles impossible (nouvel essai au lancement).", error));
     // Raccourcis de test : bloc éliminé du build de production (import.meta.env.DEV vaut false).
     if (import.meta.env.DEV) {
       Object.assign(window, {
@@ -300,6 +302,7 @@ class ShadowOpsApp {
           quality: QUALITY_PROFILES[this.settings.quality],
           avatar: this.progress.avatar ?? DEFAULT_AVATAR,
           playerModel: loadHumanCharacterAsset((this.progress.avatar ?? DEFAULT_AVATAR).body),
+          sentinelModel: loadSentinelAsset(),
           boss: { name: bossFor(module.id).name, color: bossFor(module.id).color },
         },
       );
