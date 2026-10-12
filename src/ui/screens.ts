@@ -29,6 +29,8 @@ export interface TitleScreenOptions {
   hasProgress: boolean;
   resume: { label: string; detail: string; onResume(): void } | null;
   onCampaign(): void;
+  /** Ouvre le créateur d'agent (apparence façon Sims). */
+  onCustomize(): void;
   onSaveManager(): void;
   onReset(): void;
   qualityLabel: string;
@@ -70,6 +72,7 @@ export interface DebriefData {
   intelTotal: number;
   elapsedSeconds: number;
   isLastModule: boolean;
+  bossName: string;
 }
 
 const CONTROLS: [string, string][] = [
@@ -139,6 +142,7 @@ export class ScreenManager {
         resumeBlock,
         element("div", { className: "row" }, [
           campaignButton,
+          button("🧑 Personnaliser l'agent", options.onCustomize, "btn ghost"),
           button("💾 Sauvegarde", options.onSaveManager, "btn ghost"),
           qualityButton(options.qualityLabel, options.onCycleQuality),
           toggleButton(options.soundLabel, options.onToggleSound, "Ambiance sonore et effets du jeu."),
@@ -285,6 +289,7 @@ export class ScreenManager {
           this.stat("Dossiers", `${data.intelCollected}/${data.intelTotal}`),
           this.stat("Détections", score.ghost ? "0 — Fantôme 👻" : String(data.detections)),
           this.stat("Neutralisations", String(data.neutralizations)),
+          this.stat("Boss vaincu", data.bossName),
           this.stat("Durée", formatDuration(data.elapsedSeconds)),
         ]),
         ...this.recapSections(module, data.wrongAttemptsPerTerminal, false),

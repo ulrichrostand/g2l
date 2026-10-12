@@ -1,3 +1,5 @@
+import { parseAvatarConfig, type AvatarConfig } from "../avatar/avatarConfig";
+
 export interface ModuleRecord {
   bestScore: number;
   stars: 1 | 2 | 3;
@@ -29,6 +31,8 @@ export interface MissionCheckpoint {
   neutralizations: number;
   elapsedSeconds: number;
   playerCell: { x: number; z: number };
+  /** Le boss du secteur est déjà vaincu : il ne se relève pas à la reprise. */
+  bossDefeated: boolean;
   /** Version de la génération des niveaux : un point de reprise d'une autre version ne correspond plus à la carte. */
   layoutVersion: number;
   savedAt: string;
@@ -42,6 +46,8 @@ export interface PlayerProgress {
   records: Record<string, ModuleRecord>;
   /** Absent des sauvegardes antérieures au mode examen : lu comme vide. */
   exams: Record<string, ExamRecord>;
+  /** Apparence de l'agent ; null tant que le joueur ne l'a pas personnalisée (on lui propose le créateur). */
+  avatar: AvatarConfig | null;
   checkpoint: MissionCheckpoint | null;
   savedAt: string | null;
 }
@@ -54,7 +60,7 @@ const MAX_ID_LENGTH = 64;
 const SAFE_ID = /^[a-z0-9-]{1,64}$/;
 
 export function emptyProgress(): PlayerProgress {
-  return { version: 2, records: Object.create(null), exams: Object.create(null), checkpoint: null, savedAt: null };
+  return { version: 2, records: Object.create(null), exams: Object.create(null), avatar: null, checkpoint: null, savedAt: null };
 }
 
 /** Interface minimale de stockage : permet d'injecter un faux stockage dans les tests. */
@@ -128,6 +134,7 @@ export function parseCheckpoint(candidate: unknown): MissionCheckpoint | null {
     isBoundedInteger(playerCell.x, 512) &&
     isBoundedInteger(playerCell.z, 512) &&
     (candidate.layoutVersion === undefined || isBoundedInteger(candidate.layoutVersion, 999)) &&
+    (candidate.bossDefeated === undefined || typeof candidate.bossDefeated === "boolean") &&
     typeof candidate.savedAt === "string" &&
     candidate.savedAt.length <= MAX_ID_LENGTH;
   if (!valid) return null;
@@ -146,6 +153,8 @@ export function parseCheckpoint(candidate: unknown): MissionCheckpoint | null {
     neutralizations: candidate.neutralizations as number,
     elapsedSeconds: candidate.elapsedSeconds as number,
     playerCell: { x: (playerCell as { x: number }).x, z: (playerCell as { z: number }).z },
+    // Absent = sauvegarde antérieure aux boss : le boss n'est pas encore vaincu.
+    bossDefeated: candidate.bossDefeated === true,
     // Absent = sauvegarde antérieure à ce champ, donc version 1.
     layoutVersion: (candidate.layoutVersion as number | undefined) ?? 1,
     savedAt: candidate.savedAt as string,
@@ -175,6 +184,8 @@ export function progressFromUnknown(parsed: unknown): PlayerProgress {
       }
     }
   }
+  // Apparence invalide (code bricolé, ancienne version) : on retombe sur l'agent par défaut, sans perdre la campagne.
+  progress.avatar = parsed.avatar === undefined || parsed.avatar === null ? null : parseAvatarConfig(parsed.avatar);
   progress.checkpoint = parseCheckpoint(parsed.checkpoint);
   progress.savedAt = typeof parsed.savedAt === "string" && parsed.savedAt.length <= MAX_ID_LENGTH ? parsed.savedAt : null;
   return progress;
@@ -230,6 +241,17 @@ export class ProgressStore {
     if (this.progress.checkpoint?.moduleId === moduleId) this.progress.checkpoint = null;
     this.persist();
     return merged;
+  }
+
+  get avatar(): AvatarConfig | null {
+    return this.progress.avatar;
+  }
+
+  saveAvatar(avatar: AvatarConfig): void {
+    const validated = parseAvatarConfig(avatar);
+    if (!validated) throw new RangeError("Apparence d'agent invalide");
+    this.progress.avatar = validated;
+    this.persist();
   }
 
   examRecordFor(examId: string): ExamRecord | undefined {

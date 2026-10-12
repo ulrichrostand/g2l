@@ -21,6 +21,13 @@ export class Hud {
   private readonly reserve = element("span", { className: "ammo-reserve" });
   private readonly reloadFill = element("div", { className: "reload-fill" });
   private readonly alarmBanner = element("div", { className: "hud-alarm", text: "⚠ ALERTE — tu es repéré", attributes: { role: "alert" } });
+  private readonly bossName = element("span", { className: "boss-bar-name" });
+  private readonly bossStatus = element("span", { className: "boss-bar-status" });
+  private readonly bossFill = element("div", { className: "boss-bar-fill" });
+  private readonly bossBar = element("div", { className: "hud-boss", attributes: { role: "status", "aria-live": "polite" } }, [
+    element("div", { className: "boss-bar-label" }, [this.bossName, this.bossStatus]),
+    element("div", { className: "boss-bar-track" }, [this.bossFill]),
+  ]);
   private readonly hitMarker = element("div", { className: "hit-marker", attributes: { "aria-hidden": "true" } });
   private hitMarkerTimer: number | undefined;
   private readonly exposureFill = element("div", { className: "exposure-fill" });
@@ -51,6 +58,7 @@ export class Hud {
         this.minimap,
       ]),
       this.alarmBanner,
+      this.bossBar,
       element("div", { className: "hud-ammo" }, [
         element("span", { className: "ammo-icon", text: "🔫" }),
         this.magazine,
@@ -96,6 +104,8 @@ export class Hud {
     const exposurePercent = Math.round(state.exposure * 100);
     const reloadPercent = Math.round(state.reloadProgress * 100);
     const commandSeconds = state.commandTarget ? Math.ceil(state.commandTarget.secondsLeft) : 0;
+    const boss = state.boss;
+    const bossSignature = boss ? `${boss.state}:${boss.phase}:${Math.round(boss.armor * 100)}:${Math.ceil(boss.exposedSecondsLeft)}` : "";
     const signature = [
       state.livesLeft,
       state.health,
@@ -112,6 +122,7 @@ export class Hud {
       state.reserve,
       reloadPercent,
       state.nightVision,
+      bossSignature,
     ].join("|");
     if (signature === this.lastRendered) return;
     this.lastRendered = signature;
@@ -130,6 +141,7 @@ export class Hud {
     this.healthLabel.textContent = `Santé ${healthPercent}%`;
     this.renderAmmo(state, reloadPercent);
     this.alarmBanner.hidden = !state.alarm;
+    this.renderBoss(state.boss);
     this.exposureFill.style.width = `${exposurePercent}%`;
     this.exposureFill.dataset.level = exposurePercent > 66 ? "high" : exposurePercent > 25 ? "medium" : "low";
     this.exposureLabel.textContent = state.alarm ? "ALERTE — combat" : exposurePercent === 0 ? "Invisible" : `Exposition ${exposurePercent}%`;
@@ -152,6 +164,24 @@ export class Hud {
     this.hitMarkerTimer = window.setTimeout(() => this.hitMarker.classList.remove("visible"), HIT_MARKER_MS);
   }
 
+  /** Barre de boss façon jeu d'action : nom, phase, armure ; quand il est à genoux, le compte à rebours pour l'achever. */
+  private renderBoss(boss: HudState["boss"]): void {
+    this.bossBar.hidden = boss === null;
+    if (!boss) return;
+    this.bossName.textContent = `☠ ${boss.name}`;
+    const exposed = boss.state === "exposed";
+    this.bossStatus.textContent =
+      boss.state === "awakening"
+        ? "se réveille…"
+        : exposed
+          ? `À GENOUX — ${this.touchMode ? "Gadget" : "[F]"} pour l'achever · ${Math.ceil(boss.exposedSecondsLeft)} s`
+          : boss.state === "defeated"
+            ? "vaincu"
+            : `Phase ${boss.phase}/${boss.phaseCount}`;
+    this.bossFill.style.width = `${Math.round(boss.armor * 100)}%`;
+    this.bossBar.dataset.state = boss.state;
+  }
+
   private renderAmmo(state: HudState, reloadPercent: number): void {
     const reloading = reloadPercent > 0;
     this.magazine.textContent = reloading ? "RECHARGEMENT" : `${state.magazine}/${state.magazineSize}`;
@@ -166,7 +196,7 @@ export class Hud {
       lines.push(element("span", { text: `${this.touchMode ? "" : "[E] "}${state.contextAction.label}` }));
     }
     if (state.commandTarget) {
-      const verb = state.commandTarget.kind === "camera" ? "Couper" : "Terminer";
+      const verb = state.commandTarget.kind === "camera" ? "Couper" : state.commandTarget.kind === "boss" ? "Achever" : "Terminer";
       lines.push(
         element("span", {
           className: "prompt-gadget",
@@ -219,6 +249,7 @@ export class Hud {
       if (guard.position.distanceTo(snapshot.player) > SONAR_RADIUS) continue;
       dot(guard.position.x, guard.position.z, GUARD_COLORS[guard.status], guard.status === "hostile" ? 3 : 2.5);
     }
+    if (snapshot.boss) dot(snapshot.boss.x, snapshot.boss.z, "#ff2d6a", 5);
     dot(snapshot.player.x, snapshot.player.z, "#e8fff0", 3);
   }
 

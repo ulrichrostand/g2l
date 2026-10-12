@@ -22,6 +22,7 @@ const checkpoint: Omit<MissionCheckpoint, "savedAt" | "layoutVersion"> = {
   neutralizations: 1,
   elapsedSeconds: 95.5,
   playerCell: { x: 12, z: 7 },
+  bossDefeated: true,
 };
 
 describe("point de reprise", () => {
@@ -42,6 +43,13 @@ describe("point de reprise", () => {
     expect(parseCheckpoint({ ...checkpoint, savedAt: "x", hackedTerminals: [-1] })).toBeNull();
     expect(parseCheckpoint({ ...checkpoint, savedAt: "x", moduleId: "../../etc" })).toBeNull();
     expect(parseCheckpoint({ ...checkpoint, savedAt: "x", ammo: 1.5 })).toBeNull();
+  });
+
+  it("un point de reprise d'avant les boss est lu avec un boss encore debout", () => {
+    const legacy: Record<string, unknown> = { ...checkpoint, savedAt: "x" };
+    delete legacy.bossDefeated;
+    expect(parseCheckpoint(legacy)?.bossDefeated).toBe(false);
+    expect(parseCheckpoint({ ...checkpoint, savedAt: "x", bossDefeated: "oui" })).toBeNull();
   });
 
   it("accepte un point de reprise d'avant la refonte du combat (champ charges)", () => {

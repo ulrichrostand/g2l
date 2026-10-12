@@ -15,6 +15,11 @@ import { isModuleUnlocked, LEVEL_LAYOUT_VERSION, ProgressStore, type MissionChec
 import { decodeSaveCode, encodeSaveCode, SaveCodeError } from "./game/saveCode";
 import { computeMissionScore } from "./game/scoring";
 import { SCENARIOS } from "./content/scenarios";
+import { bossFor } from "./content/bosses";
+import { DEFAULT_AVATAR } from "./avatar/avatarConfig";
+import { AvatarStudio } from "./render/avatarStudio";
+import { BossPanel } from "./ui/bossPanel";
+import { CharacterCreator } from "./ui/characterCreator";
 import { ChallengePanel } from "./ui/challengePanel";
 import { ExamPanel, type ExamOutcome } from "./ui/examPanel";
 import { ScenarioPanel } from "./ui/scenarioPanel";
@@ -52,6 +57,10 @@ class ShadowOpsApp {
   private readonly clock = new THREE.Clock();
   private readonly moduleIds = CURRICULUM.map((module) => module.id);
   private readonly idleScene = createIdleScene();
+  /** Calque du créateur d'agent : au-dessus du canvas (le studio 3D reste visible), sous le HUD. */
+  private readonly creatorContainer = createCreatorContainer();
+  private studio: AvatarStudio | null = null;
+  private creator: CharacterCreator | null = null;
 
   private mission: Mission | null = null;
   private wrongAttemptsPerTerminal: number[] = [];
@@ -133,7 +142,9 @@ class ShadowOpsApp {
               onResume: () => this.startMission(resumeModule, checkpoint),
             }
           : null,
-      onCampaign: () => this.showCampaignMap(),
+      // Premier lancement : on crée d'abord son agent, comme dans les Sims, puis on part en mission.
+      onCampaign: () => (this.progress.avatar === null ? this.openCharacterCreator(true, () => this.showCampaignMap()) : this.showCampaignMap()),
+      onCustomize: () => this.openCharacterCreator(false, () => this.showTitle()),
       onSaveManager: () => this.showSaveManager(),
       qualityLabel: this.qualityLabel(),
       onCycleQuality: () => this.cycleQuality(),
@@ -268,6 +279,7 @@ class ShadowOpsApp {
           onTerminalRequested: (terminalIndex) => this.openTerminal(terminalIndex),
           onIntelFound: () => this.showCollectedIntel(),
           onCommandRequested: (target) => this.openCommandPanel(target),
+          onBossCommandRequested: (phaseIndex, secondsLeft) => this.openBossPanel(phaseIndex, secondsLeft),
           onTakedown: () => this.handleTakedown(),
           onCombatEvent: (event) => this.handleCombatEvent(event, module),
           onPlayerDown: (livesLeft) => this.handlePlayerDown(livesLeft),
@@ -276,7 +288,13 @@ class ShadowOpsApp {
           onPauseRequested: () => this.showPause(),
           onNotice: (message) => this.hud.showNotice(message),
         },
-        { gadgetTargets, moduleIndex, quality: QUALITY_PROFILES[this.settings.quality] },
+        {
+          gadgetTargets,
+          moduleIndex,
+          quality: QUALITY_PROFILES[this.settings.quality],
+          avatar: this.progress.avatar ?? DEFAULT_AVATAR,
+          boss: { name: bossFor(module.id).name, color: bossFor(module.id).color },
+        },
       );
     } catch (error) {
       console.error("Échec de la création de la mission", error);
@@ -509,15 +527,65 @@ class ShadowOpsApp {
       case "sentinelWoke":
         this.sound.play("wake");
         break;
+      case "bossAwakened": {
+        const boss = bossFor(module.id);
+        this.sound.play("alarm");
+        this.flashAlert();
+        this.hud.showNotice(`${boss.name} — ${boss.title}. Casse son armure au pistolet, puis achève-le avec une commande (${this.touchMode ? "bouton Gadget" : "touche F"}).`);
+        break;
+      }
+      case "bossRecovered":
+        this.sound.play("wake");
+        this.hud.showNotice("Trop tard : il se relève avec une partie de son armure. Recommence !");
+        break;
+      case "bossPhaseCleared":
+        this.sound.play("success");
+        this.hud.showNotice(`Commande réussie ! Phase ${event.phase + 1}/3 : il se relève, plus dangereux.`);
+        this.saveCheckpoint();
+        break;
+      case "bossDefeated":
+        this.sound.play("extract");
+        this.hud.showNotice(`${bossFor(module.id).defeat} L'extraction est ouverte !`);
+        this.saveCheckpoint();
+        break;
     }
+  }
+
+  /** Boss à genoux : la commande du module qui l'achève, dans un terminal dédié (le temps est figé). */
+  private openBossPanel(phaseIndex: number, secondsLeft: number): void {
+    const mission = this.requireMission();
+    const boss = bossFor(mission.module.id);
+    this.sound.play("hack");
+    const panel = new BossPanel(this.challengeContainer, boss, phaseIndex, secondsLeft, {
+      onWrongCommand: () => {
+        this.sound.play("failure");
+        mission.bossCommandFailed();
+      },
+      onSuccess: () => {
+        panel.close();
+        mission.completeBossPhase();
+        mission.resume();
+      },
+      onCancel: () => {
+        panel.close();
+        mission.resume();
+      },
+    });
+    panel.open();
   }
 
   private handleShot(result: ShotResult, impact: THREE.Vector3, module: DevOpsModule): void {
     this.sound.play("shot");
     if (result === "miss") return;
-    this.sound.play(result === "shield" ? "shieldHit" : "shotHit");
+    const armorHit = result === "shield" || result === "bossArmor";
+    this.sound.play(armorHit ? "shieldHit" : "shotHit");
     const screen = impact.clone().project(this.camera);
-    this.hud.showHitMarker(((screen.x + 1) / 2) * window.innerWidth, ((1 - screen.y) / 2) * window.innerHeight, result === "shield" ? "shield" : "hit");
+    this.hud.showHitMarker(((screen.x + 1) / 2) * window.innerWidth, ((1 - screen.y) / 2) * window.innerHeight, armorHit ? "shield" : "hit");
+    if (result === "bossArmor") return;
+    if (result === "bossExposed") {
+      this.hud.showNotice(`Armure brisée ! Il est à genoux : ${this.touchMode ? "bouton Gadget" : "touche F"} pour l'achever avec une commande, vite !`);
+      return;
+    }
     const canKill = unlockedWeapons(this.moduleIds, module.id, "sentinel").length > 0;
     const canFirewall = unlockedWeapons(this.moduleIds, module.id, "camera").length > 0;
     if (result === "suspended") {
@@ -595,6 +663,7 @@ class ShadowOpsApp {
         intelTotal: mission.intelTotal,
         elapsedSeconds: mission.elapsedSeconds,
         isLastModule: !nextModule,
+        bossName: bossFor(module.id).name,
       },
       () => (nextModule ? this.showBriefing(nextModule) : this.showCampaignMap()),
       () => this.startMission(module),
@@ -684,7 +753,8 @@ class ShadowOpsApp {
     const elapsedSeconds = this.clock.elapsedTime;
     const mission = this.mission;
     if (!mission) {
-      this.animateIdleScene(elapsedSeconds);
+      if (this.studio && this.creator) this.renderStudio(this.studio, this.creator, deltaSeconds, elapsedSeconds);
+      else this.animateIdleScene(elapsedSeconds);
       return;
     }
     mission.setAim(this.currentAim());
@@ -702,7 +772,8 @@ class ShadowOpsApp {
       this.touchControls.sync({
         contextLabel: hudState.contextAction ? (hudState.contextAction.kind === "takedown" ? "Neutraliser" : "Pirater") : null,
         crouched: hudState.posture === "crouching",
-        gadgetVisible: hudState.gadgetAvailable,
+        // Le boss s'achève à la commande même avant d'avoir débloqué un gadget (module d'introduction).
+        gadgetVisible: hudState.gadgetAvailable || hudState.commandTarget !== null,
         gadgetReady: hudState.commandTarget !== null,
         shootReady: hudState.magazine + hudState.reserve > 0,
       });
@@ -722,6 +793,50 @@ class ShadowOpsApp {
     if (!lower) return;
     this.applyQuality(lower);
     this.hud.showNotice(`Qualité graphique réduite à « ${QUALITY_PROFILES[lower].label} » pour garder le jeu fluide (modifiable en pause).`);
+  }
+
+  /**
+   * Créateur d'agent « façon Sims » : studio 3D en direct derrière le panneau.
+   * `firstRun` : au tout premier lancement, annuler garde l'agent par défaut (on ne redemande pas à chaque fois).
+   */
+  private openCharacterCreator(firstRun: boolean, onDone: () => void): void {
+    this.endMission();
+    this.closeCharacterCreator();
+    this.screens.hide();
+    const initial = this.progress.avatar ?? DEFAULT_AVATAR;
+    const studio = new AvatarStudio(initial);
+    const creator = new CharacterCreator(this.creatorContainer, initial, {
+      onChange: (config) => studio.setAvatar(config),
+      onSave: (config) => {
+        this.progress.saveAvatar(config);
+        this.closeCharacterCreator();
+        onDone();
+      },
+      onCancel: () => {
+        if (firstRun && this.progress.avatar === null) this.progress.saveAvatar(DEFAULT_AVATAR);
+        this.closeCharacterCreator();
+        onDone();
+      },
+      onRotate: (deltaRadians) => studio.setDragRotation(deltaRadians),
+    });
+    this.studio = studio;
+    this.creator = creator;
+    creator.open();
+  }
+
+  private closeCharacterCreator(): void {
+    this.creator?.close();
+    this.creator = null;
+    this.studio?.dispose();
+    this.studio = null;
+  }
+
+  private renderStudio(studio: AvatarStudio, creator: CharacterCreator, deltaSeconds: number, elapsedSeconds: number): void {
+    studio.update(deltaSeconds, elapsedSeconds);
+    // Recadré à chaque image : la mise en page (panneau à gauche ou en bas) suit la rotation de l'écran.
+    studio.frameCamera(this.camera, creator.layout);
+    this.pipeline.exposure = 1;
+    this.pipeline.render(studio.scene, this.camera);
   }
 
   private animateIdleScene(elapsedSeconds: number): void {
@@ -794,6 +909,14 @@ function examRandom(): SeededRandom {
   const entropy = new Uint32Array(1);
   crypto.getRandomValues(entropy);
   return new SeededRandom(entropy[0] ?? Date.now());
+}
+
+function createCreatorContainer(): HTMLElement {
+  const container = document.createElement("div");
+  container.id = "creator";
+  container.hidden = true;
+  document.body.append(container);
+  return container;
 }
 
 function safeLocalStorage(): Storage | null {

@@ -5,6 +5,7 @@ import type { Cell } from "../core/grid";
 import type { InputController } from "../core/input";
 import type { QualityProfile } from "../core/settings";
 import { seedFromString } from "../core/rng";
+import type { AvatarConfig } from "../avatar/avatarConfig";
 import type { DevOpsModule } from "../content/types";
 import {
   CombatEffects,
@@ -14,12 +15,13 @@ import {
   SUSPEND_SPARK_COLOR,
   WALL_SPARK_COLOR,
 } from "../entities/combatEffects";
+import { Boss, type BossState } from "../entities/boss";
 import { Guard, type GuardShot } from "../entities/guard";
 import { IntelPickup } from "../entities/intel";
 import { SecurityCamera } from "../entities/securityCamera";
 import { Player, type Posture } from "../entities/player";
 import { ExtractionZone, HackTerminal } from "../entities/terminal";
-import { generateLevel, type LevelLayout } from "../level/generator";
+import { generateLevel, type LevelLayout, type Room } from "../level/generator";
 import { accentForModule, buildLevelScene, cellToWorld, disposeScene, type LevelVisuals } from "../level/levelScene";
 import type { MissionDifficulty } from "./difficulty";
 
@@ -31,8 +33,14 @@ export interface TargetRef {
   index: number;
 }
 
-/** suspended : sentinelle à terre (SIGSTOP) ; shield : le bouclier a encaissé ; camera : caméra brouillée. */
-export type ShotResult = "suspended" | "shield" | "camera" | "miss";
+/** Ce qu'une balle peut toucher : en plus des cibles du gadget, le boss de fin de secteur. */
+type ShotTargetRef = TargetRef | { kind: "boss" };
+
+/**
+ * suspended : sentinelle à terre (SIGSTOP) ; shield : le bouclier a encaissé ; camera : caméra brouillée ;
+ * bossArmor : l'armure du boss a encaissé ; bossExposed : la dernière plaque est tombée, il est à genoux.
+ */
+export type ShotResult = "suspended" | "shield" | "camera" | "bossArmor" | "bossExposed" | "miss";
 
 /** Visée fournie par l'application : un point du sol (souris) ou une direction (pad tactile). */
 export type AimInput = { kind: "point"; x: number; z: number; aiming: boolean } | { kind: "direction"; angle: number; aiming: boolean };
@@ -45,10 +53,25 @@ export type CombatEvent =
   | { type: "enemyShot" }
   | { type: "playerHit"; health: number }
   | { type: "alarm"; source: "sentinel" | "camera" }
-  | { type: "sentinelWoke" };
+  | { type: "sentinelWoke" }
+  | { type: "bossAwakened" }
+  | { type: "bossRecovered" }
+  | { type: "bossPhaseCleared"; phase: number }
+  | { type: "bossDefeated" };
+
+/** État du boss affiché dans la barre en haut de l'écran. */
+export interface BossHudState {
+  name: string;
+  state: BossState;
+  /** Phase en cours, à partir de 1. */
+  phase: number;
+  phaseCount: number;
+  armor: number;
+  exposedSecondsLeft: number;
+}
 
 export interface CommandTargetInfo {
-  kind: TargetKind;
+  kind: TargetKind | "boss";
   name: string;
   /** Temps avant que la cible ne se relève (sentinelle) ou ne se rallume (caméra). */
   secondsLeft: number;
@@ -77,6 +100,8 @@ export interface HudState {
   magazineSize: number;
   reserve: number;
   reloadProgress: number;
+  /** null tant que le boss dort (ou une fois vaincu). */
+  boss: BossHudState | null;
 }
 
 export type GuardStatus = "calm" | "hostile" | "suspended" | "down";
@@ -89,12 +114,16 @@ export interface MinimapSnapshot {
   terminals: { cell: Cell; hacked: boolean }[];
   intel: { cell: Cell; collected: boolean }[];
   exitUnlocked: boolean;
+  /** Position du boss une fois réveillé, null sinon. */
+  boss: THREE.Vector3 | null;
 }
 
 export interface MissionCallbacks {
   onTerminalRequested(terminalIndex: number): void;
   onIntelFound(): void;
   onCommandRequested(target: TargetRef): void;
+  /** Boss à genoux : la commande qui l'achève (phase à partir de 0, secondes d'exposition restantes). */
+  onBossCommandRequested(phaseIndex: number, secondsLeft: number): void;
   onTakedown(): void;
   onCombatEvent(event: CombatEvent): void;
   /** Le joueur est tombé : il perd une vie et repart du point d'insertion. */
@@ -117,6 +146,7 @@ export interface MissionProgressState {
   neutralizations: number;
   elapsedSeconds: number;
   playerCell: Cell;
+  bossDefeated: boolean;
 }
 
 export interface MissionOptions {
@@ -125,6 +155,9 @@ export interface MissionOptions {
   /** Position du module dans la campagne : donne la couleur d'ambiance du secteur. */
   moduleIndex: number;
   quality: QualityProfile;
+  avatar: AvatarConfig;
+  /** Identité du boss de fin de secteur (le contenu pédagogique reste côté application). */
+  boss: { name: string; color: number };
 }
 
 const INTERACTION_RADIUS = 0.95;
@@ -154,6 +187,8 @@ const COMMAND_RANGE = 14;
 const COMMAND_FAILURE_PENALTY_SECONDS = 3;
 const MAX_HEALTH = 100;
 const ENEMY_SHOT_DAMAGE = 20;
+/** Les balles du boss font un peu moins mal : elles arrivent par salves entières. */
+const BOSS_SHOT_DAMAGE = 15;
 const ENEMY_SHOT_SPEED = 13;
 const ENEMY_SHOT_RANGE = 16;
 const PLAYER_HIT_RADIUS = 0.3;
@@ -189,6 +224,7 @@ export function cameraZoomForAspect(aspect: number): number {
 interface EnemyShot {
   projectile: Projectile;
   mesh: THREE.Mesh;
+  damage: number;
 }
 
 /** Une mission = un module de la roadmap joué dans un niveau généré. */
@@ -212,6 +248,11 @@ export class Mission {
   private readonly effects: CombatEffects;
   private readonly enemyShots: EnemyShot[] = [];
   private readonly wasSuspended: boolean[];
+  private readonly boss: Boss;
+  /** Salle d'extraction, où le boss garde la sortie. */
+  private readonly arena: Room;
+  private bossDefeated = false;
+  private previousBossState: BossState = "dormant";
   private aim: AimInput | null = null;
   private lastAimAngle = 0;
   private lastAimAt = -Infinity;
@@ -266,7 +307,7 @@ export class Mission {
     this.shadowLight = options.quality.shadows ? createShadowLight() : null;
     if (this.shadowLight) this.scene.add(this.shadowLight, this.shadowLight.target);
 
-    this.player = new Player(this.layout.grid);
+    this.player = new Player(this.layout.grid, options.avatar);
     this.player.placeAt(cellToWorld(this.layout.start));
     this.scene.add(this.player.root);
 
@@ -288,6 +329,10 @@ export class Mission {
     this.cameras = this.layout.cameras.map((slot) => new SecurityCamera(this.layout.grid, slot));
     this.cameraIdentities = this.cameras.map((_, index) => createCameraIdentity(seed, index + 1));
     for (const camera of this.cameras) this.scene.add(camera.root);
+
+    this.arena = arenaContaining(this.layout, this.layout.exit);
+    this.boss = new Boss(this.layout.grid, { name: options.boss.name, color: options.boss.color, level: options.moduleIndex, arena: this.arena });
+    this.scene.add(this.boss.root);
 
     this.effects = new CombatEffects(this.scene, options.quality.bloom);
     this.targetMarker = createTargetMarker(0x4fc3ff);
@@ -364,10 +409,42 @@ export class Mission {
     terminal.markHacked();
     // Chaque terminal piraté rapporte des munitions : apprendre donne des moyens d'agir.
     this.sidearm.addAmmo(AMMO_PER_TERMINAL);
-    if (this.terminals.every((candidate) => candidate.hacked)) {
-      this.extraction.unlock();
+    if (!this.allTerminalsHacked) return;
+    if (this.bossDefeated) {
+      this.refreshExtractionLock();
       this.callbacks.onNotice("Tous les terminaux sont piratés : rejoins le point d'extraction (faisceau vert).");
+    } else {
+      this.callbacks.onNotice(`Tous les terminaux sont piratés. ${this.options.boss.name} garde la salle d'extraction : entre pour l'affronter.`);
     }
+  }
+
+  private get allTerminalsHacked(): boolean {
+    return this.terminals.every((terminal) => terminal.hacked);
+  }
+
+  /** L'extraction ne s'ouvre qu'une fois les terminaux piratés ET le boss vaincu. */
+  private refreshExtractionLock(): void {
+    if (this.allTerminalsHacked && this.bossDefeated && !this.extraction.unlocked) this.extraction.unlock();
+  }
+
+  /** Commande juste contre le boss : phase suivante, ou victoire et extraction ouverte. */
+  completeBossPhase(): "next" | "defeated" {
+    const outcome = this.boss.completePhase();
+    this.previousBossState = this.boss.state;
+    if (outcome === "defeated") {
+      this.bossDefeated = true;
+      this.refreshExtractionLock();
+      this.callbacks.onCombatEvent({ type: "bossDefeated" });
+    } else {
+      this.callbacks.onCombatEvent({ type: "bossPhaseCleared", phase: this.boss.phaseIndex });
+    }
+    return outcome;
+  }
+
+  /** Commande ratée contre le boss : il se relève plus tôt, et le bruit attire les sentinelles proches. */
+  bossCommandFailed(): void {
+    this.boss.commandFailed();
+    this.alertGuardsNear(this.player.position, SHOT_NOISE_RADIUS * 2, this.playerCell());
   }
 
   /** Mauvaise réponse = bruit : les gardes proches viennent inspecter le terminal. */
@@ -395,6 +472,7 @@ export class Mission {
       neutralizations: this.neutralizations,
       elapsedSeconds: this.elapsedSeconds,
       playerCell: { x: Math.floor(this.player.position.x), z: Math.floor(this.player.position.z) },
+      bossDefeated: this.bossDefeated,
     };
   }
 
@@ -417,7 +495,10 @@ export class Mission {
     for (const index of state.neutralizedGuards) this.guards[index]?.neutralize(true);
     for (const index of state.firewalledCameras) this.cameras[index]?.firewall();
     this.sidearm = new Sidearm(state.ammo);
-    if (this.terminals.every((terminal) => terminal.hacked)) this.extraction.unlock();
+    this.bossDefeated = state.bossDefeated;
+    // Boss déjà vaincu avant la sauvegarde : il ne réapparaît pas.
+    this.boss.root.visible = !this.bossDefeated;
+    this.refreshExtractionLock();
     this.livesLeft = state.livesLeft;
     this.detections = state.detections;
     this.neutralizations = state.neutralizations;
@@ -465,11 +546,28 @@ export class Mission {
       aiming: this.player.isAiming,
       contextAction: this.contextAction(),
       gadgetAvailable: this.hasAnyGadget,
-      commandTarget: commandTarget ? this.describeCommandTarget(commandTarget) : null,
+      commandTarget: this.bossCommandAvailable()
+        ? { kind: "boss", name: this.options.boss.name, secondsLeft: this.boss.exposedSecondsLeft }
+        : commandTarget
+          ? this.describeCommandTarget(commandTarget)
+          : null,
       magazine: this.sidearm.magazine,
       magazineSize: this.sidearm.magazineSize,
       reserve: this.sidearm.reserve,
       reloadProgress: this.sidearm.reloadProgress,
+      boss: this.bossHudState(),
+    };
+  }
+
+  private bossHudState(): BossHudState | null {
+    if (this.bossDefeated || this.boss.state === "dormant") return null;
+    return {
+      name: this.options.boss.name,
+      state: this.boss.state,
+      phase: Math.min(this.boss.phaseIndex + 1, this.boss.phaseCount),
+      phaseCount: this.boss.phaseCount,
+      armor: this.boss.armorFraction,
+      exposedSecondsLeft: this.boss.exposedSecondsLeft,
     };
   }
 
@@ -482,6 +580,7 @@ export class Mission {
       terminals: this.terminals.map((terminal) => ({ cell: terminal.slot.cell, hacked: terminal.hacked })),
       intel: this.intel.map((pickup) => ({ cell: pickup.cell, collected: pickup.collected })),
       exitUnlocked: this.extraction.unlocked,
+      boss: this.bossDefeated || this.boss.state === "dormant" ? null : this.boss.position,
     };
   }
 
@@ -505,6 +604,7 @@ export class Mission {
     if (this.collectNearbyIntel()) return;
     this.updateGuards(deltaSeconds);
     if (this.finished || this.paused) return;
+    this.updateBoss(deltaSeconds);
     this.updateEnemyShots(deltaSeconds);
     if (this.finished || this.paused) return;
     this.regenerateHealth(deltaSeconds);
@@ -563,6 +663,12 @@ export class Mission {
 
   /** La commande n'est possible que sur une cible qu'on vient de toucher : pas de balle au but, pas de kill. */
   private requestCommand(): boolean {
+    // Le boss s'achève toujours à la commande, même avant d'avoir débloqué le moindre gadget.
+    if (this.bossCommandAvailable()) {
+      this.pause();
+      this.callbacks.onBossCommandRequested(this.boss.phaseIndex, this.boss.exposedSecondsLeft);
+      return true;
+    }
     if (!this.hasAnyGadget) {
       this.notice("Aucun gadget pour l'instant : approche les sentinelles par derrière (E) pour les neutraliser.");
       return false;
@@ -616,6 +722,10 @@ export class Mission {
     return best;
   }
 
+  private bossCommandAvailable(): boolean {
+    return !this.bossDefeated && this.boss.state === "exposed" && planarDistance(this.boss.position, this.player.position) <= COMMAND_RANGE;
+  }
+
   private describeCommandTarget(target: TargetRef): CommandTargetInfo {
     const secondsLeft =
       target.kind === "sentinel"
@@ -635,9 +745,12 @@ export class Mission {
     return this.player.facingMathAngle;
   }
 
-  /** Tout ce qu'une balle peut toucher : sentinelles debout ou à terre, caméras pas encore coupées. */
-  private shotTargets(): ShotTarget<TargetRef>[] {
-    const targets: ShotTarget<TargetRef>[] = [];
+  /** Tout ce qu'une balle peut toucher : sentinelles debout ou à terre, caméras pas encore coupées, boss en combat. */
+  private shotTargets(): ShotTarget<ShotTargetRef>[] {
+    const targets: ShotTarget<ShotTargetRef>[] = [];
+    if (!this.bossDefeated && this.boss.isTargetable) {
+      targets.push({ id: { kind: "boss" }, x: this.boss.position.x, z: this.boss.position.z, radius: this.boss.hitRadius });
+    }
     this.guards.forEach((guard, index) => {
       if (!guard.neutralized) targets.push({ id: { kind: "sentinel", index }, x: guard.position.x, z: guard.position.z, radius: SENTINEL_HIT_RADIUS });
     });
@@ -679,8 +792,13 @@ export class Mission {
     this.callbacks.onCombatEvent({ type: "shot", result, impact });
   }
 
-  private applyShotHit(hit: TargetRef | null): ShotResult {
+  private applyShotHit(hit: ShotTargetRef | null): ShotResult {
     if (!hit) return "miss";
+    if (hit.kind === "boss") {
+      const outcome = this.boss.takeHit();
+      if (outcome === "exposed") this.previousBossState = "exposed";
+      return outcome === "exposed" ? "bossExposed" : outcome === "armor" ? "bossArmor" : "miss";
+    }
     if (hit.kind === "camera") {
       this.cameras[hit.index]?.disableUntil(this.elapsedSeconds + CAMERA_EMP_SECONDS);
       return "camera";
@@ -693,8 +811,8 @@ export class Mission {
   }
 
   private showShotImpact(impact: THREE.Vector3, result: ShotResult, angle: number): void {
-    if (result === "suspended" || result === "camera") this.effects.burst(impact, SUSPEND_SPARK_COLOR, 18);
-    else if (result === "shield") this.effects.burst(impact, SHIELD_SPARK_COLOR, 14);
+    if (result === "suspended" || result === "camera" || result === "bossExposed") this.effects.burst(impact, SUSPEND_SPARK_COLOR, result === "bossExposed" ? 30 : 18);
+    else if (result === "shield" || result === "bossArmor") this.effects.burst(impact, SHIELD_SPARK_COLOR, 14);
     // Ricochet : la gerbe repart vers le tireur, comme sur un vrai mur.
     else this.effects.burst(impact, WALL_SPARK_COLOR, 8, angle + Math.PI);
   }
@@ -740,7 +858,7 @@ export class Mission {
       guard.update(deltaSeconds, playerSnapshot);
       if (guard.consumeAlarm()) this.raiseAlarm("sentinel");
       const shot = guard.consumeShot();
-      if (shot && playerSnapshot) this.fireEnemyShot(shot);
+      if (shot && playerSnapshot) this.fireGuardShot(shot);
       if (this.wasSuspended[index] && !guard.isSuspended && !guard.neutralized) {
         this.callbacks.onCombatEvent({ type: "sentinelWoke" });
         this.notice(`${this.identities[index]?.containerName ?? "Une sentinelle"} reprend du service (SIGCONT) : elle est furieuse !`);
@@ -764,15 +882,40 @@ export class Mission {
     this.alarmActive = this.guards.some((guard) => !guard.neutralized && guard.isHostile);
   }
 
-  private fireEnemyShot(shot: GuardShot): void {
-    const projectile = createProjectile(shot.x, shot.z, shot.angle, ENEMY_SHOT_SPEED, ENEMY_SHOT_RANGE);
-    const mesh = this.effects.createProjectileMesh();
-    mesh.position.set(shot.x, SHOT_HEIGHT, shot.z);
-    // La capsule est verticale par défaut : on la couche dans l'axe du tir.
-    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(projectile.directionX, 0, projectile.directionZ));
-    this.enemyShots.push({ projectile, mesh });
-    this.effects.burst(mesh.position, ENEMY_SHOT_COLOR, 4, shot.angle);
+  private fireGuardShot(shot: GuardShot): void {
+    this.spawnEnemyProjectile(shot.x, shot.z, shot.angle, ENEMY_SHOT_SPEED, ENEMY_SHOT_DAMAGE);
     this.callbacks.onCombatEvent({ type: "enemyShot" });
+  }
+
+  private spawnEnemyProjectile(x: number, z: number, angle: number, speed: number, damage: number): void {
+    const projectile = createProjectile(x, z, angle, speed, ENEMY_SHOT_RANGE);
+    const mesh = this.effects.createProjectileMesh();
+    mesh.position.set(x, SHOT_HEIGHT, z);
+    // La capsule est verticale par défaut : on la couche dans l'axe du tir.
+    mesh.quaternion.setFromUnitVectors(UP_AXIS, new THREE.Vector3(projectile.directionX, 0, projectile.directionZ));
+    this.enemyShots.push({ projectile, mesh, damage });
+    this.effects.burst(mesh.position, ENEMY_SHOT_COLOR, 4, angle);
+  }
+
+  /**
+   * Le boss dort jusqu'à ce que l'agent entre dans la salle d'extraction avec tous les terminaux piratés :
+   * le combat arrive au moment où l'on a appris tout ce qu'il faut pour le gagner.
+   */
+  private updateBoss(deltaSeconds: number): void {
+    if (this.bossDefeated) return;
+    if (this.boss.state === "dormant") {
+      if (!this.allTerminalsHacked || this.graceSeconds > 0 || !isInsideRoom(this.arena, this.player.position)) return;
+      this.boss.awaken();
+      this.callbacks.onCombatEvent({ type: "bossAwakened" });
+    }
+    this.boss.update(deltaSeconds, this.graceSeconds > 0 ? null : { position: this.player.position });
+    const shots = this.boss.consumeShots();
+    for (const shot of shots) this.spawnEnemyProjectile(shot.x, shot.z, shot.angle, shot.speed, BOSS_SHOT_DAMAGE);
+    // Un seul son par salve : un anneau de 14 balles ne doit pas faire 14 détonations.
+    if (shots.length > 0) this.callbacks.onCombatEvent({ type: "enemyShot" });
+    // L'exposition n'a pas été exploitée à temps : le boss se relève avec une partie de son armure.
+    if (this.previousBossState === "exposed" && this.boss.state === "fighting") this.callbacks.onCombatEvent({ type: "bossRecovered" });
+    this.previousBossState = this.boss.state;
   }
 
   private updateEnemyShots(deltaSeconds: number): void {
@@ -790,7 +933,7 @@ export class Mission {
       this.enemyShots.splice(index, 1);
       if (outcome === "hit") {
         this.effects.burst(shot.mesh.position, ENEMY_SHOT_COLOR, 12);
-        this.damagePlayer(ENEMY_SHOT_DAMAGE);
+        this.damagePlayer(shot.damage);
         if (this.finished || this.paused) return;
       }
     }
@@ -823,6 +966,9 @@ export class Mission {
     this.health = MAX_HEALTH;
     for (const guard of this.guards) guard.reset();
     for (const camera of this.cameras) camera.resetAlarm();
+    // Combat de boss perdu : il se rendort, armure pleine ; on revient l'affronter.
+    if (!this.bossDefeated) this.boss.reset();
+    this.previousBossState = "dormant";
     this.wasSuspended.fill(false);
     this.alarmActive = false;
     this.graceSeconds = RESPAWN_GRACE_SECONDS;
@@ -839,6 +985,7 @@ export class Mission {
 
   private exposure(): number {
     if (this.alarmActive) return 1;
+    if (!this.bossDefeated && this.boss.state !== "dormant" && this.boss.state !== "defeated") return 1;
     const guardAwareness = this.guards.reduce((highest, guard) => (guard.neutralized || guard.isSuspended ? highest : Math.max(highest, guard.awareness)), 0);
     return Math.max(guardAwareness, this.cameras.reduce((highest, camera) => Math.max(highest, camera.alarm), 0));
   }
@@ -952,6 +1099,26 @@ export class Mission {
     this.camera.position.copy(this.cameraBase);
     this.camera.lookAt(this.player.position.x, 0.5, this.player.position.z);
   }
+}
+
+const UP_AXIS = new THREE.Vector3(0, 1, 0);
+
+/** La salle qui contient la sortie ; à défaut (sortie dans un couloir), la salle dont le centre en est le plus proche. */
+function arenaContaining(layout: LevelLayout, cell: Cell): Room {
+  const containing = layout.rooms.find((room) => isInsideRoom(room, { x: cell.x + 0.5, z: cell.z + 0.5 }));
+  if (containing) return containing;
+  const byDistance = [...layout.rooms].sort(
+    (first, second) =>
+      Math.hypot(first.x + first.width / 2 - cell.x, first.z + first.height / 2 - cell.z) -
+      Math.hypot(second.x + second.width / 2 - cell.x, second.z + second.height / 2 - cell.z),
+  );
+  const nearest = byDistance[0];
+  if (!nearest) throw new Error("Niveau sans salle : impossible de placer le boss");
+  return nearest;
+}
+
+function isInsideRoom(room: Room, position: { x: number; z: number }): boolean {
+  return position.x >= room.x && position.x < room.x + room.width && position.z >= room.z && position.z < room.z + room.height;
 }
 
 function guardStatus(guard: Guard): GuardStatus {
