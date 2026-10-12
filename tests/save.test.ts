@@ -141,3 +141,27 @@ describe("persistance de l'agent personnalisé", () => {
     expect(store.checkpoint?.bossDefeated).toBe(false);
   });
 });
+
+describe("tutoriel terminé", () => {
+  it("absent des anciennes sauvegardes : pas encore fait", () => {
+    expect(parseProgress(JSON.stringify({ version: 2, records: {} })).tutorialDone).toBe(false);
+    expect(emptyProgress().tutorialDone).toBe(false);
+  });
+
+  it("seul un vrai booléen vrai est accepté (code bricolé)", () => {
+    for (const bad of ["true", 1, "oui", [], {}, null]) expect(parseProgress(JSON.stringify({ version: 2, tutorialDone: bad })).tutorialDone).toBe(false);
+    expect(parseProgress(JSON.stringify({ version: 2, tutorialDone: true })).tutorialDone).toBe(true);
+  });
+
+  it("est sauvegardé, relu, et survit à l'import d'un code qui ne le contient pas ; la remise à zéro le réinitialise", () => {
+    const storage = new MemoryStorage();
+    const store = new ProgressStore(storage);
+    store.markTutorialDone();
+    expect(new ProgressStore(storage).tutorialDone).toBe(true);
+    store.replaceWith(emptyProgress());
+    expect(store.tutorialDone).toBe(true);
+    expect(decodeSaveCode(encodeSaveCode({ ...emptyProgress(), tutorialDone: true })).tutorialDone).toBe(true);
+    store.reset();
+    expect(store.tutorialDone).toBe(false);
+  });
+});

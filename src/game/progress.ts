@@ -48,6 +48,8 @@ export interface PlayerProgress {
   exams: Record<string, ExamRecord>;
   /** Apparence de l'agent ; null tant que le joueur ne l'a pas personnalisée (on lui propose le créateur). */
   avatar: AvatarConfig | null;
+  /** Le tutoriel guidé du premier secteur a été terminé ou passé : on ne le repropose pas. */
+  tutorialDone: boolean;
   checkpoint: MissionCheckpoint | null;
   savedAt: string | null;
 }
@@ -60,7 +62,7 @@ const MAX_ID_LENGTH = 64;
 const SAFE_ID = /^[a-z0-9-]{1,64}$/;
 
 export function emptyProgress(): PlayerProgress {
-  return { version: 2, records: Object.create(null), exams: Object.create(null), avatar: null, checkpoint: null, savedAt: null };
+  return { version: 2, records: Object.create(null), exams: Object.create(null), avatar: null, tutorialDone: false, checkpoint: null, savedAt: null };
 }
 
 /** Interface minimale de stockage : permet d'injecter un faux stockage dans les tests. */
@@ -186,6 +188,8 @@ export function progressFromUnknown(parsed: unknown): PlayerProgress {
   }
   // Apparence invalide (code bricolé, ancienne version) : on retombe sur l'agent par défaut, sans perdre la campagne.
   progress.avatar = parsed.avatar === undefined || parsed.avatar === null ? null : parseAvatarConfig(parsed.avatar);
+  // Strictement un booléen : toute autre valeur (code bricolé, ancienne version) revient à « pas encore fait ».
+  progress.tutorialDone = parsed.tutorialDone === true;
   progress.checkpoint = parseCheckpoint(parsed.checkpoint);
   progress.savedAt = typeof parsed.savedAt === "string" && parsed.savedAt.length <= MAX_ID_LENGTH ? parsed.savedAt : null;
   return progress;
@@ -247,6 +251,16 @@ export class ProgressStore {
     return this.progress.avatar;
   }
 
+  get tutorialDone(): boolean {
+    return this.progress.tutorialDone;
+  }
+
+  markTutorialDone(): void {
+    if (this.progress.tutorialDone) return;
+    this.progress.tutorialDone = true;
+    this.persist();
+  }
+
   saveAvatar(avatar: AvatarConfig): void {
     const validated = parseAvatarConfig(avatar);
     if (!validated) throw new RangeError("Apparence d'agent invalide");
@@ -289,6 +303,8 @@ export class ProgressStore {
   replaceWith(progress: PlayerProgress): void {
     const next = progressFromUnknown(progress);
     if (next.avatar === null) next.avatar = this.progress.avatar;
+    // Un code sans cette information ne doit pas rendre un tutoriel déjà vu.
+    next.tutorialDone ||= this.progress.tutorialDone;
     this.progress = next;
     this.persist();
   }

@@ -31,6 +31,8 @@ import { Hud } from "./ui/hud";
 import { LessonPanel } from "./ui/lessonPanel";
 import { RenderPipeline } from "./render/renderPipeline";
 import { ScreenManager, type CampaignSummary } from "./ui/screens";
+import { placeMarker, TutorialSession } from "./game/tutorial";
+import { MARKER_EDGE_MARGIN, TutorialGuide } from "./ui/tutorialGuide";
 import { prefersTouchControls, TouchControls } from "./ui/touchControls";
 
 const MAX_FRAME_DELTA_SECONDS = 0.05;
@@ -53,6 +55,10 @@ class ShadowOpsApp {
   private readonly progress = new ProgressStore(safeLocalStorage());
   private readonly screens = new ScreenManager(requireElement("#screen"));
   private readonly hud = new Hud(requireElement("#ui"));
+  /** Tutoriel du premier secteur : null hors de ce cas (déjà fait, reprise de partie, autre secteur). */
+  private tutorial: TutorialSession | null = null;
+  private readonly tutorialGuide = new TutorialGuide(this.hud.root, { onSkip: () => this.finishTutorial("skipped") });
+  private readonly tutorialTargetScratch = new THREE.Vector3();
   private readonly touchControls = new TouchControls(requireElement("#ui"), this.input);
   private readonly challengeContainer = requireElement<HTMLElement>("#challenge");
   private readonly lessonPanel = new LessonPanel(this.challengeContainer);
@@ -333,15 +339,68 @@ class ShadowOpsApp {
     this.screens.hide();
     this.mission.setCameraZoom(cameraZoomForAspect(this.camera.aspect));
     this.showMissionUi(`${module.codename} · ${module.title}`);
-    this.hud.showNotice(
-      resumed
-        ? "Mission reprise depuis ta dernière sauvegarde."
-        : checkpoint
-          ? "Ta sauvegarde de mission date d'une ancienne version du jeu : le secteur repart de zéro (ta campagne est intacte)."
-          : "Ramasse les dossiers jaunes, pirate les terminaux rouges et résous l'incident sur la console principale bleue.",
-    );
+    this.startTutorialIfNeeded(module, checkpoint !== null);
+    // Le tutoriel donne déjà la première consigne : pas de bandeau qui la double ou la recouvre.
+    if (!this.tutorial) {
+      this.hud.showNotice(
+        resumed
+          ? "Mission reprise depuis ta dernière sauvegarde."
+          : checkpoint
+            ? "Ta sauvegarde de mission date d'une ancienne version du jeu : le secteur repart de zéro (ta campagne est intacte)."
+            : "Ramasse les dossiers jaunes, pirate les terminaux rouges et résous l'incident sur la console principale bleue.",
+      );
+    }
     this.mission.resume();
     this.ambience.start();
+  }
+
+  /**
+   * Premier secteur d'une campagne neuve : on guide les premiers gestes. Jamais sur une reprise de partie,
+   * ni sur un secteur déjà joué, ni une fois le tutoriel terminé ou passé.
+   */
+  private startTutorialIfNeeded(module: DevOpsModule, hadCheckpoint: boolean): void {
+    this.tutorial = null;
+    this.tutorialGuide.hide();
+    const firstSector = CURRICULUM[0];
+    if (!firstSector || module.id !== firstSector.id || hadCheckpoint) return;
+    if (this.progress.tutorialDone || this.progress.recordFor(module.id) !== undefined) return;
+    this.tutorial = new TutorialSession();
+  }
+
+  private finishTutorial(outcome: "finished" | "skipped"): void {
+    this.tutorial = null;
+    this.progress.markTutorialDone();
+    if (outcome === "finished") {
+      this.sound.play("success");
+      this.tutorialGuide.showCompletion();
+    } else {
+      this.tutorialGuide.hide();
+    }
+  }
+
+  /** Une image du tutoriel : valide l'étape en cours, affiche la consigne et le repère de la cible. */
+  private updateTutorial(mission: Mission): void {
+    const tutorial = this.tutorial;
+    if (!tutorial) return;
+    if (tutorial.update(mission.tutorialSnapshot()) > 0) {
+      this.sound.play("success");
+      this.tutorialGuide.flashSuccess();
+    }
+    const step = tutorial.step;
+    if (!step) {
+      this.finishTutorial("finished");
+      return;
+    }
+    this.tutorialGuide.showStep(step, tutorial.stepNumber, tutorial.stepCount, this.touchMode);
+    const target = this.tutorialTargetScratch;
+    if (!mission.tutorialTarget(step.target, target)) {
+      this.tutorialGuide.hideMarker();
+      return;
+    }
+    // Un peu au-dessus du sol : l'anneau entoure le terminal, le dossier ou la sentinelle, pas leurs pieds.
+    target.y = 0.8;
+    target.project(this.camera);
+    this.tutorialGuide.showMarker(placeMarker(target.x, target.y, target.z > 1, MARKER_EDGE_MARGIN));
   }
 
   /** Renvoie false si la sauvegarde ne correspond plus à ce secteur (version du jeu différente). */
@@ -765,6 +824,8 @@ class ShadowOpsApp {
     if (!this.mission) return;
     this.mission.dispose();
     this.mission = null;
+    this.tutorial = null;
+    this.tutorialGuide.hide();
     this.ambience.stop();
     this.hideMissionUi();
     this.challengeContainer.hidden = true;
@@ -791,6 +852,7 @@ class ShadowOpsApp {
     this.pipeline.exposure = mission.isNightVisionOn ? 2.4 : 1;
     const hudState = mission.hudState();
     this.hud.render(hudState);
+    this.updateTutorial(mission);
     this.ambience.update(deltaSeconds, hudState.exposure, mission.isPaused);
     if (this.touchMode) {
       this.touchControls.sync({

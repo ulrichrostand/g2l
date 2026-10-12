@@ -8,6 +8,7 @@ import { seedFromString } from "../core/rng";
 import type { AvatarConfig } from "../avatar/avatarConfig";
 import type { HumanCharacterAsset } from "../avatar/humanCharacter";
 import type { SentinelAsset } from "../entities/sentinelAndroid";
+import type { TutorialSnapshot, TutorialTargetKind } from "./tutorial";
 import type { DevOpsModule } from "../content/types";
 import {
   CombatEffects,
@@ -252,6 +253,9 @@ export class Mission {
   /** Nombre d'alertes déclenchées (une sentinelle ou une caméra t'a repéré). */
   detections = 0;
   neutralizations = 0;
+  /** Tirs réellement partis (chargeur non vide) : sert au tutoriel, jamais sauvegardé. */
+  private shotsFired = 0;
+  private readonly tutorialState: TutorialSnapshot = { x: 0, z: 0, aiming: false, crouching: false, intelCollected: 0, hackedCount: 0, neutralizations: 0, shotsFired: 0, guardsRemaining: 0 };
   elapsedSeconds = 0;
   health = MAX_HEALTH;
 
@@ -375,6 +379,40 @@ export class Mission {
 
   get hackedCount(): number {
     return this.terminals.filter((terminal) => terminal.hacked).length;
+  }
+
+  /**
+   * Instantané pour le tutoriel. Le même objet est réutilisé à chaque appel : appelé à chaque image,
+   * il ne doit rien allouer. L'appelant le lit tout de suite et ne le conserve pas.
+   */
+  tutorialSnapshot(): TutorialSnapshot {
+    const state = this.tutorialState;
+    state.x = this.player.position.x;
+    state.z = this.player.position.z;
+    state.aiming = this.player.isAiming;
+    state.crouching = this.player.crouched;
+    state.intelCollected = this.intelCollected;
+    state.hackedCount = this.hackedCount;
+    state.neutralizations = this.neutralizations;
+    state.shotsFired = this.shotsFired;
+    state.guardsRemaining = this.guards.reduce((count, guard) => count + (guard.neutralized ? 0 : 1), 0);
+    return state;
+  }
+
+  /** Position monde de ce qu'il faut montrer pour une étape du tutoriel : l'élément le plus proche de l'agent. */
+  tutorialTarget(kind: TutorialTargetKind, into: THREE.Vector3): boolean {
+    if (kind === null) return false;
+    let bestDistance = Infinity;
+    const consider = (x: number, z: number): void => {
+      const distance = Math.hypot(x - this.player.position.x, z - this.player.position.z);
+      if (distance >= bestDistance) return;
+      bestDistance = distance;
+      into.set(x, 0, z);
+    };
+    if (kind === "intel") for (const pickup of this.intel) if (!pickup.collected) consider(pickup.root.position.x, pickup.root.position.z);
+    if (kind === "terminal") for (const terminal of this.terminals) if (!terminal.hacked) consider(terminal.root.position.x, terminal.root.position.z);
+    if (kind === "guard") for (const guard of this.guards) if (!guard.neutralized) consider(guard.position.x, guard.position.z);
+    return bestDistance !== Infinity;
   }
 
   get intelCollected(): number {
@@ -822,6 +860,7 @@ export class Mission {
       return;
     }
     if (fire !== "fired") return;
+    this.shotsFired++;
 
     const aimAngle = this.currentAimAngle();
     const angle = applySpread(aimAngle, spread, Math.random);

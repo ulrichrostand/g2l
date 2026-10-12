@@ -167,6 +167,10 @@ et qu'aucune commande n'est posée deux fois).
 - **Boss androïdes géants** (~3 m) sur le même squelette : épaulières, plastron, réacteur dorsal et canon au
   bras dans la couleur du boss. Les plaques tombent à mesure que l'armure baisse ; les articulations et les
   évents s'illuminent pendant la charge d'une salve ; agenouillé en veille et quand il est exposé, effondré vaincu.
+- **Tutoriel guidé** au premier secteur d'une campagne neuve : 7 étapes (se déplacer, ramasser un dossier, pirater
+  un terminal, viser, tirer, s'accroupir, neutraliser une sentinelle), chacune validée par le geste réellement
+  fait, avec la consigne du clavier ou du tactile et un repère (anneau ou flèche au bord de l'écran) sur la cible.
+  « Passer le tutoriel » à tout moment ; il ne se rejoue pas (sauf après « Réinitialiser la progression »).
 - L'agent **recule sous les impacts** et **s'effondre** à zéro de santé avant l'écran « À terre ».
 - Cônes de vision en dégradé ; écrans de terminaux animés.
 - **Qualité réglable** (Haute / Moyenne / Basse) depuis l'écran titre ou la pause, choisie
