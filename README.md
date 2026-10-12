@@ -155,18 +155,34 @@ et qu'aucune commande n'est posée deux fois).
 - Décor procédural (aucune image à télécharger) : murs en panneaux avec bande lumineuse,
   sol métallique, réglettes et flaques de lumière, néons qui grésillent, câbles, grilles,
   poussière en suspension, **couleur d'ambiance propre à chaque secteur**.
-- Personnages articulés avec cycle de marche et accroupissement ; cônes de vision en dégradé ;
-  écrans de terminaux animés.
+- **Agent du joueur : humain riggé en glTF** (corps, tête et vêtements Quaternius, CC0) animé par
+  `AnimationMixer` : repos, marche, trottinement, sprint, accroupi, visée et tir au pistolet (buste et jambes
+  mêlés séparément). Les couleurs du créateur d'agent teintent peau, cheveux et vêtements. Si le modèle ne
+  charge pas, l'agent procédural prend le relais. Sentinelles et boss restent procéduraux pour l'instant.
+- Cônes de vision en dégradé ; écrans de terminaux animés.
 - **Qualité réglable** (Haute / Moyenne / Basse) depuis l'écran titre ou la pause, choisie
   automatiquement (Moyenne sur mobile) et **abaissée automatiquement** si le jeu passe sous ~40 images/s.
 
 ### Choix techniques
 
-- **Three.js + Vite + TypeScript strict**, aucune dépendance runtime autre que Three.js.
+- **Three.js + Vite + TypeScript strict**, aucune dépendance runtime autre que Three.js (le personnage glTF
+  est chargé par le `GLTFLoader` de three.js, sans décodeur supplémentaire).
 - Niveaux **générés de façon déterministe** (graine = id du module) : les rondes sont identiques d'une partie à l'autre, on peut les apprendre. Chaque niveau généré est validé (tous les terminaux et la sortie accessibles) et testé pour les 16 modules.
 - Cônes de vision **découpés contre les murs** par lancer de rayons sur la grille (DDA, O(distance)).
 - Murs et racks en `InstancedMesh`, éclairage plafonné : fluide sur un portable.
-- Sécurité : tout le texte passe par `textContent` (aucun `innerHTML`), CSP stricte dans `index.html`, sauvegarde locale validée avant usage.
+- Sécurité : tout le texte passe par `textContent` (aucun `innerHTML`), CSP stricte dans `index.html` (`connect-src 'self' blob:` : le `GLTFLoader` décode les textures
+  intégrées au `.glb` via des URL `blob:` créées par la page elle-même), sauvegarde locale validée avant usage.
+
+## Ressources 3D et licences
+
+| Ressource | Auteur | Licence | Fichier |
+|---|---|---|---|
+| Universal Base Characters (tête, yeux, sourcils, cheveux) | [Quaternius](https://quaternius.com/packs/universalbasecharacters.html) | CC0 1.0 | `public/models/characters/agent.glb` |
+| Modular Character Outfits – Fantasy (chemise, pantalon, gilet, bottes) | [Quaternius](https://quaternius.com/packs/modularcharacteroutfitsfantasy.html) | CC0 1.0 | idem |
+| Universal Animation Library (12 animations) | [Quaternius](https://quaternius.itch.io/universal-animation-library) | CC0 1.0 | idem |
+
+Provenance exacte, empreintes SHA-256 des sources et reconstruction : `public/models/characters/README.md`
+(script : `scripts/build-agent-glb.mjs`). Textes de licence : `public/models/characters/licenses/`.
 
 ## Limites connues
 

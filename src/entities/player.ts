@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { DEFAULT_AVATAR, type AvatarConfig } from "../avatar/avatarConfig";
 import { createAvatarRig, type AvatarModel } from "../avatar/avatarModel";
+import { HumanCharacter, type HumanCharacterAsset } from "../avatar/humanCharacter";
 import type { Grid } from "../core/grid";
 import type { MoveIntent } from "../core/input";
 import { poseRig, type HumanoidRig } from "./rig";
@@ -29,16 +30,28 @@ export class Player {
   private aimTimer = 0;
   /** Angle de visée (convention mathématique) tant que le joueur épaule, sinon null. */
   private aimAngle: number | null = null;
+  /** Personnage humain riggé : null tant qu'il charge (ou s'il n'a pas pu charger), l'agent procédural le remplace. */
+  private human: HumanCharacter | null = null;
+  private disposed = false;
+  private readonly previousPosition = new THREE.Vector3();
+  private groundSpeed = 0;
 
+  /**
+   * `humanModel` : modèle humain en cours de chargement. Il remplace l'agent procédural dès qu'il est prêt ;
+   * sans lui (tests, échec réseau, fichier invalide), l'agent procédural reste affiché et le jeu est inchangé.
+   */
   constructor(
     private readonly grid: Grid,
     avatar: AvatarConfig = DEFAULT_AVATAR,
+    humanModel: Promise<HumanCharacterAsset> | null = null,
   ) {
     this.avatar = createAvatarRig(avatar);
     this.rig = this.avatar.rig;
     this.root.add(this.rig.root);
+    if (humanModel) void this.attachHumanModel(humanModel, avatar);
     // Lampe frontale discrète : le joueur garde de la lisibilité dans les zones d'ombre.
-    const lamp = new THREE.PointLight(0x9dffb0, 2.2, 4.5, 1.6);
+    // Vert pâle plutôt que franc : l'ambiance vision nocturne reste, les couleurs des vêtements se lisent encore.
+    const lamp = new THREE.PointLight(0xd2ffde, 2.2, 4.5, 1.6);
     lamp.position.set(0, 1.6, 0);
     this.root.add(lamp);
   }
@@ -50,8 +63,31 @@ export class Player {
    * d'en reconstruire un autre). L'appeler en plus de disposeScene est sans risque.
    */
   dispose(): void {
+    this.disposed = true;
     this.root.removeFromParent();
     this.avatar.dispose();
+    this.human?.dispose();
+    this.human = null;
+  }
+
+  /** Vrai une fois le personnage humain affiché (sinon, c'est l'agent procédural). */
+  get usesHumanModel(): boolean {
+    return this.human !== null;
+  }
+
+  private async attachHumanModel(humanModel: Promise<HumanCharacterAsset>, avatar: AvatarConfig): Promise<void> {
+    try {
+      const asset = await humanModel;
+      // Mission terminée pendant le téléchargement : rien à attacher.
+      if (this.disposed) return;
+      const human = new HumanCharacter(asset, avatar);
+      human.root.rotation.y = this.facing;
+      this.root.add(human.root);
+      this.rig.root.visible = false;
+      this.human = human;
+    } catch (error) {
+      console.warn("Personnage humain indisponible : l'agent procédural reste affiché.", error);
+    }
   }
 
   get isAiming(): boolean {
@@ -67,6 +103,7 @@ export class Player {
   faceShot(angle: number): void {
     this.facing = toRigFacing(angle);
     this.aimTimer = SHOT_POSE_SECONDS;
+    this.human?.playShot();
   }
 
   /** Direction du regard en convention mathématique (cos → X, sin → Z), utile pour les tirs sans cible. */
@@ -81,6 +118,7 @@ export class Player {
 
   placeAt(position: THREE.Vector3): void {
     this.position.copy(position);
+    this.previousPosition.copy(position);
     this.root.position.copy(position);
   }
 
@@ -132,7 +170,17 @@ export class Player {
     this.stride += (targetStride - this.stride) * smoothing;
     this.crouchAmount += ((this.crouched ? 1 : 0) - this.crouchAmount) * smoothing;
     this.aimTimer = Math.max(0, this.aimTimer - deltaSeconds);
-    poseRig(this.rig, this.stepPhase, this.stride, this.crouchAmount, this.isAiming ? 1 : Math.min(1, this.aimTimer * 4));
+    const aim = this.isAiming ? 1 : Math.min(1, this.aimTimer * 4);
+    // Vitesse réellement parcourue (murs compris) : un agent bloqué contre un mur ne fait pas du sur-place en courant.
+    const travelled = deltaSeconds > 0 ? Math.hypot(this.position.x - this.previousPosition.x, this.position.z - this.previousPosition.z) / deltaSeconds : 0;
+    this.groundSpeed += (travelled - this.groundSpeed) * smoothing;
+    this.previousPosition.copy(this.position);
+    if (this.human) {
+      this.human.root.rotation.y = this.facing;
+      this.human.update(deltaSeconds, { speed: this.groundSpeed, crouching: this.crouched, aim });
+      return;
+    }
+    poseRig(this.rig, this.stepPhase, this.stride, this.crouchAmount, aim);
   }
 }
 

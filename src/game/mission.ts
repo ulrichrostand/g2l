@@ -6,6 +6,7 @@ import type { InputController } from "../core/input";
 import type { QualityProfile } from "../core/settings";
 import { seedFromString } from "../core/rng";
 import type { AvatarConfig } from "../avatar/avatarConfig";
+import type { HumanCharacterAsset } from "../avatar/humanCharacter";
 import type { DevOpsModule } from "../content/types";
 import {
   CombatEffects,
@@ -158,6 +159,8 @@ export interface MissionOptions {
   moduleIndex: number;
   quality: QualityProfile;
   avatar: AvatarConfig;
+  /** Modèle humain riggé de l'agent (chargé une fois pour la session) ; absent : agent procédural. */
+  playerModel?: Promise<HumanCharacterAsset> | null;
   /** Identité du boss de fin de secteur (le contenu pédagogique reste côté application). */
   boss: { name: string; color: number };
 }
@@ -317,7 +320,7 @@ export class Mission {
     this.shadowLight = options.quality.shadows ? createShadowLight() : null;
     if (this.shadowLight) this.scene.add(this.shadowLight, this.shadowLight.target);
 
-    this.player = new Player(this.layout.grid, options.avatar);
+    this.player = new Player(this.layout.grid, options.avatar, options.playerModel ?? null);
     this.player.placeAt(cellToWorld(this.layout.start));
     this.scene.add(this.player.root);
 

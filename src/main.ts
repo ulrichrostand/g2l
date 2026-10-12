@@ -17,6 +17,7 @@ import { computeMissionScore } from "./game/scoring";
 import { SCENARIOS } from "./content/scenarios";
 import { bossFor } from "./content/bosses";
 import { DEFAULT_AVATAR } from "./avatar/avatarConfig";
+import { loadHumanCharacterAsset } from "./avatar/humanCharacter";
 import { AvatarStudio } from "./render/avatarStudio";
 import { BossPanel } from "./ui/bossPanel";
 import { CharacterCreator } from "./ui/characterCreator";
@@ -89,6 +90,8 @@ class ShadowOpsApp {
     this.resize();
     this.pipeline.renderer.setAnimationLoop(() => this.frame());
     this.showTitle();
+    // Téléchargé pendant que le joueur lit l'écran titre : l'agent humain est prêt au lancement de la mission.
+    loadHumanCharacterAsset().catch((error: unknown) => console.warn("Préchargement du personnage humain impossible (nouvel essai au lancement).", error));
     // Raccourcis de test : bloc éliminé du build de production (import.meta.env.DEV vaut false).
     if (import.meta.env.DEV) {
       Object.assign(window, {
@@ -294,6 +297,7 @@ class ShadowOpsApp {
           moduleIndex,
           quality: QUALITY_PROFILES[this.settings.quality],
           avatar: this.progress.avatar ?? DEFAULT_AVATAR,
+          playerModel: loadHumanCharacterAsset(),
           boss: { name: bossFor(module.id).name, color: bossFor(module.id).color },
         },
       );
