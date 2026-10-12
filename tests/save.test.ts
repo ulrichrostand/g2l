@@ -101,12 +101,12 @@ describe("code de sauvegarde", () => {
 });
 
 describe("persistance de l'agent personnalisé", () => {
-  const customAvatar = { ...DEFAULT_AVATAR, hairStyle: "afro" as const };
+  const customAvatar = { ...DEFAULT_AVATAR, hairStyle: "long" as const };
 
   it("est relu depuis le stockage après saveAvatar", () => {
     const storage = new MemoryStorage();
     new ProgressStore(storage).saveAvatar(customAvatar);
-    expect(new ProgressStore(storage).avatar?.hairStyle).toBe("afro");
+    expect(new ProgressStore(storage).avatar?.hairStyle).toBe("long");
   });
 
   it("refuse une configuration invalide", () => {
@@ -130,9 +130,9 @@ describe("persistance de l'agent personnalisé", () => {
     const store = new ProgressStore(new MemoryStorage());
     store.saveAvatar(customAvatar);
     store.reset();
-    expect(store.avatar?.hairStyle).toBe("afro");
+    expect(store.avatar?.hairStyle).toBe("long");
     store.replaceWith(emptyProgress());
-    expect(store.avatar?.hairStyle).toBe("afro");
+    expect(store.avatar?.hairStyle).toBe("long");
   });
 
   it("garde un point de reprise avec le boss encore debout", () => {

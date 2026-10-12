@@ -1,37 +1,34 @@
 /**
- * Avatar personnalisable « façon Sims / Lagos Life » : uniquement des données, sans Three.js.
+ * Avatar personnalisable « façon Sims » de l'agent humain : uniquement des données, sans Three.js.
  * La config est sauvegardée côté joueur (donc modifiable à la main) : tout ce qui vient du stockage
  * repasse par parseAvatarConfig avant d'être utilisé.
  */
 
+export type BodyType = "male" | "female";
 export type BodyBuild = "slim" | "regular" | "strong";
-export type HairStyle = "buzz" | "short" | "afro" | "braids" | "locs" | "bun" | "long" | "mohawk" | "gele" | "bald";
-export type TopStyle = "tactical" | "hoodie" | "tshirt" | "jacket" | "boubou";
-export type FabricPattern = "plain" | "ankara" | "asooke" | "camo" | "stripes" | "circuit";
-export type BottomStyle = "cargo" | "jeans" | "skirt";
-export type ShoeStyle = "boots" | "sneakers" | "sandals";
-export type Accessory = "none" | "backpack" | "bag" | "glasses" | "headset" | "cap";
+/** Coupes disponibles sur le modèle humain (chacune existe pour les deux silhouettes). */
+export type HairStyle = "buzz" | "short" | "long" | "bun" | "bald";
 
+/**
+ * Apparence de l'agent : uniquement ce que le personnage humain riggé sait afficher.
+ * Les couleurs de vêtements teintent chacune une pièce : gilet (topColor), chemise et ceintures (topAccent),
+ * pantalon (bottomColor), bottes (shoesColor).
+ */
 export interface AvatarConfig {
+  body: BodyType;
   build: BodyBuild;
   /** Facteur d'échelle uniforme du personnage, dans HEIGHT_RANGE. */
   height: number;
   skinTone: string;
   hairStyle: HairStyle;
+  /** Barbe : silhouette masculine uniquement (toujours false pour l'autre, voir parseAvatarConfig). */
+  beard: boolean;
   hairColor: string;
-  eyeColor: string;
-  top: TopStyle;
-  topPattern: FabricPattern;
   topColor: string;
-  /** Couleur des détails du haut (bordures, poches, broderies) et second ton des motifs. */
   topAccent: string;
-  bottom: BottomStyle;
   bottomColor: string;
-  shoes: ShoeStyle;
   shoesColor: string;
-  accessory: Accessory;
-  accessoryColor: string;
-  /** Couleur des trois optiques de vision nocturne : la signature lumineuse de l'agent. */
+  /** Couleur des optiques de vision nocturne : la signature lumineuse de l'agent. */
   visorColor: string;
 }
 
@@ -47,24 +44,19 @@ export interface ColorPreset {
 
 export const HEIGHT_RANGE = { min: 0.9, max: 1.1 } as const;
 
-/** Spectre tel qu'il a toujours été : tenue tactique sombre, sac à dos et optiques vertes. */
+/** Spectre tel qu'il a toujours été : tenue sombre, cheveux ras et optiques vertes. */
 export const DEFAULT_AVATAR: Readonly<AvatarConfig> = Object.freeze({
+  body: "male",
   build: "regular",
   height: 1,
   skinTone: "#7d5036",
   hairStyle: "buzz",
+  beard: false,
   hairColor: "#141110",
-  eyeColor: "#3b2416",
-  top: "tactical",
-  topPattern: "plain",
-  topColor: "#1a1f25",
-  topAccent: "#2b333c",
-  bottom: "cargo",
+  topColor: "#2b333c",
+  topAccent: "#1a1f25",
   bottomColor: "#1f252c",
-  shoes: "boots",
   shoesColor: "#14181c",
-  accessory: "backpack",
-  accessoryColor: "#2b333c",
   visorColor: "#39ff88",
 });
 
@@ -102,16 +94,6 @@ export const HAIR_COLORS: readonly ColorPreset[] = [
 /** Les couleurs « naturelles » sont en tête : le tirage aléatoire les privilégie. */
 const NATURAL_HAIR_COUNT = 7;
 
-export const EYE_COLORS: readonly ColorPreset[] = [
-  { value: "#3b2416", label: "Brun foncé" },
-  { value: "#16110e", label: "Noir" },
-  { value: "#7a5230", label: "Noisette" },
-  { value: "#b07a1f", label: "Ambre" },
-  { value: "#4f7f3a", label: "Vert" },
-  { value: "#3f78b5", label: "Bleu" },
-  { value: "#7d8a92", label: "Gris" },
-];
-
 export const CLOTH_COLORS: readonly ColorPreset[] = [
   { value: "#1a1f25", label: "Noir tactique" },
   { value: "#2b333c", label: "Ardoise" },
@@ -146,91 +128,62 @@ export const VISOR_COLORS: readonly ColorPreset[] = [
 ];
 
 export const AVATAR_OPTIONS: {
+  readonly body: readonly AvatarOption<BodyType>[];
   readonly build: readonly AvatarOption<BodyBuild>[];
   readonly hairStyle: readonly AvatarOption<HairStyle>[];
-  readonly top: readonly AvatarOption<TopStyle>[];
-  readonly topPattern: readonly AvatarOption<FabricPattern>[];
-  readonly bottom: readonly AvatarOption<BottomStyle>[];
-  readonly shoes: readonly AvatarOption<ShoeStyle>[];
-  readonly accessory: readonly AvatarOption<Accessory>[];
 } = {
+  body: [
+    { value: "male", label: "Homme" },
+    { value: "female", label: "Femme" },
+  ],
   build: [
     { value: "slim", label: "Mince" },
     { value: "regular", label: "Moyenne" },
     { value: "strong", label: "Costaud" },
   ],
   hairStyle: [
-    { value: "buzz", label: "Rasé court" },
+    { value: "buzz", label: "Rasé" },
     { value: "short", label: "Court" },
-    { value: "afro", label: "Afro" },
-    { value: "braids", label: "Tresses" },
-    { value: "locs", label: "Locks" },
-    { value: "bun", label: "Chignon" },
     { value: "long", label: "Longs" },
-    { value: "mohawk", label: "Crête" },
-    { value: "gele", label: "Gele (foulard)" },
+    { value: "bun", label: "Chignon" },
     { value: "bald", label: "Chauve" },
-  ],
-  top: [
-    { value: "tactical", label: "Gilet tactique" },
-    { value: "hoodie", label: "Sweat à capuche" },
-    { value: "tshirt", label: "T-shirt" },
-    { value: "jacket", label: "Veste" },
-    { value: "boubou", label: "Boubou" },
-  ],
-  topPattern: [
-    { value: "plain", label: "Uni" },
-    { value: "ankara", label: "Ankara (wax)" },
-    { value: "asooke", label: "Aso-oke" },
-    { value: "camo", label: "Camouflage" },
-    { value: "stripes", label: "Rayures" },
-    { value: "circuit", label: "Circuit imprimé" },
-  ],
-  bottom: [
-    { value: "cargo", label: "Pantalon cargo" },
-    { value: "jeans", label: "Jean" },
-    { value: "skirt", label: "Jupe / pagne" },
-  ],
-  shoes: [
-    { value: "boots", label: "Rangers" },
-    { value: "sneakers", label: "Baskets" },
-    { value: "sandals", label: "Sandales" },
-  ],
-  accessory: [
-    { value: "none", label: "Aucun" },
-    { value: "backpack", label: "Sac à dos" },
-    { value: "bag", label: "Sac en bandoulière" },
-    { value: "glasses", label: "Lunettes" },
-    { value: "headset", label: "Casque radio" },
-    { value: "cap", label: "Casquette" },
   ],
 };
 
 /** Ordre de référence des champs : sert à la validation, à la comparaison et aux clés de cache. */
 export const AVATAR_FIELDS: readonly (keyof AvatarConfig)[] = [
+  "body",
   "build",
   "height",
   "skinTone",
   "hairStyle",
+  "beard",
   "hairColor",
-  "eyeColor",
-  "top",
-  "topPattern",
   "topColor",
   "topAccent",
-  "bottom",
   "bottomColor",
-  "shoes",
   "shoesColor",
-  "accessory",
-  "accessoryColor",
   "visorColor",
 ];
 
-const HEX_COLOR = /^#[0-9a-f]{6}$/;
+/**
+ * Coupes de l'ancien agent stylisé (sauvegardes d'avant le modèle humain) vers la coupe humaine la plus proche :
+ * le joueur retrouve un agent ressemblant au lieu de perdre sa personnalisation.
+ */
+const LEGACY_HAIR_STYLES: Readonly<Record<string, HairStyle>> = {
+  buzz: "buzz",
+  short: "short",
+  long: "long",
+  bun: "bun",
+  bald: "bald",
+  afro: "short",
+  braids: "long",
+  locs: "long",
+  mohawk: "buzz",
+  gele: "bun",
+};
 
-/** Coiffures volumineuses : une casquette par-dessus serait absurde, le tirage aléatoire les sépare. */
-const VOLUMINOUS_HAIR: readonly HairStyle[] = ["afro", "bun", "mohawk", "gele"];
+const HEX_COLOR = /^#[0-9a-f]{6}$/;
 
 function isRecordObject(candidate: unknown): candidate is Record<string, unknown> {
   return typeof candidate === "object" && candidate !== null && !Array.isArray(candidate);
@@ -266,66 +219,48 @@ function parseHeight(value: unknown): number | null {
  * Validation stricte d'un avatar venant du stockage ou d'un code collé.
  * Copie champ par champ : aucune propriété inattendue ne survit, et un seul champ invalide rejette tout
  * (on retombe alors sur l'avatar par défaut plutôt que sur un mélange incohérent).
+ * Une sauvegarde de l'ancien agent stylisé (sans champ `body`) est convertie : ses vêtements spécifiques
+ * (motifs, accessoires...) n'existent plus et sont ignorés, ses couleurs et sa coupe sont reprises.
  */
 export function parseAvatarConfig(candidate: unknown): AvatarConfig | null {
   if (!isRecordObject(candidate)) return null;
+  const rawBody = readOwn(candidate, "body");
+  const legacy = rawBody === undefined;
+  const body = legacy ? "male" : parseOption(AVATAR_OPTIONS.body, rawBody);
   const build = parseOption(AVATAR_OPTIONS.build, readOwn(candidate, "build"));
   const height = parseHeight(readOwn(candidate, "height"));
   const skinTone = parseHexColor(readOwn(candidate, "skinTone"));
-  const hairStyle = parseOption(AVATAR_OPTIONS.hairStyle, readOwn(candidate, "hairStyle"));
+  const hairStyle = legacy ? parseLegacyHairStyle(readOwn(candidate, "hairStyle")) : parseOption(AVATAR_OPTIONS.hairStyle, readOwn(candidate, "hairStyle"));
+  const rawBeard = readOwn(candidate, "beard");
+  const beard = legacy && rawBeard === undefined ? false : typeof rawBeard === "boolean" ? rawBeard : null;
   const hairColor = parseHexColor(readOwn(candidate, "hairColor"));
-  const eyeColor = parseHexColor(readOwn(candidate, "eyeColor"));
-  const top = parseOption(AVATAR_OPTIONS.top, readOwn(candidate, "top"));
-  const topPattern = parseOption(AVATAR_OPTIONS.topPattern, readOwn(candidate, "topPattern"));
   const topColor = parseHexColor(readOwn(candidate, "topColor"));
   const topAccent = parseHexColor(readOwn(candidate, "topAccent"));
-  const bottom = parseOption(AVATAR_OPTIONS.bottom, readOwn(candidate, "bottom"));
   const bottomColor = parseHexColor(readOwn(candidate, "bottomColor"));
-  const shoes = parseOption(AVATAR_OPTIONS.shoes, readOwn(candidate, "shoes"));
   const shoesColor = parseHexColor(readOwn(candidate, "shoesColor"));
-  const accessory = parseOption(AVATAR_OPTIONS.accessory, readOwn(candidate, "accessory"));
-  const accessoryColor = parseHexColor(readOwn(candidate, "accessoryColor"));
   const visorColor = parseHexColor(readOwn(candidate, "visorColor"));
   if (
+    body === null ||
     build === null ||
     height === null ||
     skinTone === null ||
     hairStyle === null ||
+    beard === null ||
     hairColor === null ||
-    eyeColor === null ||
-    top === null ||
-    topPattern === null ||
     topColor === null ||
     topAccent === null ||
-    bottom === null ||
     bottomColor === null ||
-    shoes === null ||
     shoesColor === null ||
-    accessory === null ||
-    accessoryColor === null ||
     visorColor === null
   ) {
     return null;
   }
-  return {
-    build,
-    height,
-    skinTone,
-    hairStyle,
-    hairColor,
-    eyeColor,
-    top,
-    topPattern,
-    topColor,
-    topAccent,
-    bottom,
-    bottomColor,
-    shoes,
-    shoesColor,
-    accessory,
-    accessoryColor,
-    visorColor,
-  };
+  // Pas de barbe sur la silhouette féminine : le modèle n'en a pas, et la config reste canonique.
+  return { body, build, height, skinTone, hairStyle, beard: body === "male" && beard, hairColor, topColor, topAccent, bottomColor, shoesColor, visorColor };
+}
+
+function parseLegacyHairStyle(value: unknown): HairStyle | null {
+  return typeof value === "string" && Object.hasOwn(LEGACY_HAIR_STYLES, value) ? (LEGACY_HAIR_STYLES[value] ?? null) : null;
 }
 
 /** Choix uniforme robuste : un générateur qui renverrait 1 ou NaN ne fait pas sortir du tableau. */
@@ -344,44 +279,29 @@ function pickColorExcept(random: () => number, palette: readonly ColorPreset[], 
   return pickFrom(random, candidates.length > 0 ? candidates : palette).value;
 }
 
-/** Motif cohérent avec le vêtement : un gilet tactique en wax serait un contresens visuel. */
-function pickPattern(random: () => number, top: TopStyle): FabricPattern {
-  if (top === "tactical") return pickFrom<FabricPattern>(random, ["plain", "plain", "camo", "circuit"]);
-  if (top === "boubou") return pickFrom<FabricPattern>(random, ["ankara", "asooke", "plain", "ankara"]);
-  return pickValue(random, AVATAR_OPTIONS.topPattern);
-}
-
 /**
- * Avatar tiré au hasard, toujours valide et cohérent (pas de casquette sur un afro, accent distinct
- * de la couleur principale...). Le générateur est injecté : avec une graine, le résultat est reproductible.
+ * Avatar tiré au hasard, toujours valide et cohérent (accent distinct de la couleur principale, barbe
+ * seulement sur la silhouette masculine). Le générateur est injecté : avec une graine, le résultat est reproductible.
  */
 export function randomAvatar(random: () => number): AvatarConfig {
-  const hairStyle = pickValue(random, AVATAR_OPTIONS.hairStyle);
-  const top = pickValue(random, AVATAR_OPTIONS.top);
+  const body = pickValue(random, AVATAR_OPTIONS.body);
   const topColor = pickFrom(random, CLOTH_COLORS).value;
   const naturalHair = random() < 0.8;
   const hairPalette = naturalHair ? HAIR_COLORS.slice(0, NATURAL_HAIR_COUNT) : HAIR_COLORS.slice(NATURAL_HAIR_COUNT);
-  let accessory = pickValue(random, AVATAR_OPTIONS.accessory);
-  if (accessory === "cap" && VOLUMINOUS_HAIR.includes(hairStyle)) accessory = "backpack";
   // Arrondi au centième : une valeur lisible dans le créateur, et toujours dans la plage.
   const height = Math.round((HEIGHT_RANGE.min + pickFrom(random, [0, 0.25, 0.5, 0.75, 1]) * (HEIGHT_RANGE.max - HEIGHT_RANGE.min)) * 100) / 100;
   return {
+    body,
     build: pickValue(random, AVATAR_OPTIONS.build),
     height,
     skinTone: pickFrom(random, SKIN_TONES).value,
-    hairStyle,
+    hairStyle: pickValue(random, AVATAR_OPTIONS.hairStyle),
+    beard: body === "male" && random() < 0.35,
     hairColor: pickFrom(random, hairPalette).value,
-    eyeColor: pickFrom(random, EYE_COLORS).value,
-    top,
-    topPattern: pickPattern(random, top),
     topColor,
     topAccent: pickColorExcept(random, CLOTH_COLORS, topColor),
-    bottom: pickValue(random, AVATAR_OPTIONS.bottom),
     bottomColor: pickFrom(random, CLOTH_COLORS).value,
-    shoes: pickValue(random, AVATAR_OPTIONS.shoes),
     shoesColor: pickFrom(random, CLOTH_COLORS).value,
-    accessory,
-    accessoryColor: pickFrom(random, CLOTH_COLORS).value,
     visorColor: pickFrom(random, VISOR_COLORS).value,
   };
 }

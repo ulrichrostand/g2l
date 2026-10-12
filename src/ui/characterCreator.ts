@@ -3,7 +3,6 @@ import {
   AVATAR_OPTIONS,
   CLOTH_COLORS,
   DEFAULT_AVATAR,
-  EYE_COLORS,
   HAIR_COLORS,
   HEIGHT_RANGE,
   isSameAvatar,
@@ -15,10 +14,7 @@ import {
   type AvatarConfig,
   type AvatarOption,
   type ColorPreset,
-  type FabricPattern,
-  type HairStyle,
 } from "../avatar/avatarConfig";
-import { drawFabricPattern, FABRIC_TILE_PX } from "../avatar/avatarTextures";
 import { DEFAULT_PANEL_COVERAGE, type StudioLayout } from "../render/avatarStudio";
 import { button, element } from "./dom";
 import "./characterCreator.css";
@@ -32,7 +28,7 @@ export interface CharacterCreatorCallbacks {
   onRotate?(deltaRadians: number): void;
 }
 
-export type CreatorTabId = "body" | "face" | "top" | "bottom" | "accessories";
+export type CreatorTabId = "body" | "hair" | "outfit" | "gear";
 
 export interface CreatorHint {
   tab: CreatorTabId;
@@ -41,10 +37,9 @@ export interface CreatorHint {
 
 export const CREATOR_TABS: readonly { id: CreatorTabId; label: string; icon: string }[] = [
   { id: "body", label: "Corps", icon: "🧍" },
-  { id: "face", label: "Visage & cheveux", icon: "🙂" },
-  { id: "top", label: "Haut", icon: "👕" },
-  { id: "bottom", label: "Bas & chaussures", icon: "👖" },
-  { id: "accessories", label: "Accessoires", icon: "🎒" },
+  { id: "hair", label: "Cheveux", icon: "💇" },
+  { id: "outfit", label: "Tenue", icon: "🦺" },
+  { id: "gear", label: "Équipement", icon: "🥽" },
 ];
 
 /** Taille réelle affichée pour l'échelle 1 : « 1,75 m » parle plus à un joueur qu'un facteur 1,00. */
@@ -55,16 +50,10 @@ const ROTATE_STEP_RADIANS = Math.PI / 4;
 const TITLE_ID = "creator-title";
 /** Un message (tirage, couleur refusée) reste lisible ce temps-là, puis s'efface pour rendre la place aux options. */
 const STATUS_VISIBLE_MS = 6000;
-/** Vignettes de motif repeintes au plus à cette cadence pendant un glisser dans le sélecteur de couleur. */
-const THUMBNAIL_REPAINT_MS = 120;
 const RESERVED_VISOR_MESSAGE = "Le rouge est réservé aux sentinelles d'ENTROPIA : choisis une autre teinte pour tes optiques.";
 
-/** Coiffures que avatarModel tasse sous une casquette, et celles qui repoussent le casque radio sur la nuque. */
-const HAIR_FLATTENED_BY_CAP: readonly HairStyle[] = ["afro", "bun", "mohawk"];
-const HAIR_PUSHING_HEADSET_BACK: readonly HairStyle[] = ["afro", "gele", "bun"];
-
-type ChoiceField = "build" | "hairStyle" | "top" | "topPattern" | "bottom" | "shoes" | "accessory";
-type ColorField = "skinTone" | "hairColor" | "eyeColor" | "topColor" | "topAccent" | "bottomColor" | "shoesColor" | "accessoryColor" | "visorColor";
+type ChoiceField = "body" | "build" | "hairStyle";
+type ColorField = "skinTone" | "hairColor" | "topColor" | "topAccent" | "bottomColor" | "shoesColor" | "visorColor";
 type ChangeTiming = "now" | "next-frame";
 
 /**
@@ -153,30 +142,13 @@ export function trapFocusTarget<T>(controls: readonly T[], active: T | null, bac
 }
 
 /**
- * Explique les règles de cohérence du modèle 3D au moment où elles s'appliquent : sans ça, un débutant
- * croirait à un bug en voyant sa casquette disparaître sur un gele.
+ * Explique les règles du modèle 3D au moment où elles s'appliquent : sans ça, un débutant croirait à un bug
+ * en voyant le choix « Barbe » grisé.
  */
 export function avatarHints(config: AvatarConfig): CreatorHint[] {
   const hints: CreatorHint[] = [];
-  const wearsCap = config.accessory === "cap";
-  if (config.hairStyle === "gele") {
-    hints.push({ tab: "face", text: "Le gele prend la couleur d'accent du haut : change-la dans l'onglet « Haut »." });
-    hints.push({ tab: "top", text: "La couleur d'accent colore aussi ton gele." });
-    if (wearsCap) {
-      const text = "Le gele est déjà une coiffe : la casquette ne s'affiche pas par-dessus.";
-      hints.push({ tab: "face", text }, { tab: "accessories", text });
-    }
-  }
-  if (wearsCap && HAIR_FLATTENED_BY_CAP.includes(config.hairStyle)) {
-    const text = "Sous la casquette, l'afro et le chignon deviennent une coupe courte et la crête est rasée.";
-    hints.push({ tab: "face", text }, { tab: "accessories", text });
-  }
-  if (config.accessory === "headset" && HAIR_PUSHING_HEADSET_BACK.includes(config.hairStyle)) {
-    hints.push({ tab: "accessories", text: "Avec cette coiffure, l'arceau du casque radio passe derrière la nuque." });
-  }
-  if (config.accessory === "none") {
-    hints.push({ tab: "accessories", text: "Sans accessoire, la couleur d'accessoire n'est pas utilisée." });
-  }
+  if (config.body === "female") hints.push({ tab: "hair", text: "La barbe n'existe que sur la silhouette masculine." });
+  if (config.hairStyle === "bald" && config.beard) hints.push({ tab: "hair", text: "Crâne rasé et barbe : la couleur des cheveux colore la barbe et les sourcils." });
   return hints;
 }
 
@@ -201,8 +173,6 @@ export class CharacterCreator {
   private coverage: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private statusTimer: ReturnType<typeof setTimeout> | null = null;
-  /** Repeints différés (vignettes de motif) : annulés à la fermeture, comme l'aperçu en attente. */
-  private readonly deferredFrames = new Set<number>();
   /** Message à afficher à l'ouverture (optiques rouges remplacées). */
   private readonly openingNotice: string;
   private isOpen = false;
@@ -256,13 +226,16 @@ export class CharacterCreator {
     this.tabs.get(this.activeTab)?.tab.focus({ preventScroll: true });
   }
 
+  /** Message de l'aperçu 3D (modèle indisponible…), affiché dans la zone de statut du créateur. */
+  notify(message: string): void {
+    if (this.isOpen) this.announce(message);
+  }
+
   close(): void {
     if (!this.isOpen) return;
     this.isOpen = false;
     // Un aperçu en attente arriverait sur un studio déjà libéré : on l'abandonne.
     this.cancelPendingChange();
-    for (const frame of this.deferredFrames) cancelAnimationFrame(frame);
-    this.deferredFrames.clear();
     this.announce("");
     this.endDrag();
     window.removeEventListener("resize", this.invalidateCoverage);
@@ -340,7 +313,7 @@ export class CharacterCreator {
       return;
     }
     // Sélecteur de couleur ou curseur : un événement par mouvement de souris. On regroupe par image
-    // pour ne reconstruire le modèle 3D qu'une fois par affichage.
+    // pour ne mettre à jour le modèle 3D qu'une fois par affichage.
     this.pendingFrame ??= requestAnimationFrame(() => {
       this.pendingFrame = null;
       this.callbacks.onChange({ ...this.config });
@@ -373,7 +346,7 @@ export class CharacterCreator {
 
   private reset(): void {
     this.replaceConfig({ ...DEFAULT_AVATAR }, "now");
-    this.announce("Agent par défaut restauré : tenue tactique et optiques vertes.");
+    this.announce("Agent par défaut restauré : tenue sombre et optiques vertes.");
   }
 
   private save(): void {
@@ -519,33 +492,23 @@ export class CharacterCreator {
   private tabContent(tab: CreatorTabId): HTMLElement[] {
     switch (tab) {
       case "body":
-        return [this.choiceField("build", "Carrure", AVATAR_OPTIONS.build), this.heightField(), this.colorField("skinTone", "Teinte de peau", SKIN_TONES)];
-      case "face":
         return [
-          this.choiceField("hairStyle", "Coiffure", AVATAR_OPTIONS.hairStyle),
-          this.colorField("hairColor", "Couleur des cheveux", HAIR_COLORS),
-          this.colorField("eyeColor", "Couleur des yeux", EYE_COLORS),
+          this.choiceField("body", "Silhouette", AVATAR_OPTIONS.body),
+          this.choiceField("build", "Carrure", AVATAR_OPTIONS.build),
+          this.heightField(),
+          this.colorField("skinTone", "Teinte de peau", SKIN_TONES),
         ];
-      case "top":
+      case "hair":
+        return [this.choiceField("hairStyle", "Coiffure", AVATAR_OPTIONS.hairStyle), this.beardField(), this.colorField("hairColor", "Couleur des cheveux", HAIR_COLORS)];
+      case "outfit":
         return [
-          this.choiceField("top", "Style du haut", AVATAR_OPTIONS.top),
-          this.patternField(),
-          this.colorField("topColor", "Couleur principale", CLOTH_COLORS),
-          this.colorField("topAccent", "Couleur d'accent (détails et motif)", CLOTH_COLORS),
+          this.colorField("topColor", "Gilet", CLOTH_COLORS),
+          this.colorField("topAccent", "Chemise et ceintures", CLOTH_COLORS),
+          this.colorField("bottomColor", "Pantalon", CLOTH_COLORS),
+          this.colorField("shoesColor", "Bottes", CLOTH_COLORS),
         ];
-      case "bottom":
-        return [
-          this.choiceField("bottom", "Bas", AVATAR_OPTIONS.bottom),
-          this.colorField("bottomColor", "Couleur du bas", CLOTH_COLORS),
-          this.choiceField("shoes", "Chaussures", AVATAR_OPTIONS.shoes),
-          this.colorField("shoesColor", "Couleur des chaussures", CLOTH_COLORS),
-        ];
-      case "accessories":
-        return [
-          this.choiceField("accessory", "Accessoire", AVATAR_OPTIONS.accessory),
-          this.colorField("accessoryColor", "Couleur de l'accessoire", CLOTH_COLORS),
-          this.colorField("visorColor", "Optiques de vision nocturne", VISOR_COLORS),
-        ];
+      case "gear":
+        return [this.colorField("visorColor", "Optiques de vision nocturne", VISOR_COLORS)];
     }
   }
 
@@ -605,12 +568,9 @@ export class CharacterCreator {
     return element("fieldset", { className: "creator-field" }, [element("legend", { className: "creator-legend", text: legend }), ...controls]);
   }
 
-  private choiceField<K extends ChoiceField>(field: K, legend: string, options: readonly AvatarOption<AvatarConfig[K]>[], decorate?: (value: AvatarConfig[K]) => Node): HTMLFieldSetElement {
+  private choiceField<K extends ChoiceField>(field: K, legend: string, options: readonly AvatarOption<AvatarConfig[K]>[]): HTMLFieldSetElement {
     const chips = options.map((option) => {
-      const chip = element("button", { className: "creator-chip", attributes: { type: "button", "aria-pressed": "false" } }, [
-        decorate ? decorate(option.value) : null,
-        element("span", { text: option.label }),
-      ]);
+      const chip = element("button", { className: "creator-chip", attributes: { type: "button", "aria-pressed": "false" } }, [element("span", { text: option.label })]);
       chip.addEventListener("click", () => this.applyField(field, option.value, "now"));
       return { value: option.value, chip };
     });
@@ -620,51 +580,24 @@ export class CharacterCreator {
     return this.fieldset(legend, [element("div", { className: "creator-chips" }, chips.map(({ chip }) => chip))]);
   }
 
-  /** Motifs avec vignette peinte dans les couleurs du haut : on voit le wax ou l'aso-oke avant de le choisir. */
-  private patternField(): HTMLFieldSetElement {
-    const thumbnails: { pattern: FabricPattern; canvas: HTMLCanvasElement }[] = [];
-    const field = this.choiceField("topPattern", "Motif du tissu", AVATAR_OPTIONS.topPattern, (pattern) => {
-      const canvas = element("canvas", { className: "creator-chip-thumb", attributes: { width: String(FABRIC_TILE_PX), height: String(FABRIC_TILE_PX), "aria-hidden": "true" } });
-      thumbnails.push({ pattern, canvas });
-      return canvas;
+  /** Barbe : deux puces exclusives, grisées sur la silhouette féminine (le modèle n'en a pas). */
+  private beardField(): HTMLFieldSetElement {
+    const chips = [
+      { value: false, label: "Sans barbe" },
+      { value: true, label: "Barbe" },
+    ].map(({ value, label }) => {
+      const chip = element("button", { className: "creator-chip", attributes: { type: "button", "aria-pressed": "false" } }, [element("span", { text: label })]);
+      chip.addEventListener("click", () => this.applyField("beard", value, "now"));
+      return { value, chip };
     });
-    let paintedColors = "";
-    let lastPaintAt = Number.NEGATIVE_INFINITY;
-    let scheduled: number | null = null;
-    const draw = (): void => {
-      paintedColors = `${this.config.topColor}:${this.config.topAccent}`;
-      for (const { pattern, canvas } of thumbnails) {
-        const context = canvas.getContext("2d");
-        if (context) drawFabricPattern(context, pattern, this.config.topColor, this.config.topAccent);
-      }
-    };
-    // Repeindre six tuiles coûte plusieurs millisecondes : pendant un glisser dans le sélecteur, on regroupe
-    // par image et on espace les repeints. La dernière couleur choisie est toujours peinte.
-    const repaint = (now: number): void => {
-      if (scheduled !== null) this.deferredFrames.delete(scheduled);
-      scheduled = null;
-      if (`${this.config.topColor}:${this.config.topAccent}` === paintedColors) return;
-      if (now - lastPaintAt < THUMBNAIL_REPAINT_MS) {
-        scheduled = requestAnimationFrame(repaint);
-        this.deferredFrames.add(scheduled);
-        return;
-      }
-      lastPaintAt = now;
-      draw();
-    };
     this.syncers.push((config) => {
-      if (`${config.topColor}:${config.topAccent}` === paintedColors) return;
-      // Créateur fermé (construction) : on peint tout de suite, rien n'annulerait un repeint différé.
-      if (!this.isOpen) {
-        draw();
-        return;
+      const available = config.body === "male";
+      for (const { value, chip } of chips) {
+        setPressed(chip, config.beard === value);
+        if (chip.disabled === available) chip.disabled = !available;
       }
-      // close() annule les repeints en attente : `scheduled` n'est valable que s'il y figure encore.
-      if (scheduled !== null && this.deferredFrames.has(scheduled)) return;
-      scheduled = requestAnimationFrame(repaint);
-      this.deferredFrames.add(scheduled);
     });
-    return field;
+    return this.fieldset("Barbe", [element("div", { className: "creator-chips" }, chips.map(({ chip }) => chip))]);
   }
 
   private heightField(): HTMLFieldSetElement {

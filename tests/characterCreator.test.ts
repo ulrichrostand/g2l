@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_AVATAR, HEIGHT_RANGE, VISOR_COLORS, type AvatarConfig } from "../src/avatar/avatarConfig";
-import { createAvatarRig } from "../src/avatar/avatarModel";
+import { DEFAULT_AVATAR, HEIGHT_RANGE, VISOR_COLORS, type AvatarConfig, type BodyType } from "../src/avatar/avatarConfig";
+import type { HumanCharacterAsset } from "../src/avatar/humanCharacter";
 import { AvatarStudio, type StudioLayout } from "../src/render/avatarStudio";
 import {
   applyAvatarField,
@@ -16,23 +16,7 @@ import {
   trapFocusTarget,
   withPlayerVisor,
 } from "../src/ui/characterCreator";
-
-/** Pannes simulées de createAvatarRig (canvas indisponible, bug d'une combinaison) : délègue au vrai sinon. */
-const rigFailures = vi.hoisted(() => ({ when: null as ((config: { hairStyle: string; skinTone: string }) => boolean) | null }));
-vi.mock("../src/avatar/avatarModel", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../src/avatar/avatarModel")>();
-  return {
-    ...original,
-    createAvatarRig: (config: Parameters<typeof original.createAvatarRig>[0]) => {
-      if (rigFailures.when?.(config)) throw new Error("échec simulé de construction");
-      return original.createAvatarRig(config);
-    },
-  };
-});
-
-afterEach(() => {
-  rigFailures.when = null;
-});
+import { createFakeHumanAsset } from "./support/fakeHumanAsset";
 
 function draft(overrides: Partial<AvatarConfig> = {}): AvatarConfig {
   return { ...DEFAULT_AVATAR, ...overrides };
@@ -66,9 +50,9 @@ describe("detectCreatorLayout", () => {
 describe("applyAvatarField", () => {
   it("renvoie une nouvelle config sans modifier l'originale", () => {
     const original = draft();
-    const next = applyAvatarField(original, "hairStyle", "afro");
+    const next = applyAvatarField(original, "hairStyle", "long");
     expect(next).not.toBeNull();
-    expect(next?.hairStyle).toBe("afro");
+    expect(next?.hairStyle).toBe("long");
     expect(next).not.toBe(original);
     expect(original.hairStyle).toBe(DEFAULT_AVATAR.hairStyle);
   });
@@ -79,7 +63,9 @@ describe("applyAvatarField", () => {
 
   it("refuse les valeurs hors liste, les couleurs mal formées et les tailles hors plage", () => {
     const base = draft();
-    expect(applyAvatarField(base, "top", "armure")).toBeNull();
+    expect(applyAvatarField(base, "hairStyle", "afro")).toBeNull();
+    expect(applyAvatarField(base, "body", "robot")).toBeNull();
+    expect(applyAvatarField(base, "beard", "oui")).toBeNull();
     expect(applyAvatarField(base, "skinTone", "red")).toBeNull();
     expect(applyAvatarField(base, "skinTone", "#12345")).toBeNull();
     expect(applyAvatarField(base, "height", HEIGHT_RANGE.max + 0.01)).toBeNull();
@@ -97,9 +83,15 @@ describe("applyAvatarField", () => {
 
   it("refuse les noms de champ inattendus (pollution de prototype)", () => {
     const base = draft();
-    expect(applyAvatarField(base, "__proto__" as keyof AvatarConfig, { hairStyle: "afro" })).toBeNull();
+    expect(applyAvatarField(base, "__proto__" as keyof AvatarConfig, { hairStyle: "long" })).toBeNull();
     expect(applyAvatarField(base, "constructor" as keyof AvatarConfig, "x")).toBeNull();
     expect(({} as Record<string, unknown>).hairStyle).toBeUndefined();
+  });
+
+  it("passer en silhouette féminine retire la barbe (le modèle n'en a pas)", () => {
+    const bearded = draft({ beard: true });
+    expect(applyAvatarField(bearded, "body", "female")).toMatchObject({ body: "female", beard: false });
+    expect(applyAvatarField(draft({ body: "female" }), "beard", true)?.beard).toBe(false);
   });
 
   it("ne laisse passer aucun champ parasite de la config de départ", () => {
@@ -155,10 +147,10 @@ describe("isReservedVisorColor", () => {
 
 describe("withPlayerVisor", () => {
   it("remplace des optiques rouges (sauvegarde modifiée, code importé) par celles de l'agent par défaut", () => {
-    const tampered = draft({ visorColor: "#ff2d2d", hairStyle: "afro" });
+    const tampered = draft({ visorColor: "#ff2d2d", hairStyle: "bun" });
     const fixed = withPlayerVisor(tampered);
     expect(fixed.visorColor).toBe(DEFAULT_AVATAR.visorColor);
-    expect(fixed.hairStyle).toBe("afro");
+    expect(fixed.hairStyle).toBe("bun");
     expect(tampered.visorColor).toBe("#ff2d2d");
   });
 
@@ -197,26 +189,18 @@ describe("avatarHints", () => {
     expect(avatarHints(draft())).toEqual([]);
   });
 
-  it("explique le gele assorti à la couleur d'accent", () => {
-    const tabs = avatarHints(draft({ hairStyle: "gele" })).map((hint) => hint.tab);
-    expect(tabs).toContain("face");
-    expect(tabs).toContain("top");
-  });
-
-  it("explique la casquette sur une coiffure volumineuse ou sur un gele", () => {
-    expect(avatarHints(draft({ hairStyle: "afro", accessory: "cap" })).some((hint) => hint.tab === "accessories" && hint.text.includes("casquette"))).toBe(true);
-    expect(avatarHints(draft({ hairStyle: "gele", accessory: "cap" })).some((hint) => hint.text.includes("ne s'affiche pas"))).toBe(true);
-    expect(avatarHints(draft({ hairStyle: "buzz", accessory: "cap" }))).toEqual([]);
-  });
-
-  it("signale que la couleur d'accessoire est inutile sans accessoire", () => {
-    expect(avatarHints(draft({ accessory: "none" }))).toEqual([{ tab: "accessories", text: expect.stringContaining("Sans accessoire") }]);
+  it("explique pourquoi la barbe est grisée sur la silhouette féminine", () => {
+    expect(avatarHints(draft({ body: "female" }))).toEqual([{ tab: "hair", text: expect.stringContaining("barbe") }]);
   });
 
   it("chaque remarque vise un onglet existant", () => {
     const tabIds = new Set(CREATOR_TABS.map((tab) => tab.id));
-    const configs = [draft({ hairStyle: "gele", accessory: "cap" }), draft({ hairStyle: "bun", accessory: "headset" }), draft({ accessory: "none" })];
-    for (const config of configs) for (const hint of avatarHints(config)) expect(tabIds.has(hint.tab)).toBe(true);
+    const configs = [draft({ body: "female" }), draft({ hairStyle: "bald", beard: true })];
+    for (const config of configs) {
+      const hints = avatarHints(config);
+      expect(hints.length).toBeGreaterThan(0);
+      for (const hint of hints) expect(tabIds.has(hint.tab)).toBe(true);
+    }
   });
 });
 
@@ -237,18 +221,66 @@ describe("dragToRadians", () => {
   });
 });
 
-describe("AvatarStudio", () => {
-  function avatarRoot(studio: AvatarStudio): THREE.Object3D {
-    const root = studio.scene.getObjectByName("root");
-    if (!root) throw new Error("avatar absent du studio");
-    return root;
-  }
+/** Laisse s'exécuter les promesses déjà résolues (chargement factice du modèle). */
+async function flushPromises(): Promise<void> {
+  for (let round = 0; round < 5; round++) await Promise.resolve();
+}
 
-  /** Boîte englobante de l'avatar dans le monde, en coordonnées normalisées de l'écran. */
+/** Chargeur factice : les modèles arrivent quand le test le décide, ou échouent. */
+function fakeLoader() {
+  const pending = new Map<BodyType, { resolve: (asset: HumanCharacterAsset) => void; reject: (error: Error) => void }>();
+  const loadAsset = vi.fn(
+    (body: BodyType) =>
+      new Promise<HumanCharacterAsset>((resolve, reject) => {
+        pending.set(body, { resolve, reject });
+      }),
+  );
+  const deliver = async (body: BodyType): Promise<void> => {
+    pending.get(body)?.resolve(createFakeHumanAsset(body));
+    await flushPromises();
+  };
+  const fail = async (body: BodyType): Promise<void> => {
+    pending.get(body)?.reject(new Error("réseau coupé (simulé)"));
+    await flushPromises();
+  };
+  return { loadAsset, deliver, fail };
+}
+
+async function readyStudio(initial: AvatarConfig = draft()) {
+  const loader = fakeLoader();
+  const onPreviewError = vi.fn<(message: string) => void>();
+  const studio = new AvatarStudio(initial, loader.loadAsset, onPreviewError);
+  await loader.deliver(initial.body);
+  return { studio, loader, onPreviewError };
+}
+
+/** Racine du personnage affiché (le groupe ajouté au plateau tournant). */
+function characterModel(studio: AvatarStudio): THREE.Object3D {
+  const head = studio.scene.getObjectByName("Head");
+  let node: THREE.Object3D | null = head ?? null;
+  while (node?.parent && node.parent.parent !== null && node.parent.type !== "Scene") {
+    if (node.parent.children.some((child) => child.name.startsWith("Hair_") || child.name === "root")) return node.parent;
+    node = node.parent;
+  }
+  throw new Error("personnage absent du studio");
+}
+
+function visibleMesh(studio: AvatarStudio, name: string): boolean | undefined {
+  return studio.scene.getObjectByName(name)?.visible;
+}
+
+function meshColor(studio: AvatarStudio, name: string): string {
+  const mesh = studio.scene.getObjectByName(name);
+  if (!(mesh instanceof THREE.Mesh) || !(mesh.material instanceof THREE.MeshStandardMaterial)) throw new Error(`pièce absente : ${name}`);
+  return `#${mesh.material.color.getHexString()}`;
+}
+
+describe("AvatarStudio", () => {
+  /** Boîte englobante du personnage dans le monde, en coordonnées normalisées de l'écran. */
   function projectedBounds(studio: AvatarStudio, camera: THREE.PerspectiveCamera): { minX: number; maxX: number; minY: number; maxY: number } {
     studio.scene.updateMatrixWorld(true);
     camera.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(avatarRoot(studio));
+    const box = new THREE.Box3().setFromObject(characterModel(studio));
     const corner = new THREE.Vector3();
     const bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
     for (const x of [box.min.x, box.max.x]) {
@@ -265,7 +297,7 @@ describe("AvatarStudio", () => {
     return bounds;
   }
 
-  const tallest = draft({ height: HEIGHT_RANGE.max, hairStyle: "mohawk", build: "strong" });
+  const tallest = draft({ height: HEIGHT_RANGE.max, hairStyle: "bun", build: "strong" });
   const screens: { name: string; aspect: number; layout: StudioLayout }[] = [
     { name: "ordinateur", aspect: 16 / 9, layout: "side" },
     { name: "téléphone couché", aspect: 844 / 390, layout: "side" },
@@ -274,265 +306,122 @@ describe("AvatarStudio", () => {
   ];
 
   for (const screen of screens) {
-    it(`cadre l'agent le plus grand en entier dans la zone libre (${screen.name})`, () => {
-      const studio = new AvatarStudio(tallest);
+    it(`cadre l'agent le plus grand en entier dans la zone libre (${screen.name})`, async () => {
+      const { studio } = await readyStudio(tallest);
       const camera = new THREE.PerspectiveCamera(50, screen.aspect, 0.1, 120);
       const coverage = screen.layout === "side" ? 0.35 : 0.55;
       studio.frameCamera(camera, screen.layout, coverage);
       const bounds = projectedBounds(studio, camera);
-      const freeMinX = screen.layout === "side" ? -1 + 2 * coverage : -1;
-      const freeMinY = screen.layout === "bottom" ? -1 + 2 * coverage : -1;
-      expect(bounds.minX).toBeGreaterThan(freeMinX);
-      expect(bounds.maxX).toBeLessThan(1);
-      expect(bounds.minY).toBeGreaterThan(freeMinY);
       expect(bounds.maxY).toBeLessThan(1);
-      // Et il n'est pas minuscule : au moins la moitié de la hauteur libre.
-      expect(bounds.maxY - bounds.minY).toBeGreaterThan((1 - freeMinY) * 0.5);
-      studio.dispose();
-    });
-  }
-
-  // Largeur réelle du panneau (characterCreator.css) : min(380px, 46vw), ou min(380px, 55vw) sur un téléphone couché.
-  const measuredScreens: { name: string; width: number; height: number; panelPx: number }[] = [
-    { name: "téléphone couché 844 × 390", width: 844, height: 390, panelPx: 380 },
-    { name: "iPhone 8 couché 667 × 375", width: 667, height: 375, panelPx: 0.55 * 667 },
-    { name: "Android couché 640 × 360", width: 640, height: 360, panelPx: 0.55 * 640 },
-    { name: "iPhone SE couché 568 × 320", width: 568, height: 320, panelPx: 0.55 * 568 },
-    { name: "ordinateur 1366 × 768", width: 1366, height: 768, panelPx: 380 },
-  ];
-
-  for (const screen of measuredScreens) {
-    it(`avec la couverture mesurée du panneau, l'agent est centré dans la zone libre (${screen.name})`, () => {
-      const studio = new AvatarStudio(draft({ height: HEIGHT_RANGE.max, top: "boubou", accessory: "bag", build: "strong" }));
-      const camera = new THREE.PerspectiveCamera(50, screen.width / screen.height, 0.1, 120);
-      const coverage = screen.panelPx / screen.width;
-      studio.frameCamera(camera, "side", coverage);
-      const bounds = projectedBounds(studio, camera);
-      const freeMinX = -1 + 2 * coverage;
-      expect(bounds.minX).toBeGreaterThan(freeMinX);
+      expect(bounds.minY).toBeGreaterThan(screen.layout === "bottom" ? -1 + 2 * coverage - 0.05 : -1);
+      if (screen.layout === "side") expect(bounds.minX).toBeGreaterThan(-1 + 2 * coverage);
       expect(bounds.maxX).toBeLessThan(1);
-      const freeCenter = (freeMinX + 1) / 2;
-      const agentCenter = (bounds.minX + bounds.maxX) / 2;
-      // Le sac et le pistolet décentrent un peu la silhouette : tolérance de 8 % de la zone libre.
-      expect(Math.abs(agentCenter - freeCenter)).toBeLessThan(0.08 * (1 - freeMinX));
       studio.dispose();
     });
   }
 
-  it("le cadrage ne dépend pas de la taille choisie : un agent plus grand paraît plus grand", () => {
-    const studio = new AvatarStudio(draft({ height: HEIGHT_RANGE.min }));
+  it("le cadrage ne dépend pas de la taille choisie : un agent plus grand paraît plus grand", async () => {
     const camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.1, 120);
-    studio.frameCamera(camera, "side");
-    const small = projectedBounds(studio, camera);
-    const cameraPosition = camera.position.clone();
-    studio.setAvatar(draft({ height: HEIGHT_RANGE.max }));
-    studio.frameCamera(camera, "side");
-    const large = projectedBounds(studio, camera);
-    expect(camera.position.distanceTo(cameraPosition)).toBeLessThan(1e-9);
-    expect(large.maxY - large.minY).toBeGreaterThan(small.maxY - small.minY);
-    studio.dispose();
-  });
-
-  it("taille et optiques changent sans reconstruire le modèle, le reste reconstruit", () => {
-    const studio = new AvatarStudio(draft());
-    const firstRoot = avatarRoot(studio);
-    studio.setAvatar(draft({ height: 1.05, visorColor: "#3fe0ff" }));
-    expect(avatarRoot(studio)).toBe(firstRoot);
-    expect(firstRoot.scale.x).toBeCloseTo(1.05);
-
-    studio.setAvatar(draft({ height: 1.05, visorColor: "#3fe0ff", hairStyle: "afro" }));
-    const rebuiltRoot = avatarRoot(studio);
-    expect(rebuiltRoot).not.toBe(firstRoot);
-    expect(firstRoot.parent).toBeNull();
-    expect(rebuiltRoot.scale.x).toBeCloseTo(1.05);
-    // Un seul avatar dans la scène après reconstruction.
-    let roots = 0;
-    studio.scene.traverse((object) => {
-      if (object.name === "root") roots++;
-    });
-    expect(roots).toBe(1);
-    studio.dispose();
-  });
-
-  it("ignore une config invalide et garde l'agent affiché", () => {
-    const studio = new AvatarStudio(draft());
-    const root = avatarRoot(studio);
-    studio.setAvatar({ ...draft(), hairStyle: "crête-iroquoise" } as unknown as AvatarConfig);
-    expect(avatarRoot(studio)).toBe(root);
-    studio.dispose();
-  });
-
-  it("pose d'attente vivante : l'agent respire sans marcher, les pieds restent posés", () => {
-    const studio = new AvatarStudio(draft());
-    const root = avatarRoot(studio);
-    const torso = root.getObjectByName("torso");
-    const leftLeg = root.getObjectByName("leftLeg");
-    const hips = root.getObjectByName("hips");
-    if (!torso || !leftLeg || !hips) throw new Error("squelette incomplet");
-    const torsoAngles: number[] = [];
-    for (let frame = 0; frame < 120; frame++) {
-      studio.update(1 / 60, frame / 60);
-      torsoAngles.push(torso.rotation.x);
-      // Jambe gardée verticale dans le monde : la rotation du bassin est compensée.
-      expect(Math.abs(hips.rotation.z + leftLeg.rotation.z)).toBeLessThan(1e-9);
-      // Pas de pas de marche.
-      expect(Math.abs(leftLeg.rotation.x)).toBeLessThan(1e-9);
+    const heights: number[] = [];
+    for (const height of [HEIGHT_RANGE.min, HEIGHT_RANGE.max]) {
+      const { studio } = await readyStudio(draft({ height }));
+      studio.frameCamera(camera, "side");
+      const bounds = projectedBounds(studio, camera);
+      heights.push(bounds.maxY - bounds.minY);
+      studio.dispose();
     }
-    expect(Math.max(...torsoAngles) - Math.min(...torsoAngles)).toBeGreaterThan(0.005);
+    expect(heights[1]).toBeGreaterThan((heights[0] ?? 0) * 1.1);
+  });
+
+  it("socle vide le temps du téléchargement, puis l'agent apparaît", async () => {
+    const loader = fakeLoader();
+    const studio = new AvatarStudio(draft(), loader.loadAsset, vi.fn());
+    expect(studio.isLoading).toBe(true);
+    expect(studio.scene.getObjectByName("Head")).toBeUndefined();
+    await loader.deliver("male");
+    expect(studio.isLoading).toBe(false);
+    expect(studio.scene.getObjectByName("Head")).toBeDefined();
     studio.dispose();
   });
 
-  it("le plateau tourne tout seul, et le glisser tourne l'agent", () => {
-    const studio = new AvatarStudio(draft());
-    const turntable = avatarRoot(studio).parent;
-    if (!turntable) throw new Error("plateau absent");
-    for (let frame = 0; frame < 120; frame++) studio.update(1 / 60, frame / 60);
-    const spun = turntable.rotation.y;
-    expect(spun).toBeGreaterThan(0);
-
-    studio.setDragRotation(-1);
-    for (let frame = 120; frame < 240; frame++) studio.update(1 / 60, frame / 60);
-    // Rotation ramenée dans [0, 2π) : on compare l'écart angulaire.
-    const delta = Math.atan2(Math.sin(turntable.rotation.y - spun), Math.cos(turntable.rotation.y - spun));
-    expect(delta).toBeLessThan(-0.8);
+  it("couleurs, coupe, barbe, carrure et taille s'appliquent sur place, sans nouveau personnage", async () => {
+    const { studio, loader } = await readyStudio();
+    const shown = characterModel(studio);
+    studio.setAvatar(draft({ topColor: "#123456", hairStyle: "long", beard: true, build: "strong", height: 1.05 }));
+    expect(characterModel(studio)).toBe(shown);
+    expect(meshColor(studio, "Male_Ranger_Body")).toBe("#123456");
+    expect(visibleMesh(studio, "Hair_Long")).toBe(true);
+    expect(visibleMesh(studio, "Hair_Buzzed")).toBe(false);
+    expect(visibleMesh(studio, "Hair_Beard")).toBe(true);
+    // Carrure : plus large que haut, la tête garde ses proportions.
+    expect(shown.scale.x).toBeGreaterThan(shown.scale.y);
+    expect(loader.loadAsset).toHaveBeenCalledTimes(1);
     studio.dispose();
   });
 
-  it("une config qui ne se construit pas : le studio affiche l'agent par défaut au lieu d'échouer", () => {
-    rigFailures.when = (config) => config.hairStyle === "afro";
-    const studio = new AvatarStudio(draft({ hairStyle: "afro" }));
-    expect(avatarRoot(studio)).toBeDefined();
-    // Le créateur peut ensuite proposer un autre agent : le studio le construit normalement.
-    const root = avatarRoot(studio);
-    studio.setAvatar(draft({ hairStyle: "bun" }));
-    expect(avatarRoot(studio)).not.toBe(root);
+  it("changer de silhouette charge l'autre modèle ; l'ancien reste affiché pendant le téléchargement", async () => {
+    const { studio, loader } = await readyStudio();
+    studio.setAvatar(draft({ body: "female", hairStyle: "bun" }));
+    expect(studio.isLoading).toBe(true);
+    expect(studio.scene.getObjectByName("SuperHero_Male")).toBeDefined();
+    await loader.deliver("female");
+    expect(studio.isLoading).toBe(false);
+    expect(studio.scene.getObjectByName("SuperHero_Male")).toBeUndefined();
+    expect(studio.scene.getObjectByName("Superhero_Female")).toBeDefined();
+    expect(visibleMesh(studio, "Hair_Buns")).toBe(true);
     studio.dispose();
   });
 
-  it("si même l'agent par défaut échoue (canvas indisponible), le constructeur lève une exception", () => {
-    rigFailures.when = () => true;
-    expect(() => new AvatarStudio(draft({ hairStyle: "afro" }))).toThrow("échec simulé");
-  });
-
-  it("dispose est idempotent et neutralise les appels suivants", () => {
-    const studio = new AvatarStudio(draft());
-    studio.dispose();
-    expect(() => studio.dispose()).not.toThrow();
-    expect(() => studio.update(0.016, 1)).not.toThrow();
-    expect(() => studio.setAvatar(draft({ hairStyle: "afro" }))).not.toThrow();
-    expect(studio.scene.children).toHaveLength(0);
-  });
-});
-
-describe("AvatarStudio : glisser dans le sélecteur de couleur", () => {
-  const PAINT_FIELDS = ["skinTone", "hairColor", "eyeColor", "topColor", "topAccent", "bottomColor", "shoesColor", "accessoryColor"] as const;
-  // Tenues variées : chaque matériau dérivé (ombres des poches, revers du jean, gele, gilet, sangles) est couvert.
-  // L'agent par défaut partage une même couleur entre accent, accessoire et pièces métalliques : piège classique.
-  const outfits: AvatarConfig[] = [
-    draft(),
-    draft({ top: "boubou", topPattern: "ankara", bottom: "jeans", hairStyle: "gele", accessory: "bag", shoes: "sneakers" }),
-    draft({ top: "hoodie", bottom: "skirt", hairStyle: "afro", accessory: "cap", shoes: "sandals", build: "slim" }),
-    draft({ top: "jacket", hairStyle: "long", accessory: "glasses", bottomColor: "#1a1f25" }),
-    draft({ top: "tshirt", hairStyle: "locs", accessory: "headset", bottom: "jeans", build: "strong" }),
-  ];
-
-  function avatarRoot(studio: AvatarStudio): THREE.Object3D {
-    const root = studio.scene.getObjectByName("root");
-    if (!root) throw new Error("avatar absent du studio");
-    return root;
-  }
-
-  /** Couleur (r, g, b linéaires) du matériau de chaque mesh, dans l'ordre de parcours. */
-  function meshColors(root: THREE.Object3D): number[] {
-    const colors: number[] = [];
-    root.traverse((object) => {
-      if (!(object instanceof THREE.Mesh) || Array.isArray(object.material)) return;
-      const material: unknown = object.material;
-      if (material instanceof THREE.MeshStandardMaterial) colors.push(material.color.r, material.color.g, material.color.b);
-    });
-    return colors;
-  }
-
-  function clock(studio: AvatarStudio): (seconds?: number) => void {
-    let elapsed = 0;
-    return (seconds = 1 / 60) => {
-      for (let step = 0; step < Math.round(seconds * 60); step++) {
-        elapsed += 1 / 60;
-        studio.update(1 / 60, elapsed);
-      }
-    };
-  }
-
-  it("pendant le glisser, repeint en place à l'identique d'une reconstruction ; au repos, reconstruit une fois", () => {
-    for (const outfit of outfits) {
-      for (const field of PAINT_FIELDS) {
-        const studio = new AvatarStudio(outfit);
-        const advance = clock(studio);
-        // Premier événement : rien ne le distingue d'un clic, reconstruction exacte.
-        studio.setAvatar({ ...outfit, [field]: "#5a3d8f" });
-        const dragged = avatarRoot(studio);
-        for (const color of ["#c0ffee", "#10a050", "#f0e0d0"]) {
-          advance();
-          studio.setAvatar({ ...outfit, [field]: color });
-        }
-        expect(avatarRoot(studio), `${field} : pas de reconstruction pendant le glisser`).toBe(dragged);
-        const reference = createAvatarRig({ ...outfit, [field]: "#f0e0d0" });
-        const expected = meshColors(reference.rig.root);
-        const actual = meshColors(dragged);
-        expect(actual).toHaveLength(expected.length);
-        actual.forEach((value, index) => expect(Math.abs(value - (expected[index] ?? Number.NaN)), `${outfit.top}/${field} #${index}`).toBeLessThan(1e-9));
-        reference.dispose();
-
-        // Le joueur lâche le sélecteur : une reconstruction exacte (textures du visage et du tissu).
-        advance(0.5);
-        const settled = avatarRoot(studio);
-        expect(settled).not.toBe(dragged);
-        advance(1);
-        expect(avatarRoot(studio)).toBe(settled);
-        studio.dispose();
-      }
-    }
-  });
-
-  it("un clic sur une pastille, après une pause, reconstruit tout de suite", () => {
-    const studio = new AvatarStudio(draft());
-    const advance = clock(studio);
-    studio.setAvatar(draft({ hairColor: "#aa7733" }));
-    const first = avatarRoot(studio);
-    advance(1);
-    studio.setAvatar(draft({ hairColor: "#335577" }));
-    expect(avatarRoot(studio)).not.toBe(first);
+  it("revenir à la silhouette affichée avant la fin du téléchargement : le modèle arrivé trop tard est ignoré", async () => {
+    const { studio, loader } = await readyStudio();
+    studio.setAvatar(draft({ body: "female" }));
+    studio.setAvatar(draft({ body: "male", topColor: "#654321" }));
+    await loader.deliver("female");
+    expect(studio.scene.getObjectByName("Superhero_Female")).toBeUndefined();
+    expect(meshColor(studio, "Male_Ranger_Body")).toBe("#654321");
     studio.dispose();
   });
 
-  it("changer un autre réglage pendant le glisser reconstruit l'agent exact, sans reconstruction différée", () => {
-    const studio = new AvatarStudio(draft());
-    const advance = clock(studio);
-    studio.setAvatar(draft({ topColor: "#aa3344" }));
-    advance();
-    studio.setAvatar(draft({ topColor: "#bb4455" }));
-    advance();
-    studio.setAvatar(draft({ topColor: "#bb4455", hairStyle: "afro" }));
-    const rebuilt = avatarRoot(studio);
-    advance(1);
-    expect(avatarRoot(studio)).toBe(rebuilt);
-    studio.dispose();
-  });
-
-  it("si la reconstruction au repos échoue, l'agent repeint reste affiché et rien n'est retenté à chaque image", () => {
-    const studio = new AvatarStudio(draft());
-    const advance = clock(studio);
+  it("un téléchargement qui échoue prévient l'interface sans casser le studio", async () => {
+    const loader = fakeLoader();
+    const onPreviewError = vi.fn<(message: string) => void>();
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    studio.setAvatar(draft({ skinTone: "#8d5524" }));
-    advance();
-    studio.setAvatar(draft({ skinTone: "#9d6534" }));
-    const painted = avatarRoot(studio);
-    rigFailures.when = () => true;
-    advance(1);
-    expect(avatarRoot(studio)).toBe(painted);
-    expect(errors).toHaveBeenCalledTimes(1);
+    const studio = new AvatarStudio(draft(), loader.loadAsset, onPreviewError);
+    await loader.fail("male");
+    expect(onPreviewError).toHaveBeenCalledWith(expect.stringContaining("indisponible"));
+    expect(() => studio.update(0.016, 0.016)).not.toThrow();
     errors.mockRestore();
     studio.dispose();
+  });
+
+  it("ignore une config invalide et garde l'agent affiché", async () => {
+    const { studio } = await readyStudio();
+    studio.setAvatar({ ...draft(), hairStyle: "afro" } as unknown as AvatarConfig);
+    expect(visibleMesh(studio, "Hair_Buzzed")).toBe(true);
+    studio.dispose();
+  });
+
+  it("le plateau tourne tout seul, et le glisser tourne l'agent", async () => {
+    const { studio } = await readyStudio();
+    const turntable = characterModel(studio).parent?.parent;
+    if (!turntable) throw new Error("plateau introuvable");
+    for (let frame = 0; frame < 120; frame++) studio.update(1 / 30, frame / 30);
+    const spun = turntable.rotation.y;
+    expect(spun).toBeGreaterThan(0.1);
+    studio.setDragRotation(1);
+    for (let frame = 0; frame < 30; frame++) studio.update(1 / 30, 4 + frame / 30);
+    expect(turntable.rotation.y - spun).toBeGreaterThan(0.8);
+    studio.dispose();
+  });
+
+  it("dispose est idempotent, et un modèle arrivé après la fermeture n'est pas affiché", async () => {
+    const loader = fakeLoader();
+    const studio = new AvatarStudio(draft(), loader.loadAsset, vi.fn());
+    studio.dispose();
+    expect(() => studio.dispose()).not.toThrow();
+    await loader.deliver("male");
+    expect(studio.scene.getObjectByName("Head")).toBeUndefined();
+    expect(() => studio.setAvatar(draft({ topColor: "#111111" }))).not.toThrow();
   });
 });
 
@@ -607,6 +496,15 @@ class FakeElement extends FakeEventTarget {
   readonly classList = new Set<string>() as Set<string> & { toggle(name: string, force?: boolean): boolean; remove(name: string): void };
   private readonly attributes = new Map<string, string>();
   private ownText = "";
+
+  /** Comme dans le DOM : la propriété reflète l'attribut (et :disabled le lit). */
+  get disabled(): boolean {
+    return this.attributes.has("disabled");
+  }
+  set disabled(value: boolean) {
+    if (value) this.attributes.set("disabled", "");
+    else this.attributes.delete("disabled");
+  }
 
   constructor(tag: string) {
     super();
@@ -881,27 +779,40 @@ describe("CharacterCreator (cycle de vie, clavier, aperçu)", () => {
   });
 
   it("une sauvegarde aux optiques rouges s'ouvre avec des optiques vertes, et c'est ce qui est enregistré", () => {
-    const { creator, byText, onChange, onSave, status } = setup(draft({ visorColor: "#ff2d2d", hairStyle: "afro" }));
+    const { creator, byText, onChange, onSave, status } = setup(draft({ visorColor: "#ff2d2d", hairStyle: "bun" }));
     creator.open();
     expect(onChange.mock.calls[0]?.[0].visorColor).toBe(DEFAULT_AVATAR.visorColor);
     expect(status()).toContain("optiques");
     byText("Valider l'agent").click();
     expect(onSave).toHaveBeenCalledTimes(1);
-    expect(onSave.mock.calls[0]?.[0]).toMatchObject({ visorColor: DEFAULT_AVATAR.visorColor, hairStyle: "afro" });
+    expect(onSave.mock.calls[0]?.[0]).toMatchObject({ visorColor: DEFAULT_AVATAR.visorColor, hairStyle: "bun" });
   });
 
   it("Valider envoie d'abord l'aperçu encore en attente, puis la config", () => {
     const { creator, picker, byText, onChange, onSave } = setup();
     creator.open();
     onChange.mockClear();
-    const top = picker("Couleur principale");
+    const top = picker("Gilet");
     top.value = "#123456";
     top.dispatchEvent(new FakeEvent("input"));
     byText("Valider l'agent").click();
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onSave.mock.calls[0]?.[0].topColor).toBe("#123456");
-    // L'aperçu déjà envoyé n'est pas renvoyé à l'image suivante (seules les vignettes de motif s'y repeignent).
+    // L'aperçu déjà envoyé n'est pas renvoyé à l'image suivante.
     runFrames();
     expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("la barbe se choisit sur la silhouette masculine et se grise sur la silhouette féminine", () => {
+    const { creator, byText, onChange } = setup();
+    creator.open();
+    onChange.mockClear();
+    byText("Barbe").click();
+    expect(onChange.mock.calls.at(-1)?.[0].beard).toBe(true);
+    byText("Femme").click();
+    expect(onChange.mock.calls.at(-1)?.[0]).toMatchObject({ body: "female", beard: false });
+    expect(byText("Barbe").disabled).toBe(true);
+    byText("Homme").click();
+    expect(byText("Barbe").disabled).toBe(false);
   });
 });

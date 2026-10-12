@@ -1,8 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { isUpperBodyTrack, locomotionClip, locomotionTimeScale, REQUIRED_CLIPS, skinTint, TINTED_MESHES } from "../src/avatar/humanCharacter";
+import * as THREE from "three";
+import { DEFAULT_AVATAR, type BodyType } from "../src/avatar/avatarConfig";
+import { HumanCharacter, isUpperBodyTrack, locomotionClip, locomotionTimeScale, partRole, REQUIRED_CLIPS, REQUIRED_PARTS, skinTint } from "../src/avatar/humanCharacter";
+import { createFakeHumanAsset } from "./support/fakeHumanAsset";
 
-const MODEL_PATH = "public/models/characters/agent.glb";
+const MODEL_PATHS: Readonly<Record<BodyType, string>> = { male: "public/models/characters/agent-male.glb", female: "public/models/characters/agent-female.glb" };
 /** Le personnage est téléchargé au lancement : au-delà, l'attente se ferait sentir sur une connexion mobile. */
 const MAX_MODEL_BYTES = 3 * 1024 * 1024;
 
@@ -27,34 +30,101 @@ function readGlbJson(bytes: Uint8Array): GltfJson {
   return JSON.parse(new TextDecoder("utf-8").decode(bytes.subarray(20, 20 + jsonLength))) as GltfJson;
 }
 
-describe("fichier du personnage humain (agent.glb)", () => {
-  const bytes = readFileSync(MODEL_PATH);
-  const gltf = readGlbJson(bytes);
+for (const body of ["male", "female"] as const) {
+  describe(`fichier du personnage humain (${MODEL_PATHS[body]})`, () => {
+    const bytes = readFileSync(MODEL_PATHS[body]);
+    const gltf = readGlbJson(bytes);
 
-  it("est un glTF 2.0 binaire valide et léger", () => {
-    expect(gltf.asset.version).toBe("2.0");
-    expect(bytes.byteLength).toBeLessThan(MAX_MODEL_BYTES);
+    it("est un glTF 2.0 binaire valide et léger", () => {
+      expect(gltf.asset.version).toBe("2.0");
+      expect(bytes.byteLength).toBeLessThan(MAX_MODEL_BYTES);
+    });
+
+    it("contient toutes les animations utilisées par le jeu", () => {
+      const names = (gltf.animations ?? []).map((animation) => animation.name);
+      for (const clip of REQUIRED_CLIPS) expect(names).toContain(clip);
+    });
+
+    it("contient toutes les pièces du créateur (coupes, barbe, vêtements) et un squelette complet", () => {
+      const nodeNames = (gltf.nodes ?? []).map((node) => node.name ?? "");
+      const roles = new Set(nodeNames.map(partRole));
+      for (const role of REQUIRED_PARTS[body]) expect(roles).toContain(role);
+      for (const bone of ["root", "pelvis", "Head", "hand_r", "foot_l"]) expect(nodeNames).toContain(bone);
+      expect(gltf.skins?.every((skin) => skin.joints.length === 65)).toBe(true);
+    });
+
+    it("n'embarque que des images intégrées (aucune URL externe, compatible avec la CSP)", () => {
+      for (const image of gltf.images ?? []) {
+        expect(image.uri).toBeUndefined();
+        expect(["image/webp", "image/png", "image/jpeg"]).toContain(image.mimeType);
+      }
+      // Seules des extensions décodées nativement par GLTFLoader, sans décodeur à livrer (ni Draco, ni meshopt).
+      for (const extension of gltf.extensionsRequired ?? []) expect(["EXT_texture_webp", "KHR_mesh_quantization"]).toContain(extension);
+    });
+  });
+}
+
+describe("apparence du personnage humain", () => {
+  function color(character: HumanCharacter, name: string): string {
+    const mesh = character.root.getObjectByName(name);
+    if (!(mesh instanceof THREE.Mesh) || !(mesh.material instanceof THREE.MeshStandardMaterial)) throw new Error(`pièce absente : ${name}`);
+    return `#${mesh.material.color.getHexString()}`;
+  }
+  const visible = (character: HumanCharacter, name: string): boolean | undefined => character.root.getObjectByName(name)?.visible;
+
+  it("chaque pièce prend sa couleur, sans toucher la ressource partagée", () => {
+    const asset = createFakeHumanAsset("male");
+    const character = new HumanCharacter(asset, { ...DEFAULT_AVATAR, topColor: "#112233", topAccent: "#445566", bottomColor: "#778899", shoesColor: "#aabbcc", hairColor: "#ddeeff" });
+    expect(color(character, "Male_Ranger_Body")).toBe("#112233");
+    expect(color(character, "Male_Ranger_Body_Belt_1")).toBe("#445566");
+    expect(color(character, "Male_Peasant_Arms")).toBe("#445566");
+    expect(color(character, "Male_Peasant_Legs")).toBe("#778899");
+    expect(color(character, "Male_Ranger_Feet_Boots")).toBe("#aabbcc");
+    expect(color(character, "Hair_Buzzed")).toBe("#ddeeff");
+    expect(color(character, "Eyebrows")).toBe("#ddeeff");
+    const shared = asset.scene.getObjectByName("Male_Ranger_Body");
+    expect(shared instanceof THREE.Mesh && shared.material instanceof THREE.MeshStandardMaterial && shared.material.color.getHexString()).toBe("ffffff");
+    character.dispose();
   });
 
-  it("contient toutes les animations utilisées par le jeu", () => {
-    const names = (gltf.animations ?? []).map((animation) => animation.name);
-    for (const clip of REQUIRED_CLIPS) expect(names).toContain(clip);
+  it("une seule coupe visible, barbe et chauve respectés, mise à jour sur place", () => {
+    const character = new HumanCharacter(createFakeHumanAsset("male"), DEFAULT_AVATAR);
+    expect(visible(character, "Hair_Buzzed")).toBe(true);
+    expect(visible(character, "Hair_Long")).toBe(false);
+    expect(visible(character, "Hair_Beard")).toBe(false);
+    character.setAppearance({ ...DEFAULT_AVATAR, hairStyle: "bald", beard: true });
+    for (const hair of ["Hair_Buzzed", "Hair_SimpleParted", "Hair_Long", "Hair_Buns"]) expect(visible(character, hair)).toBe(false);
+    expect(visible(character, "Hair_Beard")).toBe(true);
+    character.dispose();
   });
 
-  it("contient les pièces teintées par le créateur et un squelette complet", () => {
-    const nodeNames = (gltf.nodes ?? []).map((node) => node.name ?? "");
-    for (const prefix of Object.values(TINTED_MESHES)) expect(nodeNames.some((name) => name.startsWith(prefix))).toBe(true);
-    for (const bone of ["root", "pelvis", "Head", "hand_r", "foot_l"]) expect(nodeNames).toContain(bone);
-    expect(gltf.skins?.every((skin) => skin.joints.length === 65)).toBe(true);
+  it("la silhouette féminine prend ses propres pièces, et refuse une config d'une autre silhouette", () => {
+    const asset = createFakeHumanAsset("female");
+    const character = new HumanCharacter(asset, { ...DEFAULT_AVATAR, body: "female", hairStyle: "buzz" });
+    expect(visible(character, "Hair_BuzzedFemale")).toBe(true);
+    expect(() => character.setAppearance(DEFAULT_AVATAR)).toThrow();
+    expect(() => new HumanCharacter(asset, DEFAULT_AVATAR)).toThrow();
+    character.dispose();
   });
 
-  it("n'embarque que des images intégrées (aucune URL externe, compatible avec la CSP)", () => {
-    for (const image of gltf.images ?? []) {
-      expect(image.uri).toBeUndefined();
-      expect(["image/webp", "image/png", "image/jpeg"]).toContain(image.mimeType);
-    }
-    // Seules des extensions décodées nativement par GLTFLoader, sans décodeur à livrer (ni Draco, ni meshopt).
-    for (const extension of gltf.extensionsRequired ?? []) expect(["EXT_texture_webp", "KHR_mesh_quantization"]).toContain(extension);
+  it("carrure et taille : plus large que haut pour un costaud, la tête garde ses proportions", () => {
+    const character = new HumanCharacter(createFakeHumanAsset("male"), { ...DEFAULT_AVATAR, build: "strong", height: 1.1 });
+    const model = character.root.children[0];
+    if (!model) throw new Error("modèle absent");
+    expect(model.scale.x).toBeGreaterThan(model.scale.y);
+    expect(model.scale.x * (character.root.getObjectByName("Head")?.scale.x ?? 0)).toBeCloseTo(model.scale.y);
+    const slim = new HumanCharacter(createFakeHumanAsset("male"), { ...DEFAULT_AVATAR, build: "slim", height: 0.9 });
+    expect(slim.scale).toBeLessThan(character.scale);
+    character.dispose();
+    slim.dispose();
+  });
+
+  it("s'anime sans erreur (marche, visée, tir)", () => {
+    const character = new HumanCharacter(createFakeHumanAsset("male"), DEFAULT_AVATAR);
+    character.playShot();
+    for (let frame = 0; frame < 30; frame++) character.update(1 / 30, { speed: 3, crouching: frame > 15, aim: 1 });
+    expect(Number.isFinite(character.root.getObjectByName("Head")?.quaternion.w ?? Number.NaN)).toBe(true);
+    character.dispose();
   });
 });
 

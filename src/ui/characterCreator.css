@@ -104,7 +104,7 @@
 /* --- Onglets : cinq colonnes icône + libellé, tous visibles sans défilement, même à 320 px --- */
 .creator-tabs {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 2px;
   flex-shrink: 0;
   padding: 0 8px;
@@ -183,14 +183,6 @@
   background: rgba(57, 255, 136, 0.16);
   border-color: var(--accent);
   box-shadow: inset 0 0 0 1px var(--accent), 0 0 14px rgba(57, 255, 136, 0.18);
-}
-.creator-chip-thumb {
-  width: 26px;
-  height: 26px;
-  margin-left: -6px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  flex-shrink: 0;
 }
 
 .creator-swatches { display: flex; flex-wrap: wrap; gap: 8px; }

@@ -132,7 +132,7 @@ src/
   combat/      balistique (tir, dispersion, chargeur, projectiles), gadgets-commandes et identités des cibles
   core/        grille, pathfinding BFS, ligne de vue DDA, RNG déterministe, entrées, sons + ambiance, réglages
   level/       génération procédurale BSP + construction de la scène Three.js
-  avatar/      apparence personnalisable : données validées, modèle 3D procédural, textures (visage, tissus)
+  avatar/      apparence personnalisable : données validées (et migration des anciennes), personnage humain glTF, agent procédural de repli
   render/      pipeline de rendu (bloom, vignette, ombres) selon la qualité, studio 3D du créateur d'agent
   entities/    joueur, sentinelles (ronde, alerte, combat, fouille, suspendue), boss, caméras, effets de combat, terminaux, dossiers
   game/        boucle de mission, difficulté, score, examen, progression, points de reprise, code de sauvegarde
@@ -157,8 +157,10 @@ et qu'aucune commande n'est posée deux fois).
   poussière en suspension, **couleur d'ambiance propre à chaque secteur**.
 - **Agent du joueur : humain riggé en glTF** (corps, tête et vêtements Quaternius, CC0) animé par
   `AnimationMixer` : repos, marche, trottinement, sprint, accroupi, visée et tir au pistolet (buste et jambes
-  mêlés séparément). Les couleurs du créateur d'agent teintent peau, cheveux et vêtements. Si le modèle ne
-  charge pas, l'agent procédural prend le relais. Sentinelles et boss restent procéduraux pour l'instant.
+  mêlés séparément). **Créateur « façon Sims »** sur ce même modèle : silhouette homme ou femme, carrure,
+  taille, peau, 5 coupes, barbe, couleurs du gilet, de la chemise, du pantalon, des bottes et des optiques,
+  appliquées en direct sans reconstruire le personnage. Si le modèle ne charge pas, un agent procédural
+  simplifié prend le relais. Les ennemis restent des robots : on les distingue d'un coup d'œil.
 - Cônes de vision en dégradé ; écrans de terminaux animés.
 - **Qualité réglable** (Haute / Moyenne / Basse) depuis l'écran titre ou la pause, choisie
   automatiquement (Moyenne sur mobile) et **abaissée automatiquement** si le jeu passe sous ~40 images/s.
@@ -177,7 +179,7 @@ et qu'aucune commande n'est posée deux fois).
 
 | Ressource | Auteur | Licence | Fichier |
 |---|---|---|---|
-| Universal Base Characters (tête, yeux, sourcils, cheveux) | [Quaternius](https://quaternius.com/packs/universalbasecharacters.html) | CC0 1.0 | `public/models/characters/agent.glb` |
+| Universal Base Characters (tête, yeux, sourcils, cheveux) | [Quaternius](https://quaternius.com/packs/universalbasecharacters.html) | CC0 1.0 | `public/models/characters/agent-male.glb`, `agent-female.glb` |
 | Modular Character Outfits – Fantasy (chemise, pantalon, gilet, bottes) | [Quaternius](https://quaternius.com/packs/modularcharacteroutfitsfantasy.html) | CC0 1.0 | idem |
 | Universal Animation Library (12 animations) | [Quaternius](https://quaternius.itch.io/universal-animation-library) | CC0 1.0 | idem |
 

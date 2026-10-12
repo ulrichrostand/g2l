@@ -91,7 +91,9 @@ class ShadowOpsApp {
     this.pipeline.renderer.setAnimationLoop(() => this.frame());
     this.showTitle();
     // Téléchargé pendant que le joueur lit l'écran titre : l'agent humain est prêt au lancement de la mission.
-    loadHumanCharacterAsset().catch((error: unknown) => console.warn("Préchargement du personnage humain impossible (nouvel essai au lancement).", error));
+    loadHumanCharacterAsset((this.progress.avatar ?? DEFAULT_AVATAR).body).catch((error: unknown) =>
+      console.warn("Préchargement du personnage humain impossible (nouvel essai au lancement).", error),
+    );
     // Raccourcis de test : bloc éliminé du build de production (import.meta.env.DEV vaut false).
     if (import.meta.env.DEV) {
       Object.assign(window, {
@@ -297,7 +299,7 @@ class ShadowOpsApp {
           moduleIndex,
           quality: QUALITY_PROFILES[this.settings.quality],
           avatar: this.progress.avatar ?? DEFAULT_AVATAR,
-          playerModel: loadHumanCharacterAsset(),
+          playerModel: loadHumanCharacterAsset((this.progress.avatar ?? DEFAULT_AVATAR).body),
           boss: { name: bossFor(module.id).name, color: bossFor(module.id).color },
         },
       );
@@ -811,8 +813,10 @@ class ShadowOpsApp {
     this.closeCharacterCreator();
     const initial = this.progress.avatar ?? DEFAULT_AVATAR;
     let studio: AvatarStudio | null = null;
+    // Le studio peut signaler un aperçu indisponible avant que le créateur existe : on passe par cette référence.
+    let creatorRef: CharacterCreator | null = null;
     try {
-      studio = new AvatarStudio(initial);
+      studio = new AvatarStudio(initial, loadHumanCharacterAsset, (message) => creatorRef?.notify(message));
       const builtStudio = studio;
       const creator = new CharacterCreator(this.creatorContainer, initial, {
         onChange: (config) => builtStudio.setAvatar(config),
@@ -832,9 +836,10 @@ class ShadowOpsApp {
       this.screens.hide();
       this.studio = studio;
       this.creator = creator;
+      creatorRef = creator;
       creator.open();
     } catch (error) {
-      // Typiquement iOS sous pression mémoire canvas (getContext("2d") renvoie null) : on continue sans créateur.
+      // Construction du décor du studio ou du DOM impossible (WebGL perdu, mémoire) : on continue sans créateur.
       console.error("Créateur d'agent indisponible.", error);
       if (this.studio === studio) this.closeCharacterCreator();
       else studio?.dispose();

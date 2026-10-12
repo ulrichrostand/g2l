@@ -5,7 +5,6 @@ import {
   AVATAR_OPTIONS,
   CLOTH_COLORS,
   DEFAULT_AVATAR,
-  EYE_COLORS,
   HAIR_COLORS,
   HEIGHT_RANGE,
   isSameAvatar,
@@ -16,15 +15,7 @@ import {
   type AvatarConfig,
 } from "../src/avatar/avatarConfig";
 import { createAvatarRig } from "../src/avatar/avatarModel";
-import {
-  acquireFabricTexture,
-  acquireFaceTexture,
-  drawFabricPattern,
-  drawFace,
-  fabricTextureKey,
-  faceTextureKey,
-  releaseAvatarTexture,
-} from "../src/avatar/avatarTextures";
+import { acquireFaceTexture, releaseAvatarTexture } from "../src/avatar/avatarTextures";
 import { SeededRandom } from "../src/core/rng";
 import { AGENT_SHOULDER_WIDTH, createRigSkeleton, createSentinelRig, poseRig, SENTINEL_SHOULDER_WIDTH, type HumanoidRig } from "../src/entities/rig";
 
@@ -39,6 +30,27 @@ const EXPECTED_PARENT: Record<(typeof PIVOTS)[number], (typeof PIVOTS)[number] |
   leftLeg: "hips",
   rightLeg: "hips",
 };
+
+/** Sauvegarde complète de l'ancien agent stylisé (17 champs, sans `body` ni `beard`). */
+const LEGACY_SAVE = {
+  skinTone: "#5C3A28",
+  eyeColor: "#3b2416",
+  hairStyle: "afro",
+  hairColor: "#141110",
+  build: "strong",
+  height: 1.05,
+  top: "boubou",
+  topColor: "#13865a",
+  topPattern: "ankara",
+  topAccent: "#f2b318",
+  bottom: "skirt",
+  bottomColor: "#1f3157",
+  shoes: "sandals",
+  shoesColor: "#6b4226",
+  accessory: "cap",
+  accessoryColor: "#c62f2f",
+  visorColor: "#3fe0ff",
+} as const;
 
 function seeded(seed: number): () => number {
   const random = new SeededRandom(seed);
@@ -65,6 +77,17 @@ function meshesOf(root: THREE.Object3D): THREE.Mesh[] {
     if (object instanceof THREE.Mesh) meshes.push(object);
   });
   return meshes;
+}
+
+function materialsOf(root: THREE.Object3D): Set<THREE.Material> {
+  const materials = new Set<THREE.Material>();
+  for (const mesh of meshesOf(root)) for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) materials.add(material);
+  return materials;
+}
+
+/** Le matériau lumineux (optiques, bobine) : seul à être fortement émissif. */
+function glowOf(root: THREE.Object3D): THREE.MeshStandardMaterial | undefined {
+  return [...materialsOf(root)].find((material): material is THREE.MeshStandardMaterial => material instanceof THREE.MeshStandardMaterial && material.emissiveIntensity > 1);
 }
 
 interface LatheFacing {
@@ -109,260 +132,273 @@ function latheFacing(geometry: THREE.BufferGeometry): LatheFacing {
   return facing;
 }
 
-/** Bas du modèle au repos : les semelles doivent toucher le sol (y = 0), ni flotter ni s'enfoncer. */
-function lowestPoint(root: THREE.Object3D): number {
+function boundsOf(root: THREE.Object3D): THREE.Box3 {
   root.updateMatrixWorld(true);
-  return new THREE.Box3().setFromObject(root).min.y;
+  return new THREE.Box3().setFromObject(root);
 }
 
-/** Faux contexte 2D : enregistre les appels de dessin pour vérifier qu'ils ne plantent pas et sont déterministes. */
-function recordingContext(): { context: CanvasRenderingContext2D; calls: string[] } {
-  const calls: string[] = [];
-  const gradient = { addColorStop: (offset: number, color: string) => calls.push(`stop:${offset}:${color}`) };
-  const target: Record<string | symbol, unknown> = {};
-  const context = new Proxy(target, {
+/** Faux contexte 2D : absorbe les appels de dessin, pour faire tourner le cache de textures sous Node. */
+function recordingContext(): CanvasRenderingContext2D {
+  const gradient = { addColorStop: () => undefined };
+  const context = new Proxy({} as Record<string | symbol, unknown>, {
     get(_target, property) {
       if (property === "createRadialGradient" || property === "createLinearGradient") return () => gradient;
-      return (...args: unknown[]) => calls.push(`${String(property)}(${args.join(",")})`);
+      return () => undefined;
     },
-    set(_target, property, value) {
-      calls.push(`${String(property)}=${String(value)}`);
-      return true;
-    },
+    set: () => true,
   });
-  return { context: context as unknown as CanvasRenderingContext2D, calls };
+  return context as unknown as CanvasRenderingContext2D;
 }
 
 describe("parseAvatarConfig", () => {
   it("accepte l'avatar par défaut et en renvoie une copie", () => {
-    const parsed = parseAvatarConfig(JSON.parse(JSON.stringify(DEFAULT_AVATAR)));
-    expect(parsed).not.toBeNull();
+    const parsed = parseAvatarConfig(DEFAULT_AVATAR);
+    expect(parsed).toEqual(DEFAULT_AVATAR);
     expect(parsed).not.toBe(DEFAULT_AVATAR);
-    expect(isSameAvatar(parsed as AvatarConfig, DEFAULT_AVATAR)).toBe(true);
   });
 
-  it("accepte tout avatar tiré au hasard", () => {
-    const random = seeded(2024);
-    for (let draw = 0; draw < 300; draw++) {
-      const avatar = randomAvatar(random);
-      const parsed = parseAvatarConfig(JSON.parse(JSON.stringify(avatar)));
-      expect(parsed).not.toBeNull();
-      expect(isSameAvatar(parsed as AvatarConfig, avatar)).toBe(true);
+  it("accepte les deux silhouettes, toutes les carrures et toutes les coupes", () => {
+    for (const { value: body } of AVATAR_OPTIONS.body) {
+      for (const { value: build } of AVATAR_OPTIONS.build) {
+        for (const { value: hairStyle } of AVATAR_OPTIONS.hairStyle) {
+          const config = withDefault({ body, build, hairStyle });
+          expect(parseAvatarConfig(config)).toEqual(config);
+        }
+      }
     }
   });
 
   it("normalise les couleurs en minuscules et accepte les bornes de taille", () => {
-    const parsed = parseAvatarConfig({ ...DEFAULT_AVATAR, skinTone: "#7D5036", height: HEIGHT_RANGE.max });
-    expect(parsed?.skinTone).toBe("#7d5036");
-    expect(parseAvatarConfig({ ...DEFAULT_AVATAR, height: HEIGHT_RANGE.min })).not.toBeNull();
+    const parsed = parseAvatarConfig(withDefault({ skinTone: "#AB12CD", visorColor: "#3FE0FF", height: HEIGHT_RANGE.min }));
+    expect(parsed?.skinTone).toBe("#ab12cd");
+    expect(parsed?.visorColor).toBe("#3fe0ff");
+    expect(parsed?.height).toBe(HEIGHT_RANGE.min);
+    expect(parseAvatarConfig(withDefault({ height: HEIGHT_RANGE.max }))?.height).toBe(HEIGHT_RANGE.max);
   });
 
-  it.each([
-    ["couleur sans dièse", { skinTone: "7d5036" }],
-    ["couleur trop courte", { hairColor: "#12345" }],
-    ["couleur nommée", { topColor: "red" }],
-    ["couleur non hexadécimale", { eyeColor: "#gg0000" }],
-    ["couleur en nombre", { visorColor: 0x39ff88 }],
-    ["coiffure inconnue", { hairStyle: "perruque" }],
-    ["haut inconnu", { top: "armure" }],
-    ["motif inconnu", { topPattern: "toString" }],
-    ["accessoire inconnu", { accessory: "__proto__" }],
-    ["taille trop petite", { height: 0.5 }],
-    ["taille trop grande", { height: 1.2 }],
-    ["taille NaN", { height: Number.NaN }],
-    ["taille infinie", { height: Number.POSITIVE_INFINITY }],
+  it.each<[string, Record<string, unknown>]>([
+    ["body inconnu", { body: "robot" }],
+    ["build inconnu", { build: "giant" }],
+    ["taille trop petite", { height: HEIGHT_RANGE.min - 0.01 }],
+    ["taille trop grande", { height: HEIGHT_RANGE.max + 0.01 }],
+    ["taille non finie", { height: Number.NaN }],
     ["taille en texte", { height: "1" }],
-  ])("rejette : %s", (_label, override) => {
+    ["peau courte", { skinTone: "#fff" }],
+    ["peau non hexadécimale", { skinTone: "#zzzzzz" }],
+    ["coupe supprimée sur une config récente", { hairStyle: "afro" }],
+    ["coupe inconnue", { hairStyle: "crête" }],
+    ["barbe non booléenne", { beard: "yes" }],
+    ["barbe absente", { beard: undefined }],
+    ["cheveux invalides", { hairColor: 42 }],
+    ["haut invalide", { topColor: "red" }],
+    ["accent invalide", { topAccent: null }],
+    ["bas invalide", { bottomColor: "#1234567" }],
+    ["chaussures invalides", { shoesColor: "" }],
+    ["optiques invalides", { visorColor: "#12345g" }],
+  ])("rejette un seul champ invalide : %s", (_label, override) => {
     expect(parseAvatarConfig({ ...DEFAULT_AVATAR, ...override })).toBeNull();
   });
 
   it("rejette ce qui n'est pas un objet simple, ou un champ manquant", () => {
-    for (const candidate of [null, undefined, 42, "avatar", [], [DEFAULT_AVATAR], true]) {
-      expect(parseAvatarConfig(candidate)).toBeNull();
-    }
-    const { visorColor: _ignored, ...incomplete } = DEFAULT_AVATAR;
-    expect(parseAvatarConfig(incomplete)).toBeNull();
+    for (const candidate of [null, undefined, 42, "avatar", [], [DEFAULT_AVATAR]]) expect(parseAvatarConfig(candidate)).toBeNull();
+    const { visorColor: _visor, ...withoutVisor } = DEFAULT_AVATAR;
+    expect(parseAvatarConfig(withoutVisor)).toBeNull();
   });
 
   it("ignore les clés en trop : seule la liste officielle des champs survit", () => {
-    const parsed = parseAvatarConfig({ ...DEFAULT_AVATAR, isAdmin: true, script: "alert(1)" });
-    expect(parsed).not.toBeNull();
-    expect(Object.keys(parsed as AvatarConfig).sort()).toEqual([...AVATAR_FIELDS].sort());
+    const parsed = parseAvatarConfig({ ...DEFAULT_AVATAR, isAdmin: true, eyeColor: "#ffffff" });
+    expect(Object.keys(parsed ?? {}).sort()).toEqual([...AVATAR_FIELDS].sort());
   });
 
   it("une clé __proto__ injectée reste sans effet", () => {
-    const tampered: unknown = JSON.parse(`{"__proto__": {"polluted": true, "build": "slim"}, ${JSON.stringify(DEFAULT_AVATAR).slice(1)}`);
-    const parsed = parseAvatarConfig(tampered);
-    expect(parsed).not.toBeNull();
-    expect(Object.getPrototypeOf(parsed)).toBe(Object.prototype);
-    expect((parsed as unknown as Record<string, unknown>).polluted).toBeUndefined();
-    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
-    expect(parsed?.build).toBe(DEFAULT_AVATAR.build);
+    const injected = JSON.parse(`{"__proto__": {"polluted": true}, ${JSON.stringify(DEFAULT_AVATAR).slice(1)}`) as unknown;
+    const parsed = parseAvatarConfig(injected);
+    expect(parsed).toEqual(DEFAULT_AVATAR);
+    expect(Object.hasOwn(parsed ?? {}, "polluted")).toBe(false);
+    expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
   });
 
   it("refuse des champs seulement hérités du prototype", () => {
     expect(parseAvatarConfig(Object.create(DEFAULT_AVATAR))).toBeNull();
+    // Même un `body` hérité ne fait pas passer l'objet pour une ancienne sauvegarde valide.
+    const { body: _body, ...rest } = DEFAULT_AVATAR;
+    expect(parseAvatarConfig(Object.assign(Object.create({ body: "female" }), rest))).toEqual(withDefault({}));
+  });
+
+  it("force la barbe à false pour la silhouette féminine, la garde pour la masculine", () => {
+    expect(parseAvatarConfig(withDefault({ body: "female", beard: true }))?.beard).toBe(false);
+    expect(parseAvatarConfig(withDefault({ body: "male", beard: true }))?.beard).toBe(true);
+  });
+});
+
+describe("migration des sauvegardes de l'ancien agent", () => {
+  it("convertit une sauvegarde complète : couleurs reprises, vêtements spécifiques ignorés", () => {
+    const parsed = parseAvatarConfig(LEGACY_SAVE);
+    expect(parsed).toEqual({
+      body: "male",
+      build: "strong",
+      height: 1.05,
+      skinTone: "#5c3a28",
+      hairStyle: "short",
+      beard: false,
+      hairColor: "#141110",
+      topColor: "#13865a",
+      topAccent: "#f2b318",
+      bottomColor: "#1f3157",
+      shoesColor: "#6b4226",
+      visorColor: "#3fe0ff",
+    });
+  });
+
+  it.each([
+    ["afro", "short"],
+    ["braids", "long"],
+    ["locs", "long"],
+    ["gele", "bun"],
+    ["mohawk", "buzz"],
+    ["buzz", "buzz"],
+    ["short", "short"],
+    ["long", "long"],
+    ["bun", "bun"],
+    ["bald", "bald"],
+  ])("ramène la coupe %s vers %s", (legacyStyle, expected) => {
+    expect(parseAvatarConfig({ ...LEGACY_SAVE, hairStyle: legacyStyle })?.hairStyle).toBe(expected);
+  });
+
+  it("rejette une ancienne sauvegarde à la coupe inconnue ou héritée du prototype", () => {
+    expect(parseAvatarConfig({ ...LEGACY_SAVE, hairStyle: "crête" })).toBeNull();
+    expect(parseAvatarConfig({ ...LEGACY_SAVE, hairStyle: "toString" })).toBeNull();
+    expect(parseAvatarConfig({ ...LEGACY_SAVE, hairStyle: "__proto__" })).toBeNull();
+  });
+
+  it("rejette une ancienne sauvegarde dont une couleur reprise est invalide", () => {
+    expect(parseAvatarConfig({ ...LEGACY_SAVE, topColor: "vert" })).toBeNull();
   });
 });
 
 describe("randomAvatar", () => {
-  it("est déterministe avec une graine", () => {
-    const first = Array.from({ length: 20 }, ((random) => () => randomAvatar(random))(seeded(99)));
-    const second = Array.from({ length: 20 }, ((random) => () => randomAvatar(random))(seeded(99)));
-    first.forEach((avatar, index) => expect(isSameAvatar(avatar, second[index] as AvatarConfig)).toBe(true));
+  it("est toujours valide, cohérent et canonique sur de nombreuses graines", () => {
+    for (let seed = 1; seed <= 300; seed++) {
+      const avatar = randomAvatar(seeded(seed));
+      expect(parseAvatarConfig(avatar), `graine ${seed}`).toEqual(avatar);
+      expect(avatar.topAccent).not.toBe(avatar.topColor);
+      if (avatar.body === "female") expect(avatar.beard).toBe(false);
+    }
   });
 
-  it("varie et couvre toutes les options", () => {
+  it("est reproductible avec la même graine", () => {
+    expect(randomAvatar(seeded(42))).toEqual(randomAvatar(seeded(42)));
+  });
+
+  it("varie et couvre toutes les silhouettes, carrures et coupes", () => {
     const random = seeded(7);
     const avatars = Array.from({ length: 400 }, () => randomAvatar(random));
-    const distinct = new Set(avatars.map((avatar) => JSON.stringify(avatar)));
-    expect(distinct.size).toBeGreaterThan(390);
-    for (const field of ["build", "hairStyle", "top", "topPattern", "bottom", "shoes", "accessory"] as const) {
+    for (const field of ["body", "build", "hairStyle"] as const) {
       const seen = new Set(avatars.map((avatar) => avatar[field]));
-      expect([...seen].sort()).toEqual(AVATAR_OPTIONS[field].map((option) => option.value).sort());
+      expect(seen.size, field).toBe(AVATAR_OPTIONS[field].length);
     }
-    expect(new Set(avatars.map((avatar) => avatar.skinTone)).size).toBe(SKIN_TONES.length);
+    expect(avatars.some((avatar) => avatar.beard)).toBe(true);
   });
 
-  it("reste cohérent : accent distinct, pas de casquette sur une coiffure volumineuse", () => {
-    const random = seeded(3);
-    for (let draw = 0; draw < 400; draw++) {
-      const avatar = randomAvatar(random);
+  it("reste valide même avec un générateur défaillant (1 ou NaN)", () => {
+    for (const broken of [() => 1, () => Number.NaN]) {
+      const avatar = randomAvatar(broken);
+      expect(parseAvatarConfig(avatar)).toEqual(avatar);
       expect(avatar.topAccent).not.toBe(avatar.topColor);
-      if (["afro", "bun", "mohawk", "gele"].includes(avatar.hairStyle)) expect(avatar.accessory).not.toBe("cap");
-      expect(avatar.height).toBeGreaterThanOrEqual(HEIGHT_RANGE.min);
-      expect(avatar.height).toBeLessThanOrEqual(HEIGHT_RANGE.max);
-    }
-  });
-
-  it("reste valide même avec un générateur défaillant", () => {
-    for (const broken of [() => 1, () => 0, () => Number.NaN, () => -3]) {
-      expect(parseAvatarConfig(randomAvatar(broken))).not.toBeNull();
     }
   });
 });
 
 describe("options et palettes", () => {
-  it("propose des libellés français, dont les tenues nigérianes", () => {
-    const label = (options: readonly { value: string; label: string }[], value: string): string | undefined =>
-      options.find((option) => option.value === value)?.label;
-    expect(label(AVATAR_OPTIONS.hairStyle, "gele")).toBe("Gele (foulard)");
-    expect(label(AVATAR_OPTIONS.top, "boubou")).toBe("Boubou");
-    expect(label(AVATAR_OPTIONS.topPattern, "asooke")).toBe("Aso-oke");
-    expect(label(AVATAR_OPTIONS.topPattern, "ankara")).toBe("Ankara (wax)");
-  });
-
   it("a des palettes valides, sans doublon, avec au moins 10 teintes de peau", () => {
     expect(SKIN_TONES.length).toBeGreaterThanOrEqual(10);
-    for (const palette of [SKIN_TONES, HAIR_COLORS, EYE_COLORS, CLOTH_COLORS, VISOR_COLORS]) {
-      expect(new Set(palette.map((preset) => preset.value)).size).toBe(palette.length);
-      for (const preset of palette) {
-        expect(preset.value).toMatch(/^#[0-9a-f]{6}$/);
-        expect(preset.label.length).toBeGreaterThan(0);
-      }
+    for (const palette of [SKIN_TONES, HAIR_COLORS, CLOTH_COLORS, VISOR_COLORS]) {
+      const values = palette.map((preset) => preset.value);
+      expect(new Set(values).size).toBe(values.length);
+      for (const value of values) expect(value).toMatch(/^#[0-9a-f]{6}$/);
     }
   });
 
   it("compare deux avatars champ par champ", () => {
-    expect(isSameAvatar(DEFAULT_AVATAR, { ...DEFAULT_AVATAR })).toBe(true);
-    expect(isSameAvatar(DEFAULT_AVATAR, withDefault({ height: 1.05 }))).toBe(false);
-    expect(isSameAvatar(DEFAULT_AVATAR, withDefault({ visorColor: "#3fe0ff" }))).toBe(false);
+    expect(isSameAvatar(DEFAULT_AVATAR, withDefault({}))).toBe(true);
+    for (const field of AVATAR_FIELDS) {
+      const changed = { ...DEFAULT_AVATAR, [field]: field === "height" ? 1.05 : field === "beard" ? true : field === "body" ? "female" : field === "build" ? "slim" : field === "hairStyle" ? "long" : "#010203" } as AvatarConfig;
+      expect(isSameAvatar(DEFAULT_AVATAR, changed), field).toBe(false);
+    }
   });
 });
 
-describe("textures de l'avatar", () => {
-  it("ne crée aucune texture hors navigateur", () => {
+describe("texture du visage", () => {
+  it("n'est pas créée hors navigateur", () => {
     expect(acquireFaceTexture(DEFAULT_AVATAR)).toBeNull();
-    expect(acquireFabricTexture("ankara", "#f2b318", "#13865a")).toBeNull();
     expect(() => releaseAvatarTexture(null)).not.toThrow();
   });
-
-  it("a des clés de cache distinctes par couleur, et pas de texture pour l'uni", () => {
-    expect(fabricTextureKey("plain", "#000000", "#ffffff")).toBeNull();
-    expect(fabricTextureKey("ankara", "#000000", "#ffffff")).not.toBe(fabricTextureKey("ankara", "#000000", "#fffffe"));
-    expect(faceTextureKey(DEFAULT_AVATAR)).not.toBe(faceTextureKey(withDefault({ eyeColor: "#3f78b5" })));
-    // Changer de tenue ne doit pas régénérer le visage.
-    expect(faceTextureKey(DEFAULT_AVATAR)).toBe(faceTextureKey(withDefault({ top: "boubou", topColor: "#c62f2f" })));
-  });
-
-  it("dessine chaque motif et le visage de façon déterministe", () => {
-    for (const { value: pattern } of AVATAR_OPTIONS.topPattern) {
-      const first = recordingContext();
-      const second = recordingContext();
-      drawFabricPattern(first.context, pattern, "#1f3157", "#f2b318");
-      drawFabricPattern(second.context, pattern, "#1f3157", "#f2b318");
-      expect(first.calls.length).toBeGreaterThan(2);
-      expect(first.calls).toEqual(second.calls);
-    }
-    const face = recordingContext();
-    drawFace(face.context, DEFAULT_AVATAR);
-    expect(face.calls.some((call) => call.startsWith("arc("))).toBe(true);
-    // Couleur invalide (fonction exportée) : du gris plutôt qu'une exception.
-    expect(() => drawFace(recordingContext().context, { skinTone: "oups", eyeColor: "#000", hairColor: "" })).not.toThrow();
-  });
 });
 
-describe("textures partagées : retour au cache", () => {
-  // Faux document : le cache ne travaille qu'avec un canvas, le dessin part dans un contexte enregistreur.
+describe("texture du visage partagée : retour au cache", () => {
+  // Faux document : le cache ne travaille qu'avec un canvas, le dessin part dans un contexte inerte.
   beforeEach(() => {
-    vi.stubGlobal("document", { createElement: () => ({ width: 0, height: 0, getContext: () => recordingContext().context }) });
+    vi.stubGlobal("document", { createElement: () => ({ width: 0, height: 0, getContext: () => recordingContext() }) });
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  function sharedTexturesOf(root: THREE.Object3D): Set<THREE.Texture> {
+  function faceTexturesOf(root: THREE.Object3D): Set<THREE.Texture> {
     const textures = new Set<THREE.Texture>();
-    for (const mesh of meshesOf(root)) {
-      if (mesh.material instanceof THREE.MeshStandardMaterial && mesh.material.map) textures.add(mesh.material.map);
-    }
+    for (const material of materialsOf(root)) if (material instanceof THREE.MeshStandardMaterial && material.map) textures.add(material.map);
     return textures;
   }
 
-  /**
-   * Ce que fait disposeScene en fin de mission : libérer les matériaux de la scène sans passer par
-   * AvatarModel.dispose. Les textures ne sont volontairement pas libérées ici : seul le cache peut alors le faire.
-   */
+  /** Ce que fait disposeScene en fin de mission : libérer les matériaux de la scène sans passer par AvatarModel.dispose. */
   function disposeMaterialsLikeScene(root: THREE.Object3D): void {
-    const materials = new Set<THREE.Material>();
-    for (const mesh of meshesOf(root)) for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) materials.add(material);
-    for (const material of materials) material.dispose();
+    for (const material of materialsOf(root)) material.dispose();
   }
 
-  /** Fait défiler assez de textures inutilisées pour pousser les plus anciennes hors de la réserve du cache. */
+  /** Fait défiler assez de visages inutilisés pour pousser les plus anciens hors de la réserve du cache. */
   function churnIdleTextures(batch: number): void {
     for (let index = 0; index < 20; index++) {
-      const base = `#${batch.toString(16).padStart(2, "0")}${index.toString(16).padStart(2, "0")}80`;
-      releaseAvatarTexture(acquireFabricTexture("stripes", base, "#ffffff"));
+      const skinTone = `#${batch.toString(16).padStart(2, "0")}${index.toString(16).padStart(2, "0")}80`;
+      releaseAvatarTexture(acquireFaceTexture({ skinTone, hairColor: "#ffffff" }));
     }
   }
 
-  it("rend visage et tissu au cache quand la scène libère les matériaux, sans dispose() explicite (fin de mission)", () => {
-    const config = withDefault({ topPattern: "ankara", topColor: "#204060", topAccent: "#e0a020", skinTone: "#5a3a2a" });
+  it("partage le visage entre deux agents de mêmes couleurs, pas entre deux peaux différentes", () => {
+    const first = acquireFaceTexture(DEFAULT_AVATAR);
+    const same = acquireFaceTexture(withDefault({ topColor: "#c62f2f", hairStyle: "long" }));
+    const other = acquireFaceTexture(withDefault({ skinTone: "#f3d5b8" }));
+    expect(first).not.toBeNull();
+    expect(same).toBe(first);
+    expect(other).not.toBe(first);
+    for (const texture of [first, same, other]) releaseAvatarTexture(texture);
+  });
+
+  it("rend le visage au cache quand la scène libère les matériaux, sans dispose() explicite (fin de mission)", () => {
+    const config = withDefault({ skinTone: "#5a3a2a", hairColor: "#7a3420" });
     const model = createAvatarRig(config);
-    const textures = sharedTexturesOf(model.rig.root);
-    expect(textures.size).toBe(2);
+    const textures = faceTexturesOf(model.rig.root);
+    expect(textures.size).toBe(1);
     const evicted = new Set<THREE.Texture>();
     for (const texture of textures) texture.addEventListener("dispose", () => evicted.add(texture));
 
     disposeMaterialsLikeScene(model.rig.root);
     churnIdleTextures(1);
-    // Plus aucun avatar ne s'en sert : elles sortent du cache comme n'importe quelle texture inutilisée.
-    expect(evicted.size).toBe(2);
+    // Plus aucun avatar ne s'en sert : elle sort du cache comme n'importe quelle texture inutilisée.
+    expect(evicted.size).toBe(1);
     const face = acquireFaceTexture(config);
     expect(face).not.toBeNull();
     expect(textures.has(face as THREE.Texture)).toBe(false);
     releaseAvatarTexture(face);
   });
 
-  it("ne rend chaque texture qu'une fois, même libéré par la scène puis par dispose()", () => {
-    const config = withDefault({ topPattern: "camo", topColor: "#305020", topAccent: "#a0b070", skinTone: "#8a5a3a" });
+  it("ne rend le visage qu'une fois, même libéré par la scène puis par dispose()", () => {
+    const config = withDefault({ skinTone: "#8a5a3a", hairColor: "#c9a25a" });
     const leaving = createAvatarRig(config);
     const staying = createAvatarRig(config);
-    const textures = sharedTexturesOf(staying.rig.root);
-    expect(textures.size).toBe(2);
-    for (const texture of sharedTexturesOf(leaving.rig.root)) expect(textures.has(texture)).toBe(true);
+    const textures = faceTexturesOf(staying.rig.root);
+    expect(textures.size).toBe(1);
+    for (const texture of faceTexturesOf(leaving.rig.root)) expect(textures.has(texture)).toBe(true);
     const evicted = new Set<THREE.Texture>();
     for (const texture of textures) texture.addEventListener("dispose", () => evicted.add(texture));
 
@@ -370,64 +406,79 @@ describe("textures partagées : retour au cache", () => {
     leaving.dispose();
     leaving.dispose();
     churnIdleTextures(2);
-    // L'autre avatar s'en sert encore : un double retour au cache les aurait libérées sous ses pieds.
+    // L'autre avatar s'en sert encore : un double retour au cache l'aurait libérée sous ses pieds.
     expect(evicted.size).toBe(0);
 
     staying.dispose();
     churnIdleTextures(3);
-    expect(evicted.size).toBe(textures.size);
+    expect(evicted.size).toBe(1);
   });
 });
 
-describe("createAvatarRig", () => {
+describe("createAvatarRig (agent de repli)", () => {
   const variants: AvatarConfig[] = [
+    DEFAULT_AVATAR,
     ...AVATAR_OPTIONS.build.map(({ value }) => withDefault({ build: value })),
     ...AVATAR_OPTIONS.hairStyle.map(({ value }) => withDefault({ hairStyle: value })),
-    ...AVATAR_OPTIONS.hairStyle.map(({ value }) => withDefault({ hairStyle: value, accessory: "cap" })),
-    ...AVATAR_OPTIONS.hairStyle.map(({ value }) => withDefault({ hairStyle: value, accessory: "headset" })),
-    ...AVATAR_OPTIONS.top.map(({ value }) => withDefault({ top: value })),
-    ...AVATAR_OPTIONS.topPattern.map(({ value }) => withDefault({ topPattern: value, top: "boubou" })),
-    ...AVATAR_OPTIONS.bottom.map(({ value }) => withDefault({ bottom: value })),
-    ...AVATAR_OPTIONS.bottom.map(({ value }) => withDefault({ bottom: value, top: "hoodie" })),
-    ...AVATAR_OPTIONS.shoes.map(({ value }) => withDefault({ shoes: value })),
-    ...AVATAR_OPTIONS.accessory.map(({ value }) => withDefault({ accessory: value })),
-    ...AVATAR_OPTIONS.accessory.map(({ value }) => withDefault({ accessory: value, top: "tactical", build: "strong" })),
+    withDefault({ body: "female", hairStyle: "long", build: "slim" }),
+    withDefault({ body: "female", hairStyle: "bun", build: "strong" }),
+    withDefault({ beard: true, hairStyle: "bald", build: "strong" }),
     withDefault({ height: HEIGHT_RANGE.min, build: "slim" }),
     withDefault({ height: HEIGHT_RANGE.max, build: "strong" }),
   ];
 
-  it.each(variants.map((config) => [`${config.build}/${config.hairStyle}/${config.top}/${config.topPattern}/${config.bottom}/${config.shoes}/${config.accessory}`, config]))(
-    "construit, s'anime et se libère : %s",
-    (_label, config) => {
-      const model = createAvatarRig(config);
-      expectSameSkeleton(model.rig, createRigSkeleton(model.rig.rightArm.position.x));
-      expect(model.rig.leftArm.position.x).toBe(-model.rig.rightArm.position.x);
-      expect(model.rig.root.scale.toArray()).toEqual([config.height, config.height, config.height]);
+  it.each(variants.map((config) => [`${config.body}/${config.build}/${config.hairStyle}/${config.height}`, config] as const))("construit, s'anime et se libère : %s", (_label, config) => {
+    const model = createAvatarRig(config);
+    expectSameSkeleton(model.rig, createRigSkeleton(model.rig.rightArm.position.x));
+    expect(model.rig.leftArm.position.x).toBe(-model.rig.rightArm.position.x);
+    expect(model.rig.root.scale.toArray()).toEqual([config.height, config.height, config.height]);
 
-      const meshes = meshesOf(model.rig.root);
-      expect(meshes.length).toBeGreaterThanOrEqual(20);
-      expect(meshes.length).toBeLessThanOrEqual(70);
-      expect(meshes.filter((mesh) => mesh.material === model.glow).length).toBeGreaterThanOrEqual(2);
-      expect(lowestPoint(model.rig.root)).toBeCloseTo(0, 2);
+    const meshes = meshesOf(model.rig.root);
+    expect(meshes.length).toBeGreaterThanOrEqual(20);
+    expect(meshes.length).toBeLessThanOrEqual(40);
+    // Les semelles touchent le sol : ni flottement ni pieds enfoncés.
+    expect(boundsOf(model.rig.root).min.y).toBeCloseTo(0, 2);
 
-      poseRig(model.rig, 1.3, 1, 0.5, 1);
-      expect(model.rig.rightArm.rotation.x).toBeCloseTo(-Math.PI / 2);
-      expect(model.rig.leftLeg.rotation.x).not.toBe(0);
+    poseRig(model.rig, 1.3, 1, 0.5, 1);
+    expect(model.rig.rightArm.rotation.x).toBeCloseTo(-Math.PI / 2);
+    expect(model.rig.leftLeg.rotation.x).not.toBe(0);
 
+    model.dispose();
+    expect(() => model.dispose()).not.toThrow();
+  });
+
+  it("a une hauteur proportionnelle au facteur de taille", () => {
+    const heightOf = (height: number): number => {
+      const model = createAvatarRig(withDefault({ height }));
+      const bounds = boundsOf(model.rig.root);
       model.dispose();
-      expect(() => model.dispose()).not.toThrow();
-    },
-  );
+      return bounds.max.y - bounds.min.y;
+    };
+    const reference = heightOf(1);
+    expect(reference).toBeGreaterThan(1);
+    expect(heightOf(HEIGHT_RANGE.min) / reference).toBeCloseTo(HEIGHT_RANGE.min, 5);
+    expect(heightOf(HEIGHT_RANGE.max) / reference).toBeCloseTo(HEIGHT_RANGE.max, 5);
+  });
 
-  it("tourne vers l'extérieur les faces et les normales des surfaces au tour (jambes, manches, bras, torse)", () => {
+  it("élargit les épaules avec la carrure", () => {
+    const shoulders = AVATAR_OPTIONS.build.map(({ value }) => {
+      const model = createAvatarRig(withDefault({ build: value }));
+      model.dispose();
+      return model.rig.rightArm.position.x;
+    });
+    expect([...shoulders].sort((first, second) => first - second)).toEqual(shoulders);
+    expect(new Set(shoulders).size).toBe(shoulders.length);
+  });
+
+  it("tourne vers l'extérieur les faces et les normales des surfaces au tour (jambes, manches, torse)", () => {
     for (const config of variants) {
       const model = createAvatarRig(config);
       const lathes = meshesOf(model.rig.root).filter((mesh) => mesh.geometry instanceof THREE.LatheGeometry);
-      // Torse, bassin, deux jambes, deux manches au minimum : sinon le test ne vérifierait plus rien.
-      expect(lathes.length).toBeGreaterThanOrEqual(6);
+      // Torse, bassin, deux jambes, deux manches : sinon le test ne vérifierait plus rien.
+      expect(lathes.length).toBe(6);
       for (const mesh of lathes) {
         const facing = latheFacing(mesh.geometry);
-        const label = `${config.top}/${config.bottom} : ${mesh.parent?.name ?? "?"}`;
+        const label = `${config.build} : ${mesh.parent?.name ?? "?"}`;
         expect(facing.outward, label).toBeGreaterThan(0);
         expect(facing.inward, label).toBe(0);
         expect(facing.normalsAgainstFaces, label).toBe(0);
@@ -436,13 +487,34 @@ describe("createAvatarRig", () => {
     }
   });
 
-  it("garde l'identité de Spectre : optiques couleur visière et pistolet dans la main droite", () => {
+  it("habille l'agent aux couleurs de la config : gilet, chemise, pantalon, rangers, peau, cheveux", () => {
+    const config = withDefault({ topColor: "#c62f2f", topAccent: "#1fa5a0", bottomColor: "#4b5a32", shoesColor: "#6b4226", skinTone: "#3b2219", hairColor: "#c9a25a", hairStyle: "short" });
+    const model = createAvatarRig(config);
+    const colors = new Set([...materialsOf(model.rig.root)].filter((material) => material instanceof THREE.MeshStandardMaterial).map((material) => `#${material.color.getHexString()}`));
+    for (const field of ["topColor", "topAccent", "bottomColor", "shoesColor", "skinTone", "hairColor"] as const) expect(colors.has(config[field]), field).toBe(true);
+    model.dispose();
+  });
+
+  it("n'a pas de cheveux quand l'agent est chauve", () => {
+    const hairColor = "#d9659b";
+    const colorsOf = (config: AvatarConfig): string[] => {
+      const model = createAvatarRig(config);
+      const colors = [...materialsOf(model.rig.root)].filter((material) => material instanceof THREE.MeshStandardMaterial).map((material) => `#${material.color.getHexString()}`);
+      model.dispose();
+      return colors;
+    };
+    expect(colorsOf(withDefault({ hairStyle: "bald", hairColor }))).not.toContain(hairColor);
+    expect(colorsOf(withDefault({ hairStyle: "buzz", hairColor }))).toContain(hairColor);
+  });
+
+  it("garde l'identité de Spectre : optiques couleur visière et pistolet lumineux dans la main droite", () => {
     const model = createAvatarRig(withDefault({ visorColor: "#3fe0ff" }));
-    expect(model.glow.emissive.getHexString()).toBe(new THREE.Color("#3fe0ff").getHexString());
-    expect(model.glow.emissiveIntensity).toBeCloseTo(2.2);
+    const glow = glowOf(model.rig.root);
+    expect(glow?.emissive.getHexString()).toBe(new THREE.Color("#3fe0ff").getHexString());
+    expect(meshesOf(model.rig.root).filter((mesh) => mesh.material === glow).length).toBe(2);
     const pistol = model.rig.rightArm.children.find((child) => child instanceof THREE.Group);
     expect(pistol?.position.toArray()).toEqual([0, -0.52, 0.04]);
-    expect(meshesOf(pistol as THREE.Object3D).some((mesh) => mesh.material === model.glow)).toBe(true);
+    expect(meshesOf(pistol as THREE.Object3D).some((mesh) => mesh.material === glow)).toBe(true);
     model.dispose();
   });
 
@@ -454,27 +526,13 @@ describe("createAvatarRig", () => {
   });
 
   it("libère toutes les géométries et tous les matériaux créés", () => {
-    const model = createAvatarRig(withDefault({ hairStyle: "braids", top: "boubou", accessory: "bag" }));
-    const resources = new Set<THREE.BufferGeometry | THREE.Material>();
-    for (const mesh of meshesOf(model.rig.root)) {
-      resources.add(mesh.geometry);
-      for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) resources.add(material);
-    }
+    const model = createAvatarRig(withDefault({ hairStyle: "bun", body: "female", build: "strong" }));
+    const resources = new Set<THREE.BufferGeometry | THREE.Material>(materialsOf(model.rig.root));
+    for (const mesh of meshesOf(model.rig.root)) resources.add(mesh.geometry);
     const released = new Set<unknown>();
     for (const resource of resources) resource.addEventListener("dispose", () => released.add(resource));
     model.dispose();
     expect(released.size).toBe(resources.size);
-  });
-
-  it("se reconstruit assez vite pour le créateur de personnage", () => {
-    const random = seeded(5);
-    const configs = Array.from({ length: 30 }, () => randomAvatar(random));
-    createAvatarRig(DEFAULT_AVATAR).dispose();
-    const started = performance.now();
-    for (const config of configs) createAvatarRig(config).dispose();
-    const averageMs = (performance.now() - started) / configs.length;
-    // Budget visé ~15 ms dans le navigateur ; marge large ici pour ne pas échouer sur une machine chargée.
-    expect(averageMs).toBeLessThan(40);
   });
 });
 
@@ -491,7 +549,7 @@ describe("createSentinelRig", () => {
     expect(firstMeshes[0]?.geometry).toBe(secondMeshes[0]?.geometry);
     expect(firstMeshes.filter((mesh) => mesh.material === first.glow).length).toBeGreaterThanOrEqual(3);
     expect(secondMeshes.some((mesh) => mesh.material === first.glow)).toBe(false);
-    expect(lowestPoint(first.rig.root)).toBeCloseTo(0, 2);
+    expect(boundsOf(first.rig.root).min.y).toBeCloseTo(0, 2);
   });
 
   it("tient son arme dans la main droite et s'anime", () => {

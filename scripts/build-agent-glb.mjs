@@ -1,5 +1,5 @@
 /**
- * Construit public/models/characters/agent.glb, le personnage humain de référence (agent du joueur),
+ * Construit public/models/characters/agent-male.glb et agent-female.glb, les deux corps de l'agent du joueur,
  * à partir des packs CC0 de Quaternius : Universal Base Characters (tête), Modular Character Outfits –
  * Fantasy (vêtements) et Universal Animation Library (animations). Provenance et licences :
  * public/models/characters/README.md.
@@ -9,7 +9,7 @@
  *
  * Usage (les paquets sont installés à part pour ne pas alourdir package.json) :
  *   npm i --no-save @gltf-transform/core@4 @gltf-transform/functions@4 @gltf-transform/extensions@4 sharp
- *   node scripts/build-agent-glb.mjs <dossier des sources Quaternius> [sortie.glb]
+ *   node scripts/build-agent-glb.mjs <dossier des sources Quaternius> [dossier de sortie]
  * Le dossier source contient base/, outfits/, parts/, hair/, textures/ et gaits.glb (voir le README).
  */
 import { NodeIO } from "@gltf-transform/core";
@@ -18,17 +18,47 @@ import { compactPrimitive, dedup, mergeDocuments, prune, resample, textureCompre
 import sharp from "sharp";
 import path from "node:path";
 
-const [sourceDir, outputPath = "public/models/characters/agent.glb"] = process.argv.slice(2);
+const [sourceDir, outputDir = "public/models/characters"] = process.argv.slice(2);
 if (!sourceDir) {
-  console.error("Usage : node scripts/build-agent-glb.mjs <dossier des sources Quaternius> [sortie.glb]");
+  console.error("Usage : node scripts/build-agent-glb.mjs <dossier des sources Quaternius> [dossier de sortie]");
   process.exit(1);
 }
 
-/** Tenue de l'agent : chemise et pantalon « Peasant », gilet sanglé et bottes « Ranger », cheveux ras. */
-const BASE_OUTFIT = "outfits/Male_Peasant.gltf";
-const REMOVED_BASE_MESHES = new Set(["Male_Peasant_Body", "Male_Peasant_Feet"]);
-const EXTRA_PARTS = ["parts/Male_Ranger_Body.gltf", "parts/Male_Ranger_Feet_Boots.gltf", "hair/Hair_Buzzed.gltf"];
-const HEAD_SOURCE = "base/Superhero_Male_FullBody.gltf";
+/**
+ * Tenue de l'agent : chemise et pantalon « Peasant », gilet sanglé et bottes « Ranger ». Toutes les coupes
+ * proposées par le créateur sont dans le fichier : le jeu n'affiche que celle choisie (aucun rechargement).
+ */
+const VARIANTS = [
+  {
+    output: "agent-male.glb",
+    baseOutfit: "outfits/Male_Peasant.gltf",
+    removedBaseMeshes: ["Male_Peasant_Body", "Male_Peasant_Feet"],
+    extraParts: [
+      "parts/Male_Ranger_Body.gltf",
+      "parts/Male_Ranger_Feet_Boots.gltf",
+      "hair/Hair_Buzzed.gltf",
+      "hair/Hair_SimpleParted.gltf",
+      "hair/Hair_Long.gltf",
+      "hair/Hair_Buns.gltf",
+      "hair/Hair_Beard.gltf",
+    ],
+    headSource: "base/Superhero_Male_FullBody.gltf",
+  },
+  {
+    output: "agent-female.glb",
+    baseOutfit: "outfits/Female_Peasant.gltf",
+    removedBaseMeshes: ["Female_Peasant_Body", "Female_Peasant_Feet"],
+    extraParts: [
+      "parts/Female_Ranger_Body.gltf",
+      "parts/Female_Ranger_Feet.gltf",
+      "hair/Hair_BuzzedFemale.gltf",
+      "hair/Hair_SimpleParted.gltf",
+      "hair/Hair_Long.gltf",
+      "hair/Hair_Buns.gltf",
+    ],
+    headSource: "base/Superhero_Female_FullBody.gltf",
+  },
+];
 /** Le pack gratuit n'a pas de tête seule : on garde du corps complet les triangles portés par la tête et le cou. */
 const HEAD_JOINTS = new Set(["Head", "neck_01"]);
 const HEAD_WEIGHT_THRESHOLD = 0.5;
@@ -51,24 +81,30 @@ const KEPT_CLIPS = new Set([
 const TRANSLATED_JOINTS = new Set(["root", "pelvis"]);
 const MAX_TEXTURE_SIZE = 1024;
 /** Textures teintées en jeu (vêtements, cheveux) et leur luminosité moyenne une fois neutralisées. */
-const TINTABLE_TEXTURES = new Set(["T_Peasant_BaseColor", "T_Ranger_BaseColor", "T_Hair_1_BaseColor"]);
+const TINTABLE_TEXTURES = new Set(["T_Peasant_BaseColor", "T_Ranger_BaseColor", "T_Hair_1_BaseColor", "T_Hair_2_BaseColor"]);
 const TINTABLE_MEAN_LUMINANCE = 0.72;
 
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 
 async function main() {
-  const document = await io.read(path.join(sourceDir, BASE_OUTFIT));
+  for (const variant of VARIANTS) await buildVariant(variant);
+}
+
+async function buildVariant(variant) {
+  const outputPath = path.join(outputDir, variant.output);
+  const document = await io.read(path.join(sourceDir, variant.baseOutfit));
   const root = document.getRoot();
   const baseSkin = root.listSkins()[0];
-  if (!baseSkin) throw new Error(`${BASE_OUTFIT} : aucun squelette`);
+  if (!baseSkin) throw new Error(`${variant.baseOutfit} : aucun squelette`);
   const jointsByName = new Map(baseSkin.listJoints().map((joint) => [joint.getName(), joint]));
 
+  const removed = new Set(variant.removedBaseMeshes);
   for (const node of root.listNodes()) {
-    if (node.getMesh() && REMOVED_BASE_MESHES.has(node.getMesh().getName())) node.dispose();
+    if (node.getMesh() && removed.has(node.getMesh().getName())) node.dispose();
   }
 
-  for (const part of EXTRA_PARTS) await mergeSkinnedPart(document, path.join(sourceDir, part), jointsByName, () => true);
-  await mergeSkinnedPart(document, path.join(sourceDir, HEAD_SOURCE), jointsByName, keepHeadOnly);
+  for (const part of variant.extraParts) await mergeSkinnedPart(document, path.join(sourceDir, part), jointsByName, () => true);
+  await mergeSkinnedPart(document, path.join(sourceDir, variant.headSource), jointsByName, keepHeadOnly);
   await mergeAnimations(document, path.join(sourceDir, "gaits.glb"), jointsByName);
 
   // Une seule scène : celle de la tenue de base, qui contient désormais toutes les pièces.
@@ -88,7 +124,7 @@ async function main() {
   );
   disposeOrphanAccessors(document);
   await io.write(outputPath, document);
-  report(document);
+  report(document, outputPath);
 }
 
 /**
@@ -163,7 +199,7 @@ async function mergeSkinnedPart(document, file, jointsByName, filterPrimitive) {
 function keepHeadOnly(primitive, skin) {
   const material = primitive.getMaterial()?.getName() ?? "";
   // Yeux et sourcils ont leurs propres matériaux : on les garde entiers.
-  if (material !== "MI_Superhero_Male") return true;
+  if (!material.startsWith("MI_Superhero_")) return true;
   const joints = primitive.getAttribute("JOINTS_0");
   const weights = primitive.getAttribute("WEIGHTS_0");
   const indices = primitive.getIndices();
@@ -262,7 +298,7 @@ function disposeOrphanAccessors(document) {
   }
 }
 
-function report(document) {
+function report(document, outputPath) {
   const root = document.getRoot();
   const triangles = root
     .listMeshes()
@@ -275,6 +311,6 @@ function report(document) {
 }
 
 main().catch((error) => {
-  console.error("Échec de la construction de agent.glb :", error);
+  console.error("Échec de la construction des modèles de l'agent :", error);
   process.exit(1);
 });
