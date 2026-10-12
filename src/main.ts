@@ -103,6 +103,7 @@ class ShadowOpsApp {
           camera: () => this.camera,
           scenario: (moduleId: string) => SCENARIOS[moduleId],
           ambience: () => this.ambience,
+          boss: (moduleId: string) => bossFor(moduleId),
         },
       });
     }
@@ -560,6 +561,8 @@ class ShadowOpsApp {
       onWrongCommand: () => {
         this.sound.play("failure");
         mission.bossCommandFailed();
+        // Chaque erreur raccourcit l'exposition : le panneau affiche le temps réellement restant.
+        panel.updateSecondsLeft(mission.bossExposedSecondsLeft);
       },
       onSuccess: () => {
         panel.close();

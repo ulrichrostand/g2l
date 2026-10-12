@@ -44,6 +44,18 @@ Pensé pour un **grand débutant** : aucune connaissance requise, on part de « 
 - Les **caméras de surveillance** (dès le module 1) balaient la salle : si elles te voient trop longtemps, c'est l'alerte.
 - En fin de mission : **débriefing** (score, étoiles, dossiers, neutralisations, statut « Fantôme »),
   **récapitulatif**, **tous les dossiers du module** et **revue de chaque terminal**. Le cours reste consultable depuis la carte.
+- **Boss de fin de secteur** : une fois tous les terminaux piratés, un boss se réveille dans la salle d'extraction
+  (Processus Zombie, Fork Bomb, Merge Conflict, 502 Bad Gateway, OOMKiller, CrashLoopBackOff… jusqu'à ENTROPIA).
+  3 phases : on brise son armure au pistolet en esquivant ses salves annoncées (rafales, éventails, anneaux, spirales),
+  puis, quand il est à genoux, on l'achève avec **une vraie commande du module** en lisant la sortie du terminal
+  (ex. `ps aux`, puis `kill <PID>`, puis `kill -9 <PID>`). Indice après une erreur, commande montrée après deux.
+  L'extraction ne s'ouvre qu'une fois le boss vaincu.
+- **Créateur d'agent façon Sims / Lagos Life** : carrure, taille, teinte de peau, 10 coiffures (afro, tresses, locs, chignon,
+  gele…), hauts (gilet tactique, sweat, t-shirt, veste, boubou) avec motifs (ankara, aso-oke, camouflage, rayures, circuit),
+  bas, chaussures, accessoires (sac, casque radio, lunettes, casquette) et couleurs libres, avec aperçu 3D en direct
+  qu'on fait tourner au doigt ou à la souris. Proposé au premier lancement, modifiable depuis l'écran titre,
+  et conservé dans la sauvegarde (y compris le code de transfert).
+- Personnages 3D stylisés : visage, coiffures et vêtements modélisés, sentinelles robotisées aux coques arrondies.
 - **Mode examen** (carte des opérations) : pour chaque module terminé, un examen chronométré de 8 questions
   (les 5 défis + 3 commandes de pratique tirées au sort, formulées sans donner la commande), et un
   **examen général** de 12 questions mélangeant tous les secteurs libérés. Une seule réponse par question,
@@ -120,13 +132,14 @@ src/
   combat/      balistique (tir, dispersion, chargeur, projectiles), gadgets-commandes et identités des cibles
   core/        grille, pathfinding BFS, ligne de vue DDA, RNG déterministe, entrées, sons + ambiance, réglages
   level/       génération procédurale BSP + construction de la scène Three.js
-  render/      pipeline de rendu (bloom, vignette, ombres) selon la qualité
-  entities/    joueur, sentinelles (ronde, alerte, combat, fouille, suspendue), caméras, effets de combat, terminaux, dossiers
+  avatar/      apparence personnalisable : données validées, modèle 3D procédural, textures (visage, tissus)
+  render/      pipeline de rendu (bloom, vignette, ombres) selon la qualité, studio 3D du créateur d'agent
+  entities/    joueur, sentinelles (ronde, alerte, combat, fouille, suspendue), boss, caméras, effets de combat, terminaux, dossiers
   game/        boucle de mission, difficulté, score, examen, progression, points de reprise, code de sauvegarde
   challenges/  évaluation des réponses et des commandes de scénario (pure, testée)
-  content/     les 16 modules (leçons, questions, explications) et leurs interventions pratiques
-  ui/          HUD + minimap, écrans, panneaux (leçon, piratage, console, gadget, examen), contrôles tactiles
-tests/         niveaux, IA et combat, balistique, caméras, gadgets, scénarios, examen, ambiance, contenu, score, sauvegarde, tactile
+  content/     les 16 modules (leçons, questions, explications), leurs interventions pratiques et leurs boss
+  ui/          HUD + minimap, écrans, panneaux (leçon, piratage, console, gadget, boss, examen), créateur d'agent, contrôles tactiles
+tests/         niveaux, IA et combat, boss, balistique, avatar et créateur, caméras, gadgets, scénarios, examen, ambiance, contenu, score, sauvegarde, tactile
 ```
 
 Ajouter ou modifier une notion = éditer un fichier de `src/content/modules/` ; le test

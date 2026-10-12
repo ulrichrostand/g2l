@@ -1,0 +1,343 @@
+/* --- Créateur d'agent (façon Sims) ---
+   Calque plein écran au-dessus du canvas 3D : seuls le panneau et la zone de rotation captent le pointeur,
+   le studio 3D reste visible à travers. Sous le HUD (z-index 10) et les écrans (20). */
+.creator-root {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  grid-template-columns: min(380px, 46vw) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  pointer-events: none;
+  overflow: hidden;
+  font-family: var(--sans);
+  color: var(--text);
+  /* Safari iOS grossit le texte en paysage : le panneau est calibré au pixel, on garde la taille prévue. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+.creator-panel {
+  grid-column: 1;
+  grid-row: 1;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* Plus transparent que --panel : on devine le studio derrière, sans gêner la lecture. */
+  background: linear-gradient(180deg, rgba(9, 15, 20, 0.94), rgba(9, 15, 20, 0.88));
+  border-right: 1px solid var(--panel-border);
+  box-shadow: 18px 0 60px rgba(0, 0, 0, 0.45), inset -1px 0 0 rgba(57, 255, 136, 0.06);
+  padding-left: env(safe-area-inset-left, 0px);
+  /* Unité cqi : la taille des libellés d'onglets suit la largeur réelle du panneau. */
+  container-type: inline-size;
+  animation: creator-slide-side 0.28s ease-out;
+}
+
+/* Zone libre : on y glisse le doigt ou la souris pour faire tourner l'agent. */
+.creator-stage {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+.creator-stage.creator-dragging { cursor: grabbing; }
+
+.creator-stage-controls {
+  position: absolute;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 24px);
+}
+.creator-stage-hint {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+  background: rgba(5, 8, 12, 0.7);
+  border: 1px solid var(--panel-border);
+  border-radius: 99px;
+  padding: 6px 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.creator-rotate {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--panel-border);
+  background: rgba(9, 15, 20, 0.85);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.creator-rotate:hover { border-color: var(--info); color: var(--info); }
+
+/* --- En-tête --- */
+.creator-header { padding: 16px 18px 10px; flex-shrink: 0; }
+.creator-eyebrow {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  margin: 0 0 0.4em;
+}
+.creator-title { font-size: 1.4rem; margin: 0; }
+.creator-lead { margin: 0.4em 0 0; font-size: 0.88rem; line-height: 1.45; color: var(--muted); }
+
+/* --- Onglets : cinq colonnes icône + libellé, tous visibles sans défilement, même à 320 px --- */
+.creator-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 2px;
+  flex-shrink: 0;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--panel-border);
+}
+.creator-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 56px;
+  padding: 6px 2px;
+  font: inherit;
+  font-size: 0.72rem;
+  /* « chaussures » doit tenir dans sa colonne, même dans un panneau de 320 px. */
+  font-size: min(0.72rem, 3.1cqi);
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  hyphens: auto;
+  overflow-wrap: break-word;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.creator-tab-icon { font-size: 1.2rem; line-height: 1; filter: grayscale(0.6); opacity: 0.8; }
+.creator-tab[aria-selected="true"] .creator-tab-icon { filter: none; opacity: 1; }
+.creator-tab:hover { color: var(--text); }
+.creator-tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* --- Options --- */
+.creator-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 18px 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--panel-border) transparent;
+}
+.creator-field { border: 0; margin: 0 0 18px; padding: 0; min-width: 0; }
+.creator-legend {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.creator-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.creator-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: #11202a;
+  border: 1px solid var(--panel-border);
+  border-radius: 99px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.creator-chip:hover { border-color: var(--info); }
+.creator-chip[aria-pressed="true"] {
+  color: #eafff2;
+  background: rgba(57, 255, 136, 0.16);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent), 0 0 14px rgba(57, 255, 136, 0.18);
+}
+.creator-chip-thumb {
+  width: 26px;
+  height: 26px;
+  margin-left: -6px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  flex-shrink: 0;
+}
+
+.creator-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.creator-swatch, .creator-custom {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.15s;
+}
+.creator-swatch:hover, .creator-custom:hover { transform: scale(1.06); }
+/* Sélection signalée par l'anneau ET une coche : lisible même sans distinguer les couleurs. */
+.creator-swatch[aria-pressed="true"], .creator-custom.creator-custom-active {
+  border-color: var(--bg);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 14px rgba(57, 255, 136, 0.45);
+}
+.creator-swatch[aria-pressed="true"]::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 3px #000, 0 0 2px #000;
+}
+
+/* Sélecteur libre : pastille arc-en-ciel, l'input couleur natif la recouvre (invisible mais cliquable). */
+.creator-custom {
+  display: grid;
+  place-items: center;
+  background: conic-gradient(#ff4f4f, #ffd84f, #4fff7a, #4fd8ff, #6b4fff, #ff4fd8, #ff4f4f);
+}
+.creator-picker {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.creator-custom-mark {
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: #fff;
+  text-shadow: 0 0 3px #000, 0 0 2px #000;
+  pointer-events: none;
+}
+
+.creator-range-row { display: flex; align-items: center; gap: 12px; }
+.creator-range { flex: 1; min-width: 0; height: 44px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.creator-range-value { font-family: var(--mono); font-size: 0.95rem; color: var(--accent); min-width: 4.5em; text-align: right; }
+
+.creator-hints:empty { display: none; }
+.creator-hint {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  border-left: 3px solid var(--info);
+  border-radius: 6px;
+  background: rgba(79, 195, 255, 0.08);
+}
+
+/* --- Actions --- */
+.creator-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 10px 18px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--panel-border);
+}
+.creator-actions .btn { min-height: 44px; padding: 0.5em 0.8em; }
+.creator-status { grid-column: 1 / -1; margin: 0; font-size: 0.85rem; line-height: 1.4; color: var(--info); }
+.creator-status:empty { display: none; }
+
+/* --- Focus clavier toujours visible (fonds sombres variés : contour bleu info) --- */
+.creator-root button:focus-visible,
+.creator-root input:focus-visible,
+.creator-custom:focus-within {
+  outline: 2px solid var(--info);
+  outline-offset: 3px;
+}
+.creator-tab:focus-visible { outline-offset: -3px; }
+
+/* Hauteur comptée (téléphone couché, ou feuille du bas d'un téléphone) : en-tête réduit et actions sur une
+   seule ligne, chaque pixel de hauteur va aux options. Une tablette en portrait garde la mise en page complète. */
+@media (max-height: 520px), (orientation: portrait) and (max-height: 820px) {
+  .creator-header { padding: 8px 14px 4px; }
+  .creator-eyebrow, .creator-lead { display: none; }
+  .creator-title { font-size: 1.05rem; }
+  .creator-tab { min-height: 48px; padding: 4px 2px; }
+  .creator-body { padding: 10px 14px 4px; }
+  .creator-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 8px 14px calc(8px + env(safe-area-inset-bottom, 0px)); }
+  .creator-actions .btn { font-size: 0.74rem; line-height: 1.1; padding: 0.3em 0.2em; }
+}
+
+/* Téléphone en portrait ou écran étroit : feuille en bas, l'agent reste visible au-dessus.
+   Même seuil que detectCreatorLayout() dans characterCreator.ts. */
+@media (max-width: 640px), (orientation: portrait) {
+  .creator-root {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 55vh;
+    grid-template-rows: minmax(0, 1fr) 55dvh;
+  }
+  .creator-stage { grid-column: 1; grid-row: 1; }
+  /* Flèches sur les bords, à mi-hauteur : en bas, elles masqueraient les pieds de l'agent. */
+  .creator-stage-controls {
+    left: 0;
+    right: 0;
+    top: 50%;
+    bottom: auto;
+    max-width: none;
+    transform: translateY(-50%);
+    justify-content: space-between;
+    padding: 0 max(10px, env(safe-area-inset-right, 0px)) 0 max(10px, env(safe-area-inset-left, 0px));
+    pointer-events: none;
+  }
+  .creator-stage-controls .creator-rotate { pointer-events: auto; }
+  .creator-stage-hint { display: none; }
+  .creator-panel {
+    grid-column: 1;
+    grid-row: 2;
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    border-right: 0;
+    border-top: 1px solid var(--panel-border);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -18px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(57, 255, 136, 0.08);
+    animation-name: creator-slide-bottom;
+  }
+}
+
+@keyframes creator-slide-side {
+  from { transform: translateX(-24px); opacity: 0; }
+}
+@keyframes creator-slide-bottom {
+  from { transform: translateY(32px); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .creator-panel { animation: none; }
+  .creator-root * { transition: none; }
+  .creator-swatch:hover, .creator-custom:hover { transform: none; }
+}

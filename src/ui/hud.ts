@@ -1,6 +1,6 @@
 import { Tile } from "../core/grid";
 import type { HudState, MinimapSnapshot } from "../game/mission";
-import { element } from "./dom";
+import { element, richText } from "./dom";
 
 const POSTURE_LABELS = { standing: "Debout", crouching: "Accroupi (discret)", running: "Course (bruyant)" } as const;
 const MINIMAP_SCALE = 4;
@@ -110,6 +110,7 @@ export class Hud {
       state.livesLeft,
       state.health,
       state.hackedCount,
+      state.bossDefeated,
       state.intelCollected,
       exposurePercent,
       state.alarm,
@@ -130,7 +131,9 @@ export class Hud {
     this.objective.textContent =
       state.hackedCount < state.terminalCount
         ? `Terminaux piratés : ${state.hackedCount}/${state.terminalCount}`
-        : "Objectif : rejoindre l'extraction";
+        : state.bossDefeated
+          ? "Objectif : rejoindre l'extraction"
+          : "Objectif : vaincre le boss (salle d'extraction)";
     this.intel.textContent = `📁 Dossiers : ${state.intelCollected}/${state.intelTotal}`;
     this.gadget.hidden = !state.gadgetAvailable;
     this.gadget.textContent = "⚡ Commande : touche d'abord ta cible, puis F";
@@ -174,7 +177,7 @@ export class Hud {
       boss.state === "awakening"
         ? "se réveille…"
         : exposed
-          ? `À GENOUX — ${this.touchMode ? "Gadget" : "[F]"} pour l'achever · ${Math.ceil(boss.exposedSecondsLeft)} s`
+          ? `À GENOUX · ${this.touchMode ? "Gadget" : "[F]"} · ${Math.ceil(boss.exposedSecondsLeft)} s`
           : boss.state === "defeated"
             ? "vaincu"
             : `Phase ${boss.phase}/${boss.phaseCount}`;
@@ -218,7 +221,8 @@ export class Hud {
   }
 
   showNotice(message: string): void {
-    this.notice.textContent = message;
+    // Les messages du jeu citent des commandes entre accents graves : affichées en code, jamais interprétées.
+    this.notice.replaceChildren(richText("span", message));
     this.notice.classList.add("visible");
     window.clearTimeout(this.noticeTimer);
     this.noticeTimer = window.setTimeout(() => this.notice.classList.remove("visible"), NOTICE_DURATION_MS);

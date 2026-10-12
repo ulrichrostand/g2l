@@ -1,0 +1,97 @@
+/* --- Console de combat contre un boss ---
+   Même console que les interventions (classes partagées), habillée en rouge : on doit sentir la menace
+   sans perdre la lisibilité du terminal, qui reste l'outil principal du combat. */
+.boss-panel {
+  /* Élément de grille de .overlay : sans ceci, sa largeur minimale serait celle de la plus longue ligne du <pre>
+     (white-space: pre), et sur un téléphone en portrait le panneau déborderait de l'écran au lieu de faire
+     défiler la sortie à l'intérieur. */
+  min-width: 0;
+  border-color: var(--danger);
+  background: linear-gradient(180deg, rgba(42, 6, 13, 0.97), var(--panel) 160px);
+  box-shadow: 0 0 0 1px rgba(255, 59, 78, 0.25), 0 0 46px rgba(255, 59, 78, 0.18), 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+
+.boss-header { color: var(--danger); flex-wrap: wrap; }
+.boss-heading { font-weight: 700; overflow-wrap: anywhere; }
+.boss-tag { border-color: var(--danger); color: var(--danger); }
+.boss-subtitle { font-family: var(--sans); font-style: italic; color: #ffb3bb; margin: 0.35em 0 0.6em; }
+
+/* Jauge des 3 phases : les phases gagnées sont pleines, la phase en cours pulse. */
+.boss-phase-track { display: flex; gap: 6px; margin-bottom: 0.7em; }
+.boss-pip { flex: 1; height: 6px; border-radius: 99px; border: 1px solid rgba(255, 59, 78, 0.45); background: rgba(255, 59, 78, 0.12); }
+.boss-pip.done { background: var(--danger); }
+.boss-pip.current { background: rgba(255, 59, 78, 0.6); animation: boss-pulse 1.1s ease-in-out infinite; }
+
+.boss-freeze { color: var(--warn); margin: 0 0 0.6em; }
+.boss-label { display: block; font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 0.6em 0 0.2em; }
+
+/* La sortie à analyser : le joueur doit y lire un PID, un nom, une IP… on la distingue du terminal de saisie. */
+.boss-context { border-color: rgba(255, 59, 78, 0.5); color: #ffd6db; max-height: 14em; overflow: auto; }
+
+.boss-goal { font-family: var(--sans); background: rgba(255, 59, 78, 0.08); border-left: 3px solid var(--danger); border-radius: 6px; padding: 0.6em 0.9em; margin: 0.8em 0; }
+.boss-goal .boss-label { margin-top: 0; }
+.boss-goal p { margin: 0.25em 0 0; }
+.boss-goal .explanation { margin-top: 0.6em; }
+.boss-granted { color: var(--danger); }
+.boss-next { color: var(--text); }
+
+.boss-scrollback { min-height: 3.5em; max-height: 11em; }
+.boss-panel .command-form { border-color: rgba(255, 59, 78, 0.6); }
+.boss-panel .prompt-symbol { color: var(--danger); }
+.boss-panel .command-input { caret-color: var(--danger); }
+
+.boss-feedback { display: grid; gap: 0.5em; margin-top: 0.8em; }
+.boss-feedback:empty { display: none; }
+.boss-feedback .hint, .boss-feedback .solution { margin: 0; }
+
+.boss-panel .btn.primary { background: var(--danger); border-color: var(--danger); color: #1a0306; }
+.boss-panel .btn.primary:hover { background: #ff6b7a; }
+.boss-panel .btn:hover { border-color: var(--danger); }
+
+@keyframes boss-pulse { 50% { opacity: 0.4; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .boss-pip.current, .boss-panel .blink { animation: none; }
+}
+
+/* Téléphone : texte de terminal plus petit et boutons pleine largeur, faciles à toucher. */
+@media (max-width: 520px) {
+  .boss-context, .boss-scrollback { font-size: 0.75rem; }
+  .boss-panel .challenge-actions .btn { flex: 1 1 100%; }
+}
+
+/*
+ * Téléphone couché, la position de jeu tactile : à peine 360 px de haut. On retire le décor (sous-titre, jauge,
+ * libellés) pour que tout tienne à l'ouverture, et l'objectif passe AVANT la sortie pour que celle-ci touche le
+ * terminal : clavier virtuel ouvert, le PID ou le nom à recopier reste visible juste au-dessus du champ.
+ * Les boutons passent à droite du terminal pour gagner une ligne.
+ */
+@media (orientation: landscape) and (max-height: 500px) {
+  .boss-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "header   header"
+      "freeze   freeze"
+      "goal     goal"
+      "context  context"
+      "log      actions"
+      "form     actions"
+      "feedback feedback";
+    column-gap: 10px;
+    padding: 10px 14px;
+  }
+  .boss-subtitle, .boss-phase-track, .boss-label { display: none; }
+  .boss-header { grid-area: header; }
+  .boss-freeze { grid-area: freeze; margin: 0.3em 0; }
+  .boss-goal { grid-area: goal; margin: 0 0 0.4em; padding: 0.35em 0.8em; }
+  .boss-context { grid-area: context; max-height: 7.5em; margin: 0 0 0.4em; font-size: 0.78rem; }
+  .boss-scrollback { grid-area: log; min-height: 0; max-height: 3.4em; padding-block: 0.25em; font-size: 0.78rem; }
+  /* Invite et champ sur une seule ligne : à côté des boutons, la place manque et un retour à la ligne coûterait 20 px. */
+  .boss-panel .command-form { grid-area: form; padding: 0.4em 0.7em; flex-wrap: nowrap; }
+  .boss-panel .prompt-symbol { font-size: 0.8rem; }
+  .boss-panel .command-input { min-width: 0; }
+  .boss-panel .challenge-actions { grid-area: actions; align-self: end; flex-wrap: nowrap; margin: 0; }
+  .boss-panel .challenge-actions .btn { padding: 0.55em 0.9em; }
+  .boss-feedback { grid-area: feedback; margin-top: 0.4em; }
+}

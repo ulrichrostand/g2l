@@ -94,6 +94,8 @@ export interface HudState {
   /** Action de la touche E à cet instant (neutraliser ou pirater), ou null. */
   contextAction: { kind: ContextActionKind; label: string } | null;
   gadgetAvailable: boolean;
+  /** Le boss de fin de secteur ne garde plus l'extraction. */
+  bossDefeated: boolean;
   /** Cible touchée qu'on peut terminer avec une commande (touche F), ou null. */
   commandTarget: CommandTargetInfo | null;
   magazine: number;
@@ -441,6 +443,11 @@ export class Mission {
     return outcome;
   }
 
+  /** Secondes d'exposition restantes : le panneau de commande les affiche et les met à jour après une erreur. */
+  get bossExposedSecondsLeft(): number {
+    return this.boss.exposedSecondsLeft;
+  }
+
   /** Commande ratée contre le boss : il se relève plus tôt, et le bruit attire les sentinelles proches. */
   bossCommandFailed(): void {
     this.boss.commandFailed();
@@ -546,6 +553,7 @@ export class Mission {
       aiming: this.player.isAiming,
       contextAction: this.contextAction(),
       gadgetAvailable: this.hasAnyGadget,
+      bossDefeated: this.bossDefeated,
       commandTarget: this.bossCommandAvailable()
         ? { kind: "boss", name: this.options.boss.name, secondsLeft: this.boss.exposedSecondsLeft }
         : commandTarget
@@ -601,6 +609,8 @@ export class Mission {
     if (this.handleActions()) return;
 
     this.player.update(deltaSeconds, this.input.moveIntent());
+    // Le boss est un corps solide : on ne le traverse pas (et on ne se met pas « dans » lui pour esquiver ses tirs).
+    if (!this.bossDefeated && this.boss.state !== "dormant") this.boss.pushOutOfBody(this.player.position, PLAYER_HIT_RADIUS);
     if (this.collectNearbyIntel()) return;
     this.updateGuards(deltaSeconds);
     if (this.finished || this.paused) return;
@@ -615,6 +625,7 @@ export class Mission {
   }
 
   dispose(): void {
+    this.player.dispose();
     disposeScene(this.scene);
   }
 
@@ -902,7 +913,11 @@ export class Mission {
    * le combat arrive au moment où l'on a appris tout ce qu'il faut pour le gagner.
    */
   private updateBoss(deltaSeconds: number): void {
-    if (this.bossDefeated) return;
+    if (this.bossDefeated) {
+      // Vaincu pendant cette partie : on laisse jouer l'effondrement (et disparaître ses étiquettes).
+      if (this.boss.root.visible) this.boss.update(deltaSeconds, null);
+      return;
+    }
     if (this.boss.state === "dormant") {
       if (!this.allTerminalsHacked || this.graceSeconds > 0 || !isInsideRoom(this.arena, this.player.position)) return;
       this.boss.awaken();

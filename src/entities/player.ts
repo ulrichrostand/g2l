@@ -1,7 +1,9 @@
 import * as THREE from "three";
+import { DEFAULT_AVATAR, type AvatarConfig } from "../avatar/avatarConfig";
+import { createAvatarRig, type AvatarModel } from "../avatar/avatarModel";
 import type { Grid } from "../core/grid";
 import type { MoveIntent } from "../core/input";
-import { createAgentRig, poseRig, type HumanoidRig } from "./rig";
+import { poseRig, type HumanoidRig } from "./rig";
 
 export type Posture = "standing" | "crouching" | "running";
 
@@ -18,6 +20,7 @@ export class Player {
   posture: Posture = "standing";
   isMoving = false;
   private readonly rig: HumanoidRig;
+  private readonly avatar: AvatarModel;
   private facing = 0;
   private stepPhase = 0;
   private stride = 0;
@@ -27,13 +30,28 @@ export class Player {
   /** Angle de visée (convention mathématique) tant que le joueur épaule, sinon null. */
   private aimAngle: number | null = null;
 
-  constructor(private readonly grid: Grid) {
-    this.rig = createAgentRig().rig;
+  constructor(
+    private readonly grid: Grid,
+    avatar: AvatarConfig = DEFAULT_AVATAR,
+  ) {
+    this.avatar = createAvatarRig(avatar);
+    this.rig = this.avatar.rig;
     this.root.add(this.rig.root);
     // Lampe frontale discrète : le joueur garde de la lisibilité dans les zones d'ombre.
     const lamp = new THREE.PointLight(0x9dffb0, 2.2, 4.5, 1.6);
     lamp.position.set(0, 1.6, 0);
     this.root.add(lamp);
+  }
+
+  /**
+   * Libère le modèle de l'agent et rend ses textures partagées (visage, tissu) au cache de l'avatar.
+   * En fin de mission, disposeScene suffit : il libère les matériaux, ce qui rend aussi ces textures.
+   * Indispensable en revanche quand on retire le joueur d'une scène qui continue de vivre (ou avant
+   * d'en reconstruire un autre). L'appeler en plus de disposeScene est sans risque.
+   */
+  dispose(): void {
+    this.root.removeFromParent();
+    this.avatar.dispose();
   }
 
   get isAiming(): boolean {

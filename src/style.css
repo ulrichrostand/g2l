@@ -53,6 +53,8 @@ html, body {
 }
 
 #challenge { z-index: 30; }
+/* Un bloc de sortie terminal (white-space: pre) imposerait sa largeur au panneau sur téléphone : il défile à l'intérieur. */
+.overlay > .panel { min-width: 0; }
 
 .panel {
   width: min(880px, 100%);
@@ -362,9 +364,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--info); outl
 }
 /* display: grid l'emporterait sur l'attribut hidden : on le rétablit explicitement. */
 .hud-boss[hidden] { display: none; }
-.boss-bar-label { display: flex; justify-content: space-between; gap: 12px; font-weight: 700; letter-spacing: 0.06em; }
-.boss-bar-name { color: #ff6a8a; text-transform: uppercase; }
-.boss-bar-status { color: var(--text); font-size: 0.85rem; }
+.boss-bar-label { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px; font-weight: 700; letter-spacing: 0.06em; }
+.boss-bar-name { color: #ff6a8a; text-transform: uppercase; white-space: nowrap; }
+.boss-bar-status { color: var(--text); font-size: 0.85rem; white-space: nowrap; margin-left: auto; }
 .boss-bar-track { height: 10px; background: rgba(17, 32, 42, 0.85); border: 1px solid #ff2d6a; border-radius: 99px; overflow: hidden; }
 .boss-bar-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff2d6a, #ff8a3d); transition: width 0.15s linear; }
 .hud-boss[data-state="exposed"] .boss-bar-status { color: var(--info); animation: blink 0.8s steps(2, start) infinite; }
