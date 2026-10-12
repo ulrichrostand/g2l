@@ -372,7 +372,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--info); outl
 .hud-boss[data-state="exposed"] .boss-bar-status { color: var(--info); animation: blink 0.8s steps(2, start) infinite; }
 .hud-boss[data-state="exposed"] .boss-bar-track { border-color: var(--info); }
 .hud-boss[data-state="awakening"] .boss-bar-fill { animation: alarm-pulse 0.9s ease-in-out infinite; }
-.hud.touch-mode .hud-boss { top: calc(110px + env(safe-area-inset-top, 0px)); width: min(360px, calc(100vw - 32px)); font-size: 0.8rem; }
+/* Tactile portrait : sous les blocs du haut (objectif, minimap) pour ne rien recouvrir. */
+.hud.touch-mode .hud-boss { top: calc(178px + env(safe-area-inset-top, 0px)); width: min(360px, calc(100vw - 32px)); font-size: 0.8rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* Marqueur de touche : une croix qui claque à l'impact (bleue = suspendue, jaune = bouclier). */
 .hit-marker { position: absolute; width: 28px; height: 28px; margin: -14px 0 0 -14px; opacity: 0; pointer-events: none; }
@@ -636,4 +638,20 @@ body.touch .keyboard-only, body:not(.touch) .touch-only { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* Barre de boss affichée : les notices passent dessous au lieu de la masquer pendant le compte à rebours. */
+.hud.boss-active .hud-notice { top: 104px; }
+.hud.touch-mode.boss-active .hud-notice { top: calc(226px + env(safe-area-inset-top, 0px)); }
+/* Téléphone couché : le haut de l'écran est déjà plein (objectif, exposition, minimap) ; la barre va en bas à
+   gauche, loin des munitions et des boutons d'action à droite, et les notices gardent leur place habituelle. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .hud.touch-mode .hud-boss {
+    top: auto;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    left: calc(16px + env(safe-area-inset-left, 0px));
+    transform: none;
+    width: min(300px, 38vw);
+  }
+  .hud.touch-mode.boss-active .hud-notice { top: 70px; }
 }

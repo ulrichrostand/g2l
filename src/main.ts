@@ -541,8 +541,8 @@ class ShadowOpsApp {
         break;
       case "bossPhaseCleared":
         this.sound.play("success");
+        // Pas de point de reprise ici : il ne retient que la victoire, la phase reprendrait à 1 malgré le « Sauvegardé ».
         this.hud.showNotice(`Commande réussie ! Phase ${event.phase + 1}/3 : il se relève, plus dangereux.`);
-        this.saveCheckpoint();
         break;
       case "bossDefeated":
         this.sound.play("extract");
@@ -805,26 +805,39 @@ class ShadowOpsApp {
   private openCharacterCreator(firstRun: boolean, onDone: () => void): void {
     this.endMission();
     this.closeCharacterCreator();
-    this.screens.hide();
     const initial = this.progress.avatar ?? DEFAULT_AVATAR;
-    const studio = new AvatarStudio(initial);
-    const creator = new CharacterCreator(this.creatorContainer, initial, {
-      onChange: (config) => studio.setAvatar(config),
-      onSave: (config) => {
-        this.progress.saveAvatar(config);
-        this.closeCharacterCreator();
-        onDone();
-      },
-      onCancel: () => {
-        if (firstRun && this.progress.avatar === null) this.progress.saveAvatar(DEFAULT_AVATAR);
-        this.closeCharacterCreator();
-        onDone();
-      },
-      onRotate: (deltaRadians) => studio.setDragRotation(deltaRadians),
-    });
-    this.studio = studio;
-    this.creator = creator;
-    creator.open();
+    let studio: AvatarStudio | null = null;
+    try {
+      studio = new AvatarStudio(initial);
+      const builtStudio = studio;
+      const creator = new CharacterCreator(this.creatorContainer, initial, {
+        onChange: (config) => builtStudio.setAvatar(config),
+        onSave: (config) => {
+          this.progress.saveAvatar(config);
+          this.closeCharacterCreator();
+          onDone();
+        },
+        onCancel: () => {
+          if (firstRun && this.progress.avatar === null) this.progress.saveAvatar(DEFAULT_AVATAR);
+          this.closeCharacterCreator();
+          onDone();
+        },
+        onRotate: (deltaRadians) => builtStudio.setDragRotation(deltaRadians),
+      });
+      // L'écran titre n'est masqué qu'une fois tout construit : en cas d'échec, le joueur garde ses boutons.
+      this.screens.hide();
+      this.studio = studio;
+      this.creator = creator;
+      creator.open();
+    } catch (error) {
+      // Typiquement iOS sous pression mémoire canvas (getContext("2d") renvoie null) : on continue sans créateur.
+      console.error("Créateur d'agent indisponible.", error);
+      if (this.studio === studio) this.closeCharacterCreator();
+      else studio?.dispose();
+      if (firstRun && this.progress.avatar === null) this.progress.saveAvatar(DEFAULT_AVATAR);
+      window.alert("Le créateur d'agent n'a pas pu s'ouvrir sur cet appareil : l'agent par défaut est utilisé.");
+      onDone();
+    }
   }
 
   private closeCharacterCreator(): void {
@@ -837,7 +850,7 @@ class ShadowOpsApp {
   private renderStudio(studio: AvatarStudio, creator: CharacterCreator, deltaSeconds: number, elapsedSeconds: number): void {
     studio.update(deltaSeconds, elapsedSeconds);
     // Recadré à chaque image : la mise en page (panneau à gauche ou en bas) suit la rotation de l'écran.
-    studio.frameCamera(this.camera, creator.layout);
+    studio.frameCamera(this.camera, creator.layout, creator.panelCoverage);
     this.pipeline.exposure = 1;
     this.pipeline.render(studio.scene, this.camera);
   }

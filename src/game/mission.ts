@@ -165,6 +165,7 @@ export interface MissionOptions {
 const INTERACTION_RADIUS = 0.95;
 const INTEL_PICKUP_RADIUS = 0.7;
 const EXTRACTION_RADIUS = 0.8;
+const LOCKED_NOTICE_RADIUS = 1.3;
 const RESPAWN_GRACE_SECONDS = 2.5;
 const NOISE_ALERT_RADIUS = 11;
 /** Un chargeur plein + deux de réserve au départ ; chaque terminal piraté en rapporte un. */
@@ -191,6 +192,12 @@ const MAX_HEALTH = 100;
 const ENEMY_SHOT_DAMAGE = 20;
 /** Les balles du boss font un peu moins mal : elles arrivent par salves entières. */
 const BOSS_SHOT_DAMAGE = 15;
+/**
+ * Le boss ne se réveille qu'une fois tous les terminaux piratés : il n'y a alors plus aucune source de munitions.
+ * Sans plancher, un chargeur vidé trop tôt bloquerait l'extraction pour toujours.
+ */
+const BOSS_MIN_AMMO = 16;
+const BOSS_EMERGENCY_AMMO = 8;
 const ENEMY_SHOT_SPEED = 13;
 const ENEMY_SHOT_RANGE = 16;
 const PLAYER_HIT_RADIUS = 0.3;
@@ -274,6 +281,7 @@ export class Mission {
   private readonly leadScratch = new THREE.Vector3();
   private readonly focusScratch = new THREE.Vector3();
   private readonly referenceScratch = new THREE.Vector3();
+  private readonly directionScratch = new THREE.Vector3();
   private readonly cameraOffset = CAMERA_OFFSET.clone();
   private paused = true;
   private finished = false;
@@ -609,8 +617,8 @@ export class Mission {
     if (this.handleActions()) return;
 
     this.player.update(deltaSeconds, this.input.moveIntent());
-    // Le boss est un corps solide : on ne le traverse pas (et on ne se met pas « dans » lui pour esquiver ses tirs).
-    if (!this.bossDefeated && this.boss.state !== "dormant") this.boss.pushOutOfBody(this.player.position, PLAYER_HIT_RADIUS);
+    // Le boss est un corps solide, même endormi : on ne le traverse pas (ni ne se cache « dans » lui contre ses tirs).
+    if (!this.bossDefeated) this.boss.pushOutOfBody(this.player.position, PLAYER_HIT_RADIUS);
     if (this.collectNearbyIntel()) return;
     this.updateGuards(deltaSeconds);
     if (this.finished || this.paused) return;
@@ -679,6 +687,10 @@ export class Mission {
       this.pause();
       this.callbacks.onBossCommandRequested(this.boss.phaseIndex, this.boss.exposedSecondsLeft);
       return true;
+    }
+    if (!this.bossDefeated && this.boss.state === "exposed") {
+      this.notice(`${this.options.boss.name} est à genoux : rapproche-toi de lui pour l'achever avec une commande.`);
+      return false;
     }
     if (!this.hasAnyGadget) {
       this.notice("Aucun gadget pour l'instant : approche les sentinelles par derrière (E) pour les neutraliser.");
@@ -781,6 +793,7 @@ export class Mission {
     if (fire === "empty") {
       this.callbacks.onCombatEvent({ type: "dryFire" });
       if (this.sidearm.isReloading) this.callbacks.onCombatEvent({ type: "reloadStarted" });
+      else if (this.allTerminalsHacked) this.notice("Plus de munitions : recharge (R) ; face au boss, des munitions de secours arrivent.");
       else this.notice("Plus de munitions : pirate un terminal pour en récupérer, ou neutralise en silence par derrière (E).");
       return;
     }
@@ -903,7 +916,7 @@ export class Mission {
     const mesh = this.effects.createProjectileMesh();
     mesh.position.set(x, SHOT_HEIGHT, z);
     // La capsule est verticale par défaut : on la couche dans l'axe du tir.
-    mesh.quaternion.setFromUnitVectors(UP_AXIS, new THREE.Vector3(projectile.directionX, 0, projectile.directionZ));
+    mesh.quaternion.setFromUnitVectors(UP_AXIS, this.directionScratch.set(projectile.directionX, 0, projectile.directionZ));
     this.enemyShots.push({ projectile, mesh, damage });
     this.effects.burst(mesh.position, ENEMY_SHOT_COLOR, 4, angle);
   }
@@ -921,9 +934,12 @@ export class Mission {
     if (this.boss.state === "dormant") {
       if (!this.allTerminalsHacked || this.graceSeconds > 0 || !isInsideRoom(this.arena, this.player.position)) return;
       this.boss.awaken();
+      this.sidearm.addAmmo(Math.max(0, BOSS_MIN_AMMO - this.sidearm.total));
       this.callbacks.onCombatEvent({ type: "bossAwakened" });
     }
-    this.boss.update(deltaSeconds, this.graceSeconds > 0 ? null : { position: this.player.position });
+    this.ensureBossAmmo();
+    // Le joueur expose déjà `position` : pas d'objet intermédiaire alloué à chaque image.
+    this.boss.update(deltaSeconds, this.graceSeconds > 0 ? null : this.player);
     const shots = this.boss.consumeShots();
     for (const shot of shots) this.spawnEnemyProjectile(shot.x, shot.z, shot.angle, shot.speed, BOSS_SHOT_DAMAGE);
     // Un seul son par salve : un anneau de 14 balles ne doit pas faire 14 détonations.
@@ -931,6 +947,13 @@ export class Mission {
     // L'exposition n'a pas été exploitée à temps : le boss se relève avec une partie de son armure.
     if (this.previousBossState === "exposed" && this.boss.state === "fighting") this.callbacks.onCombatEvent({ type: "bossRecovered" });
     this.previousBossState = this.boss.state;
+  }
+
+  /** Chargeur et réserve vides en plein combat : recharge de secours, sinon le boss deviendrait invincible. */
+  private ensureBossAmmo(): void {
+    if (this.sidearm.total > 0 || this.boss.state === "dormant" || this.boss.state === "defeated") return;
+    this.sidearm.addAmmo(BOSS_EMERGENCY_AMMO);
+    this.callbacks.onNotice(`Munitions de secours : +${BOSS_EMERGENCY_AMMO} balles. Vise son armure !`);
   }
 
   private updateEnemyShots(deltaSeconds: number): void {
@@ -1022,15 +1045,18 @@ export class Mission {
       this.player.position.x - this.extraction.position.x,
       this.player.position.z - this.extraction.position.z,
     );
-    if (distance > EXTRACTION_RADIUS) return;
     if (this.extraction.unlocked) {
+      if (distance > EXTRACTION_RADIUS) return;
       this.finished = true;
       this.paused = true;
       this.callbacks.onExtraction();
       return;
     }
+    // Le boss endormi, solide, occupe la case de sortie : on prévient dès qu'on bute contre lui.
+    if (distance > LOCKED_NOTICE_RADIUS) return;
     const remaining = this.terminals.length - this.hackedCount;
-    this.notice(`Extraction verrouillée : encore ${remaining} terminal(aux) à pirater.`);
+    if (remaining === 0) this.notice(`${this.options.boss.name} garde la sortie : brise son armure au pistolet, puis achève-le avec une commande.`);
+    else this.notice(`Extraction verrouillée : encore ${remaining} terminal(aux) à pirater.`);
   }
 
   private notice(message: string): void {

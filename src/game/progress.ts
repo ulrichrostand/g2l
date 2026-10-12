@@ -285,13 +285,19 @@ export class ProgressStore {
   }
 
   /** Remplace toute la progression (import d'un code de sauvegarde). */
+  /** Un code sans agent (ancienne version, ou joueur jamais passé par le créateur) ne doit pas effacer l'agent local. */
   replaceWith(progress: PlayerProgress): void {
-    this.progress = progressFromUnknown(progress);
+    const next = progressFromUnknown(progress);
+    if (next.avatar === null) next.avatar = this.progress.avatar;
+    this.progress = next;
     this.persist();
   }
 
+  /** Efface la campagne (records, dossiers, point de reprise) mais garde l'apparence de l'agent : ce n'est pas une progression. */
   reset(): void {
+    const avatar = this.progress.avatar;
     this.progress = emptyProgress();
+    this.progress.avatar = avatar;
     this.persist();
   }
 

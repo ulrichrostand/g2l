@@ -20,6 +20,8 @@
 .creator-panel {
   grid-column: 1;
   grid-row: 1;
+  /* Repère du message de statut, qui flotte au-dessus de la scène en mise en page compacte. */
+  position: relative;
   pointer-events: auto;
   display: flex;
   flex-direction: column;
@@ -268,7 +270,16 @@
   padding: 10px 18px calc(12px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--panel-border);
 }
-.creator-actions .btn { min-height: 44px; padding: 0.5em 0.8em; }
+.creator-actions .btn {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.5em 0.8em;
+  /* « Réinitialiser » est un seul mot : avec un tiret si le navigateur connaît le français, sinon sa colonne
+     s'élargit (grille compacte en minmax(min-content, 1fr)) ; en dernier recours il se coupe sans déborder. */
+  overflow-wrap: break-word;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+}
 .creator-status { grid-column: 1 / -1; margin: 0; font-size: 0.85rem; line-height: 1.4; color: var(--info); }
 .creator-status:empty { display: none; }
 
@@ -281,21 +292,51 @@
 }
 .creator-tab:focus-visible { outline-offset: -3px; }
 
-/* Hauteur comptée (téléphone couché, ou feuille du bas d'un téléphone) : en-tête réduit et actions sur une
-   seule ligne, chaque pixel de hauteur va aux options. Une tablette en portrait garde la mise en page complète. */
-@media (max-height: 520px), (orientation: portrait) and (max-height: 820px) {
+/* Hauteur comptée (téléphone couché) ou feuille du bas (tout portrait, du téléphone à la tablette) : en-tête
+   réduit et actions sur une seule ligne, chaque pixel de hauteur va aux options. Même règle de portrait que
+   detectCreatorLayout() dans characterCreator.ts. */
+@media (max-height: 520px), (orientation: portrait) {
   .creator-header { padding: 8px 14px 4px; }
   .creator-eyebrow, .creator-lead { display: none; }
   .creator-title { font-size: 1.05rem; }
   .creator-tab { min-height: 48px; padding: 4px 2px; }
   .creator-body { padding: 10px 14px 4px; }
-  .creator-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 8px 14px calc(8px + env(safe-area-inset-bottom, 0px)); }
+  /* Colonnes égales, sauf si un libellé insécable demande un peu plus (« Réinitialiser » dans un panneau de 312 px). */
+  .creator-actions { grid-template-columns: repeat(4, minmax(min-content, 1fr)); gap: 6px; padding: 8px 14px calc(8px + env(safe-area-inset-bottom, 0px)); }
   .creator-actions .btn { font-size: 0.74rem; line-height: 1.1; padding: 0.3em 0.2em; }
+  /* Le message (tirage, couleur refusée) flotte au-dessus de la scène au lieu de rogner la zone d'options ;
+     il s'efface tout seul après quelques secondes (characterCreator.ts). */
+  .creator-status {
+    position: absolute;
+    z-index: 1;
+    margin: 0;
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    color: var(--text);
+    background: rgba(5, 8, 12, 0.9);
+    border: 1px solid var(--info);
+    border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+  }
 }
 
-/* Téléphone en portrait ou écran étroit : feuille en bas, l'agent reste visible au-dessus.
-   Même seuil que detectCreatorLayout() dans characterCreator.ts. */
-@media (max-width: 640px), (orientation: portrait) {
+/* Téléphone couché : panneau plus large que sur ordinateur (les quatre actions tiennent sur une ligne) ;
+   le message s'affiche dans la scène, au-dessus des flèches de rotation. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .creator-root { grid-template-columns: min(380px, 55vw) minmax(0, 1fr); }
+  .creator-status {
+    left: calc(100% + 12px);
+    bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+    width: max-content;
+    max-width: calc(100vw - 100% - 24px - env(safe-area-inset-right, 0px));
+  }
+}
+
+/* Portrait : feuille en bas, l'agent reste visible au-dessus. En paysage, même étroit (640 × 360), le panneau
+   reste à gauche : une feuille du bas n'y laisserait que quelques dizaines de pixels aux options.
+   Même règle que detectCreatorLayout() dans characterCreator.ts. */
+@media (orientation: portrait) {
   .creator-root {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) 55vh;
@@ -327,6 +368,18 @@
     box-shadow: 0 -18px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(57, 255, 136, 0.08);
     animation-name: creator-slide-bottom;
   }
+  /* Juste au-dessus de la feuille, sous les pieds de l'agent. */
+  .creator-status {
+    left: max(12px, env(safe-area-inset-left, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: calc(100% + 8px);
+    text-align: center;
+  }
+}
+
+/* Panneau très étroit (téléphone replié de 280 px) : quatre actions ne tiennent plus sur une ligne. */
+@container (max-width: 300px) {
+  .creator-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @keyframes creator-slide-side {

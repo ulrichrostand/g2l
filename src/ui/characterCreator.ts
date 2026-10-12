@@ -47,14 +47,17 @@ export const CREATOR_TABS: readonly { id: CreatorTabId; label: string; icon: str
   { id: "accessories", label: "Accessoires", icon: "🎒" },
 ];
 
-/** Même seuil que la media query de characterCreator.css : la feuille du bas et le cadrage 3D restent d'accord. */
-const BOTTOM_SHEET_MAX_WIDTH_PX = 640;
 /** Taille réelle affichée pour l'échelle 1 : « 1,75 m » parle plus à un joueur qu'un facteur 1,00. */
 const REFERENCE_HEIGHT_CM = 175;
 /** Une largeur d'écran de glisser ≈ un tour : assez précis pour viser un angle, assez rapide pour faire le tour. */
 const DRAG_RADIANS_PER_PIXEL = 0.012;
 const ROTATE_STEP_RADIANS = Math.PI / 4;
 const TITLE_ID = "creator-title";
+/** Un message (tirage, couleur refusée) reste lisible ce temps-là, puis s'efface pour rendre la place aux options. */
+const STATUS_VISIBLE_MS = 6000;
+/** Vignettes de motif repeintes au plus à cette cadence pendant un glisser dans le sélecteur de couleur. */
+const THUMBNAIL_REPAINT_MS = 120;
+const RESERVED_VISOR_MESSAGE = "Le rouge est réservé aux sentinelles d'ENTROPIA : choisis une autre teinte pour tes optiques.";
 
 /** Coiffures que avatarModel tasse sous une casquette, et celles qui repoussent le casque radio sur la nuque. */
 const HAIR_FLATTENED_BY_CAP: readonly HairStyle[] = ["afro", "bun", "mohawk"];
@@ -64,10 +67,14 @@ type ChoiceField = "build" | "hairStyle" | "top" | "topPattern" | "bottom" | "sh
 type ColorField = "skinTone" | "hairColor" | "eyeColor" | "topColor" | "topAccent" | "bottomColor" | "shoesColor" | "accessoryColor" | "visorColor";
 type ChangeTiming = "now" | "next-frame";
 
-/** Portrait ou écran étroit : l'interface passe en feuille en bas et le personnage s'affiche au-dessus. */
+/**
+ * Portrait : l'interface passe en feuille en bas et le personnage s'affiche au-dessus. En paysage, même sur un
+ * téléphone étroit (568 × 320), le panneau reste à gauche : une feuille du bas n'y laisserait aucune hauteur
+ * aux options. Même règle que la media query `(orientation: portrait)` de characterCreator.css (carré compris).
+ */
 export function detectCreatorLayout(width: number, height: number): StudioLayout {
   if (!Number.isFinite(width) || !Number.isFinite(height)) return "side";
-  return width <= BOTTOM_SHEET_MAX_WIDTH_PX || height >= width ? "bottom" : "side";
+  return height >= width ? "bottom" : "side";
 }
 
 /**
@@ -77,6 +84,7 @@ export function detectCreatorLayout(width: number, height: number): StudioLayout
 export function applyAvatarField(config: AvatarConfig, field: keyof AvatarConfig, value: unknown): AvatarConfig | null {
   // Le nom du champ est vérifié contre la liste blanche : "__proto__" ou "constructor" ne passent pas.
   if (!AVATAR_FIELDS.includes(field)) return null;
+  if (field === "visorColor" && isReservedVisorColor(value)) return null;
   const candidate: Record<string, unknown> = { ...config };
   candidate[field] = value;
   return parseAvatarConfig(candidate);
@@ -99,10 +107,11 @@ export function dragToRadians(deltaPixels: number): number {
 }
 
 /**
- * Le rouge vif signale les sentinelles d'ENTROPIA : des optiques rouges rendraient l'agent du joueur
- * impossible à distinguer d'un ennemi. Le sélecteur libre refuse donc ces teintes.
+ * Le rouge vif signale les sentinelles d'ENTROPIA (#ff2d2d, très lumineux) : des optiques rouges rendraient
+ * l'agent du joueur impossible à distinguer d'un ennemi. Après le bloom, cramoisi (#ff0044) et rouge-orangé
+ * (#ff4800) s'en distinguent à peine : la fenêtre de teinte les couvre aussi. Orange franc et rose restent permis.
  */
-export function isReservedVisorColor(color: string): boolean {
+export function isReservedVisorColor(color: unknown): boolean {
   const normalized = parseHexColor(color);
   if (normalized === null) return false;
   const red = Number.parseInt(normalized.slice(1, 3), 16) / 255;
@@ -116,8 +125,31 @@ export function isReservedVisorColor(color: string): boolean {
   const saturation = chroma / (1 - Math.abs(2 * lightness - 1));
   if (max !== red) return false;
   const hue = (((green - blue) / chroma) * 60 + 360) % 360;
-  const nearRed = hue <= 15 || hue >= 345;
-  return nearRed && saturation >= 0.45 && lightness >= 0.2 && lightness <= 0.8;
+  const nearRed = hue <= 20 || hue >= 335;
+  return nearRed && saturation >= 0.4 && lightness >= 0.2 && lightness <= 0.8;
+}
+
+/**
+ * Remplace des optiques rouges par celles de l'agent par défaut. Une sauvegarde modifiée à la main ou un code
+ * de sauvegarde importé peut en contenir : le créateur ne les affiche ni ne les réenregistre.
+ */
+export function withPlayerVisor(config: AvatarConfig): AvatarConfig {
+  return isReservedVisorColor(config.visorColor) ? { ...config, visorColor: DEFAULT_AVATAR.visorColor } : config;
+}
+
+/**
+ * Tab et Maj+Tab dans un dialogue modal : renvoie le contrôle à focaliser pour boucler (du dernier au premier
+ * et inversement, ou vers l'intérieur si le focus était sorti), ou null pour laisser le navigateur avancer.
+ */
+export function trapFocusTarget<T>(controls: readonly T[], active: T | null, backwards: boolean): T | null {
+  const first = controls[0];
+  const last = controls[controls.length - 1];
+  if (first === undefined || last === undefined) return null;
+  const index = active === null ? -1 : controls.indexOf(active);
+  if (index === -1) return backwards ? last : first;
+  if (backwards && index === 0) return last;
+  if (!backwards && index === controls.length - 1) return first;
+  return null;
 }
 
 /**
@@ -168,6 +200,11 @@ export class CharacterCreator {
   private dragLastX = 0;
   private coverage: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
+  private statusTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Repeints différés (vignettes de motif) : annulés à la fermeture, comme l'aperçu en attente. */
+  private readonly deferredFrames = new Set<number>();
+  /** Message à afficher à l'ouverture (optiques rouges remplacées). */
+  private readonly openingNotice: string;
   private isOpen = false;
 
   constructor(
@@ -175,16 +212,13 @@ export class CharacterCreator {
     initial: AvatarConfig,
     private readonly callbacks: CharacterCreatorCallbacks,
   ) {
-    this.config = parseAvatarConfig(initial) ?? { ...DEFAULT_AVATAR };
+    const parsed = parseAvatarConfig(initial) ?? { ...DEFAULT_AVATAR };
+    this.config = withPlayerVisor(parsed);
+    this.openingNotice = this.config === parsed ? "" : "Tes optiques étaient rouges, la couleur des sentinelles : elles repassent au vert.";
     this.status = element("p", { className: "creator-status", attributes: { role: "status", "aria-live": "polite" } });
     this.stage = this.buildStage();
     this.panel = this.buildPanel();
     this.root = element("div", { className: "creator-root", attributes: { role: "dialog", "aria-modal": "true", "aria-labelledby": TITLE_ID } }, [this.stage, this.panel]);
-    this.root.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      this.cancel();
-    });
     this.sync();
   }
 
@@ -209,10 +243,16 @@ export class CharacterCreator {
     this.container.hidden = false;
     this.coverage = null;
     window.addEventListener("resize", this.invalidateCoverage);
+    // Sur le document, pas sur le dialogue : Échap et Tab marchent aussi quand un clic sur une zone non
+    // focalisable du panneau a renvoyé le focus sur <body>.
+    document.addEventListener("keydown", this.onDocumentKeyDown);
     if (typeof ResizeObserver !== "undefined") {
       this.resizeObserver = new ResizeObserver(this.invalidateCoverage);
       this.resizeObserver.observe(this.panel);
     }
+    // L'agent affiché part de la même config que le créateur (optiques rouges remplacées, config corrigée).
+    this.callbacks.onChange({ ...this.config });
+    if (this.openingNotice) this.announce(this.openingNotice);
     this.tabs.get(this.activeTab)?.tab.focus({ preventScroll: true });
   }
 
@@ -221,8 +261,12 @@ export class CharacterCreator {
     this.isOpen = false;
     // Un aperçu en attente arriverait sur un studio déjà libéré : on l'abandonne.
     this.cancelPendingChange();
+    for (const frame of this.deferredFrames) cancelAnimationFrame(frame);
+    this.deferredFrames.clear();
+    this.announce("");
     this.endDrag();
     window.removeEventListener("resize", this.invalidateCoverage);
+    document.removeEventListener("keydown", this.onDocumentKeyDown);
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     this.container.hidden = true;
@@ -233,13 +277,42 @@ export class CharacterCreator {
     this.coverage = null;
   };
 
+  /**
+   * Le créateur est modal : il garde le clavier pour lui. Les touches ne remontent pas jusqu'au contrôleur de
+   * jeu (écouteur sur window), qui annule Espace (tir) et les flèches (déplacement) : sans ça, Espace
+   * n'activerait aucun bouton ni aucune puce, et une touche pressée ici déclencherait une action en mission.
+   */
+  private readonly onDocumentKeyDown = (event: KeyboardEvent): void => {
+    event.stopPropagation();
+    if (event.key === "Escape") {
+      event.preventDefault();
+      this.cancel();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const controls = this.focusableControls();
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const target = trapFocusTarget(controls, active, event.shiftKey);
+    if (target === null && controls.length > 0) return;
+    event.preventDefault();
+    target?.focus();
+  };
+
+  /** Contrôles atteignables au clavier, dans l'ordre du document (onglet actif et options visibles seulement). */
+  private focusableControls(): HTMLElement[] {
+    const candidates = Array.from(this.root.querySelectorAll<HTMLElement>("button, input, [tabindex]"));
+    return candidates.filter((control) => control.tabIndex >= 0 && !control.matches(":disabled") && control.closest("[hidden]") === null);
+  }
+
   private measureCoverage(): number {
     const layout = this.layout;
     const width = window.innerWidth;
     const height = window.innerHeight;
     if (!this.isOpen || width <= 0 || height <= 0) return DEFAULT_PANEL_COVERAGE[layout];
-    const bounds = this.panel.getBoundingClientRect();
-    const covered = layout === "side" ? bounds.right / width : (height - bounds.top) / height;
+    // Boîte de mise en page (offset*), pas getBoundingClientRect : l'animation d'entrée décale le panneau par
+    // transform, et une mesure prise pendant ces 0,28 s resterait en cache (aucun redimensionnement ne la corrige).
+    // Le calque .creator-root est fixe sur tout l'écran : ses coordonnées sont celles de la fenêtre.
+    const covered = layout === "side" ? (this.panel.offsetLeft + this.panel.offsetWidth) / width : (height - this.panel.offsetTop) / height;
     return Number.isFinite(covered) ? Math.min(1, Math.max(0, covered)) : DEFAULT_PANEL_COVERAGE[layout];
   }
 
@@ -288,7 +361,8 @@ export class CharacterCreator {
   }
 
   private randomize(): void {
-    const drawn = parseAvatarConfig(randomAvatar(Math.random));
+    const parsed = parseAvatarConfig(randomAvatar(Math.random));
+    const drawn = parsed === null ? null : withPlayerVisor(parsed);
     if (drawn === null) {
       this.announce("Le tirage au hasard a échoué : ton agent n'a pas changé.");
       return;
@@ -312,6 +386,12 @@ export class CharacterCreator {
       this.announce("Un réglage est invalide : modifie-le puis valide à nouveau.");
       return;
     }
+    if (isReservedVisorColor(validated.visorColor)) {
+      // On montre la correction avant d'enregistrer : le joueur valide l'agent qu'il voit.
+      this.replaceConfig(withPlayerVisor(validated), "now");
+      this.announce(RESERVED_VISOR_MESSAGE);
+      return;
+    }
     this.callbacks.onSave(validated);
   }
 
@@ -322,7 +402,15 @@ export class CharacterCreator {
   }
 
   private announce(message: string): void {
-    this.status.textContent = message;
+    if (this.statusTimer !== null) clearTimeout(this.statusTimer);
+    this.statusTimer = null;
+    if (this.status.textContent !== message) this.status.textContent = message;
+    if (message === "") return;
+    // Le message s'efface tout seul : resté affiché, il rognerait la zone d'options d'un téléphone.
+    this.statusTimer = setTimeout(() => {
+      this.statusTimer = null;
+      this.status.textContent = "";
+    }, STATUS_VISIBLE_MS);
   }
 
   private sync(): void {
@@ -541,14 +629,40 @@ export class CharacterCreator {
       return canvas;
     });
     let paintedColors = "";
-    this.syncers.push((config) => {
-      const colors = `${config.topColor}:${config.topAccent}`;
-      if (colors === paintedColors) return;
-      paintedColors = colors;
+    let lastPaintAt = Number.NEGATIVE_INFINITY;
+    let scheduled: number | null = null;
+    const draw = (): void => {
+      paintedColors = `${this.config.topColor}:${this.config.topAccent}`;
       for (const { pattern, canvas } of thumbnails) {
         const context = canvas.getContext("2d");
-        if (context) drawFabricPattern(context, pattern, config.topColor, config.topAccent);
+        if (context) drawFabricPattern(context, pattern, this.config.topColor, this.config.topAccent);
       }
+    };
+    // Repeindre six tuiles coûte plusieurs millisecondes : pendant un glisser dans le sélecteur, on regroupe
+    // par image et on espace les repeints. La dernière couleur choisie est toujours peinte.
+    const repaint = (now: number): void => {
+      if (scheduled !== null) this.deferredFrames.delete(scheduled);
+      scheduled = null;
+      if (`${this.config.topColor}:${this.config.topAccent}` === paintedColors) return;
+      if (now - lastPaintAt < THUMBNAIL_REPAINT_MS) {
+        scheduled = requestAnimationFrame(repaint);
+        this.deferredFrames.add(scheduled);
+        return;
+      }
+      lastPaintAt = now;
+      draw();
+    };
+    this.syncers.push((config) => {
+      if (`${config.topColor}:${config.topAccent}` === paintedColors) return;
+      // Créateur fermé (construction) : on peint tout de suite, rien n'annulerait un repeint différé.
+      if (!this.isOpen) {
+        draw();
+        return;
+      }
+      // close() annule les repeints en attente : `scheduled` n'est valable que s'il y figure encore.
+      if (scheduled !== null && this.deferredFrames.has(scheduled)) return;
+      scheduled = requestAnimationFrame(repaint);
+      this.deferredFrames.add(scheduled);
     });
     return field;
   }
@@ -602,7 +716,7 @@ export class CharacterCreator {
         return;
       }
       if (field === "visorColor" && isReservedVisorColor(color)) {
-        this.announce("Le rouge est réservé aux sentinelles d'ENTROPIA : choisis une autre teinte pour tes optiques.");
+        this.announce(RESERVED_VISOR_MESSAGE);
         // Pendant le glisser dans le sélecteur natif, on ne le contrarie pas ; au choix final, il revient à la couleur actuelle.
         if (timing === "now") this.sync();
         return;
@@ -615,8 +729,13 @@ export class CharacterCreator {
       this.flushPendingChange();
     });
 
+    let shownColor: string | null = null;
     this.syncers.push((config) => {
       const current = config[field];
+      // Chaque changement resynchronise tous les contrôles : on ne touche au DOM que si ce champ a changé,
+      // ou si le sélecteur affiche une couleur refusée (il revient alors sur la couleur actuelle).
+      if (current === shownColor && picker.value === current) return;
+      shownColor = current;
       let matched = false;
       for (const { value, swatch } of swatches) {
         const selected = value === current;

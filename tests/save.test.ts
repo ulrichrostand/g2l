@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { decodeSaveCode, encodeSaveCode, SaveCodeError } from "../src/game/saveCode";
+import { DEFAULT_AVATAR } from "../src/avatar/avatarConfig";
 import { emptyProgress, parseCheckpoint, parseProgress, ProgressStore, type KeyValueStorage, type MissionCheckpoint } from "../src/game/progress";
 
 class MemoryStorage implements KeyValueStorage {
@@ -96,5 +97,47 @@ describe("code de sauvegarde", () => {
     expect(() => decodeSaveCode("bonjour")).toThrow(SaveCodeError);
     expect(() => decodeSaveCode("")).toThrow(SaveCodeError);
     expect(() => decodeSaveCode("x".repeat(60_000))).toThrow(SaveCodeError);
+  });
+});
+
+describe("persistance de l'agent personnalisé", () => {
+  const customAvatar = { ...DEFAULT_AVATAR, hairStyle: "afro" as const };
+
+  it("est relu depuis le stockage après saveAvatar", () => {
+    const storage = new MemoryStorage();
+    new ProgressStore(storage).saveAvatar(customAvatar);
+    expect(new ProgressStore(storage).avatar?.hairStyle).toBe("afro");
+  });
+
+  it("refuse une configuration invalide", () => {
+    const store = new ProgressStore(new MemoryStorage());
+    expect(() => store.saveAvatar({ ...DEFAULT_AVATAR, height: 5 })).toThrow(RangeError);
+  });
+
+  it("fait l'aller-retour dans un code de sauvegarde", () => {
+    const decoded = decodeSaveCode(encodeSaveCode({ ...emptyProgress(), avatar: customAvatar }));
+    expect(decoded.avatar).toEqual(customAvatar);
+  });
+
+  it("une ancienne sauvegarde sans agent donne null, un agent malveillant aussi sans perdre les records", () => {
+    expect(parseProgress(JSON.stringify({ version: 2, records: {} })).avatar).toBeNull();
+    const progress = parseProgress(JSON.stringify({ version: 2, records: { kernel: { bestScore: 120, stars: 1, ghost: false, completedAt: "2026-01-01" } }, avatar: ["__proto__"] }));
+    expect(progress.avatar).toBeNull();
+    expect(progress.records.kernel?.bestScore).toBe(120);
+  });
+
+  it("survit à la remise à zéro et à l'import d'un code sans agent", () => {
+    const store = new ProgressStore(new MemoryStorage());
+    store.saveAvatar(customAvatar);
+    store.reset();
+    expect(store.avatar?.hairStyle).toBe("afro");
+    store.replaceWith(emptyProgress());
+    expect(store.avatar?.hairStyle).toBe("afro");
+  });
+
+  it("garde un point de reprise avec le boss encore debout", () => {
+    const store = new ProgressStore(new MemoryStorage());
+    store.saveCheckpoint({ ...checkpoint, bossDefeated: false });
+    expect(store.checkpoint?.bossDefeated).toBe(false);
   });
 });

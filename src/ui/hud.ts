@@ -22,11 +22,18 @@ export class Hud {
   private readonly reloadFill = element("div", { className: "reload-fill" });
   private readonly alarmBanner = element("div", { className: "hud-alarm", text: "⚠ ALERTE — tu es repéré", attributes: { role: "alert" } });
   private readonly bossName = element("span", { className: "boss-bar-name" });
-  private readonly bossStatus = element("span", { className: "boss-bar-status" });
+  private readonly bossStatus = element("span", { className: "boss-bar-status", attributes: { "aria-hidden": "true" } });
+  /**
+   * Annonce pour lecteur d'écran, séparée de l'affichage : elle ne change qu'aux transitions (réveil, à genoux,
+   * phase, vaincu). Le compte à rebours visible, lui, changerait chaque seconde et serait relu en boucle.
+   */
+  private readonly bossAnnouncer = element("span", { className: "sr-only", attributes: { role: "status", "aria-live": "polite" } });
+  private bossAnnouncedKey = "";
   private readonly bossFill = element("div", { className: "boss-bar-fill" });
-  private readonly bossBar = element("div", { className: "hud-boss", attributes: { role: "status", "aria-live": "polite" } }, [
+  private readonly bossBar = element("div", { className: "hud-boss" }, [
     element("div", { className: "boss-bar-label" }, [this.bossName, this.bossStatus]),
     element("div", { className: "boss-bar-track" }, [this.bossFill]),
+    this.bossAnnouncer,
   ]);
   private readonly hitMarker = element("div", { className: "hit-marker", attributes: { "aria-hidden": "true" } });
   private hitMarkerTimer: number | undefined;
@@ -170,7 +177,12 @@ export class Hud {
   /** Barre de boss façon jeu d'action : nom, phase, armure ; quand il est à genoux, le compte à rebours pour l'achever. */
   private renderBoss(boss: HudState["boss"]): void {
     this.bossBar.hidden = boss === null;
-    if (!boss) return;
+    // La barre occupe le haut de l'écran : les notices descendent en dessous tant qu'elle est affichée.
+    this.root.classList.toggle("boss-active", boss !== null);
+    if (!boss) {
+      this.bossAnnouncedKey = "";
+      return;
+    }
     this.bossName.textContent = `☠ ${boss.name}`;
     const exposed = boss.state === "exposed";
     this.bossStatus.textContent =
@@ -183,6 +195,19 @@ export class Hud {
             : `Phase ${boss.phase}/${boss.phaseCount}`;
     this.bossFill.style.width = `${Math.round(boss.armor * 100)}%`;
     this.bossBar.dataset.state = boss.state;
+    this.announceBoss(boss);
+  }
+
+  private announceBoss(boss: NonNullable<HudState["boss"]>): void {
+    const key = `${boss.state}:${boss.phase}`;
+    if (key === this.bossAnnouncedKey) return;
+    this.bossAnnouncedKey = key;
+    const announcements: Record<string, string> = {
+      awakening: `${boss.name} se réveille.`,
+      exposed: `${boss.name} est à genoux : achève-le avec une commande.`,
+      defeated: `${boss.name} est vaincu.`,
+    };
+    this.bossAnnouncer.textContent = announcements[boss.state] ?? `${boss.name}, phase ${boss.phase} sur ${boss.phaseCount}.`;
   }
 
   private renderAmmo(state: HudState, reloadPercent: number): void {

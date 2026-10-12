@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { AVATAR_FIELDS, DEFAULT_AVATAR, HEIGHT_RANGE, parseAvatarConfig, type AvatarConfig } from "../avatar/avatarConfig";
+import { AVATAR_FIELDS, DEFAULT_AVATAR, HEIGHT_RANGE, isSameAvatar, parseAvatarConfig, type AvatarConfig } from "../avatar/avatarConfig";
 import { createAvatarRig, type AvatarModel } from "../avatar/avatarModel";
 import { poseRig } from "../entities/rig";
 
@@ -77,6 +77,35 @@ const ARM_REST_SPREAD = 0.06;
 const IN_PLACE_FIELDS: readonly (keyof AvatarConfig)[] = ["height", "visorColor"];
 
 /**
+ * Couleurs choisies au sélecteur libre : glisser dedans envoie une valeur par image. Reconstruire l'agent
+ * à chaque fois (une trentaine de meshes, textures du visage et du tissu) ferait saccader l'aperçu :
+ * pendant le glisser, on repeint en place les matériaux concernés, puis on reconstruit une seule fois au repos.
+ */
+const PAINT_FIELDS = ["skinTone", "hairColor", "eyeColor", "topColor", "topAccent", "bottomColor", "shoesColor", "accessoryColor"] as const satisfies readonly (keyof AvatarConfig)[];
+type PaintField = (typeof PAINT_FIELDS)[number];
+/**
+ * Deux changements du même champ à moins de ce délai, ou à une ou deux images d'écart (appareil lent : le
+ * sélecteur envoie une valeur par image, si lente soit-elle) : c'est un glisser dans le sélecteur, pas un clic.
+ * Prendre un clic pour un glisser ne coûte qu'un court délai avant la reconstruction exacte.
+ */
+const PAINT_DRAG_GAP_SECONDS = 0.3;
+const PAINT_DRAG_GAP_FRAMES = 2;
+/** Calme après le glisser : on reconstruit alors l'agent exact (textures du visage et des motifs comprises). */
+const PAINT_SETTLE_SECONDS = 0.25;
+
+/**
+ * Matériau dont la couleur suit un champ : couleur = gain × couleur du champ + décalage, canal par canal
+ * (espace linéaire). Couvre la teinte directe, les ombres (×0,6) et les éclaircis (mélange avec du blanc).
+ */
+interface PaintTarget {
+  color: THREE.Color;
+  gain: readonly [number, number, number];
+  offset: readonly [number, number, number];
+}
+
+type ColoredMaterial = THREE.Material & { color: THREE.Color };
+
+/**
  * Studio du créateur d'agent : socle lumineux qui tourne, éclairage trois points et décor néon
  * dans la palette du jeu. Rendu par le pipeline habituel (bloom selon la qualité choisie).
  */
@@ -99,17 +128,35 @@ export class AvatarStudio {
   private pulse = 0;
   private elapsedSeconds = 0;
   private disposed = false;
+  /** Dernier champ de couleur modifié, et quand : sert à reconnaître un glisser dans le sélecteur. */
+  private paintField: PaintField | null = null;
+  private paintChangedAt = Number.NEGATIVE_INFINITY;
+  private framesSincePaint = Number.POSITIVE_INFINITY;
+  /** Matériaux repeints pendant le glisser en cours (null : pas encore repérés sur ce modèle). */
+  private paintTargets: readonly PaintTarget[] | null = null;
+  /** > 0 : le modèle a été repeint en place, reconstruction exacte prévue après ce délai de calme. */
+  private settleSeconds = 0;
+  private readonly paintColor = new THREE.Color();
 
+  /**
+   * Lève une exception si même l'agent par défaut ne peut pas être construit (canvas 2D indisponible…) :
+   * les ressources déjà créées sont alors libérées, l'appelant n'a rien à nettoyer.
+   */
   constructor(initial: AvatarConfig) {
     this.config = parseAvatarConfig(initial) ?? { ...DEFAULT_AVATAR };
     this.scene.background = new THREE.Color(BACKGROUND);
     this.scene.fog = this.fog;
     this.ringMaterial = this.track(new THREE.MeshStandardMaterial({ color: NEON_GREEN, emissive: NEON_GREEN, emissiveIntensity: RING_INTENSITY }));
     this.keyLight = this.addLights();
-    this.buildSet();
+    try {
+      this.buildSet();
+      this.model = this.createInitialModel();
+    } catch (error) {
+      this.releaseSet();
+      throw error;
+    }
     this.turntable.position.y = PLINTH_HEIGHT;
     this.scene.add(this.turntable);
-    this.model = createAvatarRig(this.config);
     this.turntable.add(this.model.rig.root);
     this.applyIdlePose(0);
   }
@@ -120,13 +167,28 @@ export class AvatarStudio {
     const next = parseAvatarConfig(config);
     if (!next) return;
     const changed = AVATAR_FIELDS.filter((field) => next[field] !== this.config[field]);
-    if (changed.length === 0) return;
+    const [single] = changed;
+    if (single === undefined) return;
+    const paintField = changed.length === 1 && isPaintField(single) ? single : null;
     if (changed.every((field) => IN_PLACE_FIELDS.includes(field))) {
       this.model.rig.root.scale.setScalar(next.height);
       this.model.glow.color.set(next.visorColor);
       this.model.glow.emissive.set(next.visorColor);
+    } else if (paintField !== null && this.isPaintDrag(paintField)) {
+      // Repérage une seule fois par glisser (sur le modèle encore exact), puis simple changement de couleur.
+      this.paintTargets ??= findPaintTargets(this.model, this.config, paintField);
+      this.paintColor.set(next[paintField]);
+      for (const target of this.paintTargets) paintTarget(target, this.paintColor);
+      this.settleSeconds = PAINT_SETTLE_SECONDS;
     } else if (!this.rebuild(next)) {
       return;
+    }
+    if (paintField !== null) {
+      this.paintField = paintField;
+      this.paintChangedAt = this.elapsedSeconds;
+      this.framesSincePaint = 0;
+    } else if (!changed.every((field) => IN_PLACE_FIELDS.includes(field))) {
+      this.paintField = null;
     }
     this.config = next;
     this.presentChange();
@@ -135,6 +197,12 @@ export class AvatarStudio {
   update(deltaSeconds: number, elapsedSeconds: number): void {
     if (this.disposed) return;
     const delta = THREE.MathUtils.clamp(deltaSeconds, 0, MAX_STEP_SECONDS);
+    this.framesSincePaint++;
+    if (this.settleSeconds > 0) {
+      this.settleSeconds = Math.max(0, this.settleSeconds - delta);
+      // Fin du glisser : textures du visage et du tissu, mélanges exacts. En cas d'échec, l'aperçu repeint reste.
+      if (this.settleSeconds === 0) this.rebuild(this.config);
+    }
     if (this.holdSeconds > 0) {
       this.holdSeconds = Math.max(0, this.holdSeconds - delta);
       if (this.holdSeconds === 0) this.manualControl = false;
@@ -216,8 +284,15 @@ export class AvatarStudio {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.settleSeconds = 0;
+    this.paintTargets = null;
     this.turntable.remove(this.model.rig.root);
     this.model.dispose();
+    this.releaseSet();
+  }
+
+  /** Décor, lumières et shadow map : libérés par dispose(), ou si le constructeur échoue. */
+  private releaseSet(): void {
     for (const resource of this.disposables) resource.dispose();
     this.disposables.length = 0;
     // Libère la shadow map de la lumière principale (allouée si les ombres sont actives).
@@ -225,8 +300,31 @@ export class AvatarStudio {
     this.scene.clear();
   }
 
+  /**
+   * Agent demandé ou, s'il ne se construit pas (combinaison qui révèle un bug du modèle), agent par défaut :
+   * le créateur reste utilisable. Si même celui-ci échoue, l'erreur remonte à l'appelant.
+   */
+  private createInitialModel(): AvatarModel {
+    try {
+      return createAvatarRig(this.config);
+    } catch (error) {
+      if (isSameAvatar(this.config, DEFAULT_AVATAR)) throw error;
+      console.error("Construction de l'agent impossible : le studio affiche l'agent par défaut.", error);
+      this.config = { ...DEFAULT_AVATAR };
+      return createAvatarRig(this.config);
+    }
+  }
+
+  /** Vrai si ce changement prolonge un glisser dans le sélecteur de couleur du même champ. */
+  private isPaintDrag(field: PaintField): boolean {
+    if (field !== this.paintField) return false;
+    return this.framesSincePaint <= PAINT_DRAG_GAP_FRAMES || this.elapsedSeconds - this.paintChangedAt <= PAINT_DRAG_GAP_SECONDS;
+  }
+
   /** Construit le nouveau modèle avant de libérer l'ancien : en cas d'échec, l'aperçu reste intact. */
   private rebuild(config: AvatarConfig): boolean {
+    // Qu'elle réussisse ou non, plus de reconstruction différée : pas de nouvel essai à chaque image.
+    this.settleSeconds = 0;
     let next: AvatarModel;
     try {
       next = createAvatarRig(config);
@@ -238,6 +336,8 @@ export class AvatarStudio {
     this.turntable.remove(previous.rig.root);
     previous.dispose();
     this.model = next;
+    // Les matériaux repérés pour repeindre appartenaient à l'ancien modèle.
+    this.paintTargets = null;
     this.turntable.add(next.rig.root);
     this.applyIdlePose(this.elapsedSeconds);
     return true;
@@ -386,6 +486,84 @@ export class AvatarStudio {
     }
     return meshes;
   }
+}
+
+function isPaintField(field: keyof AvatarConfig): field is PaintField {
+  return (PAINT_FIELDS as readonly string[]).includes(field);
+}
+
+/**
+ * Repère les matériaux qui dépendent de `field` en comparant le modèle affiché (construit avec `config`) à une
+ * sonde où seul ce champ change : même structure, seules les couleurs qui en dépendent diffèrent. Deux mesures
+ * par canal donnent la relation affine qu'applique avatarModel, sans dupliquer ses règles ici.
+ * Liste vide si la sonde échoue : l'aperçu attend alors simplement la reconstruction au repos.
+ */
+function findPaintTargets(model: AvatarModel, config: AvatarConfig, field: PaintField): PaintTarget[] {
+  const probeHex = contrastingColor(config[field]);
+  let probe: AvatarModel;
+  try {
+    probe = createAvatarRig({ ...config, [field]: probeHex });
+  } catch (error) {
+    console.warn("Repérage des couleurs de l'agent impossible : l'aperçu se mettra à jour au relâchement.", error);
+    return [];
+  }
+  try {
+    const shown = coloredMeshMaterials(model.rig.root);
+    const probed = coloredMeshMaterials(probe.rig.root);
+    if (shown.length !== probed.length) return [];
+    const base = new THREE.Color(config[field]);
+    const probeColor = new THREE.Color(probeHex);
+    const targets = new Map<THREE.Material, PaintTarget>();
+    for (let index = 0; index < shown.length; index++) {
+      const material = shown[index];
+      const reference = probed[index];
+      if (!material || !reference) return [];
+      if (targets.has(material) || material.color.equals(reference.color)) continue;
+      const gain: [number, number, number] = [0, 0, 0];
+      const offset: [number, number, number] = [0, 0, 0];
+      for (let channel = 0; channel < 3; channel++) {
+        const shownValue = colorChannel(material.color, channel);
+        const baseValue = colorChannel(base, channel);
+        // contrastingColor garantit un écart non nul sur chaque canal.
+        const channelGain = (shownValue - colorChannel(reference.color, channel)) / (baseValue - colorChannel(probeColor, channel));
+        gain[channel] = channelGain;
+        offset[channel] = shownValue - channelGain * baseValue;
+      }
+      targets.set(material, { color: material.color, gain, offset });
+    }
+    return [...targets.values()];
+  } finally {
+    probe.dispose();
+  }
+}
+
+function colorChannel(color: THREE.Color, channel: number): number {
+  return channel === 0 ? color.r : channel === 1 ? color.g : color.b;
+}
+
+function paintTarget(target: PaintTarget, color: THREE.Color): void {
+  const { gain, offset } = target;
+  target.color.setRGB(gain[0] * color.r + offset[0], gain[1] * color.g + offset[1], gain[2] * color.b + offset[2]);
+}
+
+/** Couleur dont chaque canal est loin de celui d'origine : garantit une mesure fiable sur les trois canaux. */
+function contrastingColor(hex: string): string {
+  let result = "#";
+  for (let start = 1; start < 7; start += 2) result += Number.parseInt(hex.slice(start, start + 2), 16) >= 128 ? "00" : "ff";
+  return result;
+}
+
+/** Matériau colorable de chaque mesh, dans l'ordre de parcours (identique d'une construction à l'autre). */
+function coloredMeshMaterials(root: THREE.Object3D): ColoredMaterial[] {
+  const materials: ColoredMaterial[] = [];
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const list: unknown[] = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of list) {
+      if (material instanceof THREE.Material && "color" in material && material.color instanceof THREE.Color) materials.push(material as ColoredMaterial);
+    }
+  });
+  return materials;
 }
 
 /** Anneau plat posé au sol (dans le plan XZ). */
