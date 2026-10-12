@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { BossAndroid } from "./bossAndroid";
+import type { SentinelAsset } from "./sentinelAndroid";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
@@ -43,6 +45,8 @@ export interface BossOptions {
   /** Salle que le boss ne quitte jamais (il garde une case de marge avec les murs). */
   arena: Room;
   random?: () => number;
+  /** Androïde riggé (le même que les sentinelles) ; absent ou en échec : colosse procédural. */
+  androidModel?: Promise<SentinelAsset> | null;
 }
 
 const PHASE_COUNT = 3;
@@ -193,6 +197,7 @@ export class Boss {
 
     this.model = new BossModel(name, color);
     this.root.add(this.model.group);
+    if (options.androidModel) void this.attachAndroid(options.androidModel);
     this.visual = {
       state: "dormant",
       heading: DEFAULT_HEADING,
@@ -210,6 +215,19 @@ export class Boss {
       clock: 0,
     };
     this.reset();
+  }
+
+  /** Vrai une fois le corps androïde affiché (sinon, c'est le colosse procédural). */
+  get usesAndroidModel(): boolean {
+    return this.model.usesAndroid;
+  }
+
+  private async attachAndroid(androidModel: Promise<SentinelAsset>): Promise<void> {
+    try {
+      this.model.attachAndroid(await androidModel);
+    } catch (error) {
+      console.warn("Androïde du boss indisponible : le colosse procédural reste affiché.", error);
+    }
   }
 
   get state(): BossState {
@@ -781,8 +799,13 @@ class BossModel {
   private readonly coreMaterial: THREE.MeshStandardMaterial;
   private readonly visorMaterial: THREE.MeshStandardMaterial;
   private readonly chargeMaterial: THREE.MeshStandardMaterial;
-  /** Plaques d'armure, dans l'ordre où elles tombent : épaulières d'abord, plastron ensuite, le cœur en dernier. */
-  private readonly plates: THREE.Mesh[] = [];
+  /**
+   * Plaques d'armure, dans l'ordre où elles tombent : épaulières d'abord, plastron ensuite, le cœur en dernier.
+   * Celles du corps affiché : du colosse procédural, ou de l'androïde une fois chargé.
+   */
+  private plates: THREE.Mesh[] = [];
+  private android: BossAndroid | null = null;
+  private androidSpeed = 0;
   private readonly shieldFill: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
   private readonly shieldWire: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
   private readonly telegraphRing: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
@@ -890,6 +913,23 @@ class BossModel {
     }
   }
 
+  get usesAndroid(): boolean {
+    return this.android !== null;
+  }
+
+  /**
+   * Remplace le colosse procédural par l'androïde : mêmes matériaux (couleur, charge, flash, bleu exposé),
+   * donc mêmes effets ; ses propres plaques prennent le relais pour montrer l'armure restante.
+   */
+  attachAndroid(asset: SentinelAsset): void {
+    const android = new BossAndroid(asset, { armor: this.armorMaterial, core: this.coreMaterial, visor: this.visorMaterial, charge: this.chargeMaterial });
+    android.root.rotation.y = this.yaw.rotation.y;
+    this.group.add(android.root);
+    this.yaw.visible = false;
+    this.plates = android.plates;
+    this.android = android;
+  }
+
   update(deltaSeconds: number, view: BossVisualState, position: THREE.Vector3): void {
     // Pas de temps nul (reset) : la pose saute directement à sa cible au lieu d'y glisser.
     const smoothing = deltaSeconds > 0 ? 1 - Math.exp(-deltaSeconds * POSE_SMOOTHING) : 1;
@@ -910,6 +950,12 @@ class BossModel {
     this.aim += (aimTarget - this.aim) * smoothing;
 
     this.pose(view);
+    if (this.android) {
+      this.androidSpeed += (speed - this.androidSpeed) * smoothing;
+      this.android.root.rotation.y = this.yaw.rotation.y;
+      // Pas de temps nul (reset) : l'animateur doit quand même appliquer la pose demandée.
+      this.android.update(deltaSeconds > 0 ? deltaSeconds : 1, { state: view.state, speed: this.androidSpeed, aim: this.aim });
+    }
     this.syncGlow(view);
     this.syncArmor(view);
     this.syncTelegraph(view);

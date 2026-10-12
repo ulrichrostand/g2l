@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { LayeredAnimator, splitClip } from "../src/avatar/layeredAnimator";
+import { LayeredAnimator } from "../src/avatar/layeredAnimator";
 import { Guard, type GuardTuning } from "../src/entities/guard";
-import { SENTINEL_CLIPS, SentinelAndroid, sentinelLocomotion, type SentinelAsset } from "../src/entities/sentinelAndroid";
+import { SENTINEL_CLIPS, SentinelAndroid, sentinelLocomotion } from "../src/entities/sentinelAndroid";
+import { fakeSentinelAsset } from "./support/fakeSentinelAsset";
 import { Grid, Tile } from "../src/core/grid";
 
 const MODEL_PATH = "public/models/characters/sentinel.glb";
@@ -15,33 +16,6 @@ function readGlbJson(bytes: Uint8Array): { animations?: { name?: string }[]; nod
   expect(new TextDecoder("ascii").decode(bytes.subarray(0, 4))).toBe("glTF");
   const jsonLength = view.getUint32(12, true);
   return JSON.parse(new TextDecoder("utf-8").decode(bytes.subarray(20, 20 + jsonLength))) as ReturnType<typeof readGlbJson>;
-}
-
-/** Androïde factice : os Head et hand_r, deux matériaux nommés comme le mannequin, clips minimaux. */
-function fakeSentinelAsset(): SentinelAsset {
-  const scene = new THREE.Group();
-  const root = new THREE.Bone();
-  root.name = "root";
-  const pelvis = new THREE.Bone();
-  pelvis.name = "pelvis";
-  const head = new THREE.Bone();
-  head.name = "Head";
-  const hand = new THREE.Bone();
-  hand.name = "hand_r";
-  root.add(pelvis);
-  pelvis.add(head, hand);
-  scene.add(root);
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.8, 0.3), [new THREE.MeshStandardMaterial({ name: "M_Main" }), new THREE.MeshStandardMaterial({ name: "M_Joints" })]);
-  body.name = "Mannequin";
-  scene.add(body);
-  const values = [0, 0, 0, 1, 0, 0.1, 0, 0.995];
-  const clips = new Map(
-    SENTINEL_CLIPS.map((name) => [
-      name,
-      splitClip(new THREE.AnimationClip(name, 1, [new THREE.QuaternionKeyframeTrack("pelvis.quaternion", [0, 1], values), new THREE.QuaternionKeyframeTrack("Head.quaternion", [0, 1], values)])),
-    ]),
-  );
-  return { scene, clips };
 }
 
 describe("fichier de l'androïde des sentinelles", () => {

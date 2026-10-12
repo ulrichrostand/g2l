@@ -28,6 +28,8 @@ export const REQUIRED_CLIPS = [
   "Crouch_Fwd_Loop",
   "Pistol_Aim_Neutral",
   "Pistol_Shoot",
+  "Hit_Chest",
+  "Death01",
 ] as const;
 type ClipName = (typeof REQUIRED_CLIPS)[number];
 
@@ -111,6 +113,8 @@ export interface HumanMotionState {
   crouching: boolean;
   /** 0 = arme rangée, 1 = visée épaulée (ou pose de tir à la hanche). */
   aim: number;
+  /** Réaction plein corps : recul sous un impact, ou effondrement à zéro de santé. */
+  reaction?: "hit" | "down" | null;
 }
 
 const assetRequests = new Map<BodyType, Promise<HumanCharacterAsset>>();
@@ -220,6 +224,8 @@ export class HumanCharacter {
       idle: "Idle_Loop",
       aim: "Pistol_Aim_Neutral",
       shot: "Pistol_Shoot",
+      poses: ["Hit_Chest", "Death01"],
+      oneShotPoses: ["Hit_Chest", "Death01"],
     });
   }
 
@@ -290,7 +296,7 @@ export class HumanCharacter {
       locomotion,
       timeScale: locomotionTimeScale(locomotion, state.speed, this.modelScale),
       aim: state.aim,
-      pose: null,
+      pose: state.reaction === "down" ? "Death01" : state.reaction === "hit" ? "Hit_Chest" : null,
     });
   }
 

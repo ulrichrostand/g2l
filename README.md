@@ -164,6 +164,10 @@ et qu'aucune commande n'est posée deux fois).
 - **Sentinelles androïdes** sur le même squelette (mannequin Quaternius, CC0) : métal anthracite et lignes
   rouges lumineuses, elles marchent en ronde, courent et tirent en combat, tombent à genoux une fois
   suspendues (lignes bleues) et s'effondrent neutralisées. On les distingue de l'agent d'un coup d'œil.
+- **Boss androïdes géants** (~3 m) sur le même squelette : épaulières, plastron, réacteur dorsal et canon au
+  bras dans la couleur du boss. Les plaques tombent à mesure que l'armure baisse ; les articulations et les
+  évents s'illuminent pendant la charge d'une salve ; agenouillé en veille et quand il est exposé, effondré vaincu.
+- L'agent **recule sous les impacts** et **s'effondre** à zéro de santé avant l'écran « À terre ».
 - Cônes de vision en dégradé ; écrans de terminaux animés.
 - **Qualité réglable** (Haute / Moyenne / Basse) depuis l'écran titre ou la pause, choisie
   automatiquement (Moyenne sur mobile) et **abaissée automatiquement** si le jeu passe sous ~40 images/s.

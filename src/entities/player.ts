@@ -13,6 +13,10 @@ const SPEED_BY_POSTURE: Record<Posture, number> = { standing: 3, crouching: 1.6,
 /** En visée, on avance lentement (et on ne court pas) : la précision se paie en mobilité. */
 const AIMING_SPEED_FACTOR = 0.6;
 const SHOT_POSE_SECONDS = 0.45;
+/** Recul sous un impact : la durée de l'animation Hit_Chest. */
+const HIT_REACTION_SECONDS = 0.35;
+/** Effondrement à zéro de santé avant l'écran « À terre » : le temps de voir l'agent tomber. */
+const KNOCKDOWN_SECONDS = 1.5;
 
 export class Player {
   readonly root = new THREE.Group();
@@ -33,6 +37,8 @@ export class Player {
   /** Personnage humain riggé : null tant qu'il charge (ou s'il n'a pas pu charger), l'agent procédural le remplace. */
   private human: HumanCharacter | null = null;
   private disposed = false;
+  private hitTimer = 0;
+  private knockedDown = false;
   private readonly previousPosition = new THREE.Vector3();
   private groundSpeed = 0;
 
@@ -68,6 +74,28 @@ export class Player {
     this.avatar.dispose();
     this.human?.dispose();
     this.human = null;
+  }
+
+  /** Recul sous un impact (personnage humain seulement : l'agent procédural n'a pas d'animation dédiée). */
+  playHit(): void {
+    this.hitTimer = HIT_REACTION_SECONDS;
+  }
+
+  /**
+   * Zéro de santé : l'agent s'effondre. Renvoie la durée de la chute à laisser jouer avant de le relever
+   * ailleurs, ou 0 si l'agent affiché n'a pas d'animation de chute (repli procédural : comportement d'avant).
+   */
+  knockDown(): number {
+    if (!this.human) return 0;
+    this.knockedDown = true;
+    this.aimAngle = null;
+    return KNOCKDOWN_SECONDS;
+  }
+
+  /** Relevé (nouvelle vie, point d'insertion) : fin de la chute et du recul. */
+  recover(): void {
+    this.knockedDown = false;
+    this.hitTimer = 0;
   }
 
   /** Vrai une fois le personnage humain affiché (sinon, c'est l'agent procédural). */
@@ -175,9 +203,11 @@ export class Player {
     const travelled = deltaSeconds > 0 ? Math.hypot(this.position.x - this.previousPosition.x, this.position.z - this.previousPosition.z) / deltaSeconds : 0;
     this.groundSpeed += (travelled - this.groundSpeed) * smoothing;
     this.previousPosition.copy(this.position);
+    this.hitTimer = Math.max(0, this.hitTimer - deltaSeconds);
     if (this.human) {
       this.human.root.rotation.y = this.facing;
-      this.human.update(deltaSeconds, { speed: this.groundSpeed, crouching: this.crouched, aim });
+      const reaction = this.knockedDown ? "down" : this.hitTimer > 0 ? "hit" : null;
+      this.human.update(deltaSeconds, { speed: this.groundSpeed, crouching: this.crouched, aim: this.knockedDown ? 0 : aim, reaction });
       return;
     }
     poseRig(this.rig, this.stepPhase, this.stride, this.crouchAmount, aim);

@@ -207,6 +207,8 @@ const BOSS_EMERGENCY_AMMO = 8;
 const ENEMY_SHOT_SPEED = 13;
 const ENEMY_SHOT_RANGE = 16;
 const PLAYER_HIT_RADIUS = 0.3;
+/** Aucune intention de déplacement : l'agent à terre ne bouge plus. */
+const STILL = { x: 0, z: 0, running: false } as const;
 const HEALTH_REGEN_DELAY_SECONDS = 4;
 const HEALTH_REGEN_PER_SECOND = 12;
 /** Pad tactile relâché : le tir part dans la dernière direction visée. */
@@ -276,6 +278,8 @@ export class Mission {
   private cameraCallCooldown = 0;
   private cameraAlarmCooldown = 0;
   private shake = 0;
+  /** > 0 : l'agent s'effondre (zéro de santé) ; la vie perdue est décomptée à la fin de la chute. */
+  private knockdownSeconds = 0;
   private readonly intel: IntelPickup[];
   private readonly extraction: ExtractionZone;
   private readonly targetMarker: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
@@ -347,7 +351,13 @@ export class Mission {
     for (const camera of this.cameras) this.scene.add(camera.root);
 
     this.arena = arenaContaining(this.layout, this.layout.exit);
-    this.boss = new Boss(this.layout.grid, { name: options.boss.name, color: options.boss.color, level: options.moduleIndex, arena: this.arena });
+    this.boss = new Boss(this.layout.grid, {
+      name: options.boss.name,
+      color: options.boss.color,
+      level: options.moduleIndex,
+      arena: this.arena,
+      androidModel: options.sentinelModel ?? null,
+    });
     this.scene.add(this.boss.root);
 
     this.effects = new CombatEffects(this.scene, options.quality.bloom);
@@ -482,17 +492,21 @@ export class Mission {
   captureState(): MissionProgressState {
     const indexesWhere = <T>(items: T[], predicate: (item: T) => boolean): number[] =>
       items.flatMap((item, index) => (predicate(item) ? [index] : []));
+    // Sauvegardé pendant la chute (onglet fermé, pause automatique) : la vie est déjà perdue, l'agent repartira
+    // du point d'insertion. Sinon, fermer l'onglet en tombant effacerait la défaite.
+    const falling = this.knockdownSeconds > 0;
+    const playerCell = falling ? this.layout.start : { x: Math.floor(this.player.position.x), z: Math.floor(this.player.position.z) };
     return {
       hackedTerminals: indexesWhere(this.terminals, (terminal) => terminal.hacked),
       collectedIntel: indexesWhere(this.intel, (pickup) => pickup.collected),
       neutralizedGuards: indexesWhere(this.guards, (guard) => guard.neutralized),
       firewalledCameras: indexesWhere(this.cameras, (camera) => camera.firewalled),
       ammo: this.sidearm.total,
-      livesLeft: this.livesLeft,
+      livesLeft: falling ? Math.max(1, this.livesLeft - 1) : this.livesLeft,
       detections: this.detections,
       neutralizations: this.neutralizations,
       elapsedSeconds: this.elapsedSeconds,
-      playerCell: { x: Math.floor(this.player.position.x), z: Math.floor(this.player.position.z) },
+      playerCell: { x: playerCell.x, z: playerCell.z },
       bossDefeated: this.bossDefeated,
     };
   }
@@ -619,6 +633,10 @@ export class Mission {
     this.cameraAlarmCooldown = Math.max(0, this.cameraAlarmCooldown - deltaSeconds);
     this.effects.update(deltaSeconds);
     this.sidearm.update(deltaSeconds);
+    if (this.knockdownSeconds > 0) {
+      this.updateKnockdown(deltaSeconds);
+      return;
+    }
     this.player.setAim(this.aim?.aiming ? this.angleOf(this.aim) : null);
     if (this.handleActions()) return;
 
@@ -993,7 +1011,30 @@ export class Mission {
     this.lastDamageAt = this.elapsedSeconds;
     this.shake = Math.max(this.shake, 0.22);
     this.callbacks.onCombatEvent({ type: "playerHit", health: this.health });
-    if (this.health === 0) this.playerDown();
+    if (this.health > 0) {
+      this.player.playHit();
+      return;
+    }
+    // On laisse voir l'agent tomber avant l'écran « À terre » ; le monde se fige pendant la chute.
+    const fallSeconds = this.player.knockDown();
+    if (fallSeconds <= 0) {
+      this.playerDown();
+      return;
+    }
+    this.knockdownSeconds = fallSeconds;
+    this.clearEnemyShots();
+    this.effects.hideLaser();
+    this.input.clear();
+  }
+
+  /** Pendant la chute : seuls l'agent, les effets et la caméra vivent ; puis la vie perdue est décomptée. */
+  private updateKnockdown(deltaSeconds: number): void {
+    this.player.setAim(null);
+    this.player.update(deltaSeconds, STILL);
+    this.followCamera(deltaSeconds);
+    this.knockdownSeconds = Math.max(0, this.knockdownSeconds - deltaSeconds);
+    if (this.knockdownSeconds > 0) return;
+    this.playerDown();
   }
 
   /** Santé à zéro : une vie en moins, retour au point d'insertion. Terminaux et sentinelles terminées restent acquis. */
@@ -1006,6 +1047,7 @@ export class Mission {
       return;
     }
     this.player.placeAt(cellToWorld(this.layout.start));
+    this.player.recover();
     this.player.crouched = false;
     this.health = MAX_HEALTH;
     for (const guard of this.guards) guard.reset();

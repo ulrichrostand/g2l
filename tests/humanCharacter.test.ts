@@ -4,6 +4,8 @@ import * as THREE from "three";
 import { DEFAULT_AVATAR, type BodyType } from "../src/avatar/avatarConfig";
 import { HumanCharacter, isUpperBodyTrack, locomotionClip, locomotionTimeScale, partRole, REQUIRED_CLIPS, REQUIRED_PARTS, skinTint } from "../src/avatar/humanCharacter";
 import { createFakeHumanAsset } from "./support/fakeHumanAsset";
+import { Grid, Tile } from "../src/core/grid";
+import { Player } from "../src/entities/player";
 
 const MODEL_PATHS: Readonly<Record<BodyType, string>> = { male: "public/models/characters/agent-male.glb", female: "public/models/characters/agent-female.glb" };
 /** Le personnage est téléchargé au lancement : au-delà, l'attente se ferait sentir sur une connexion mobile. */
@@ -161,5 +163,36 @@ describe("animation du personnage humain", () => {
     expect(tint.r).toBeLessThan(1);
     const pale = skinTint("#ffffff");
     expect(Math.max(pale.r, pale.g, pale.b)).toBeLessThanOrEqual(2);
+  });
+});
+
+describe("Player : recul et chute", () => {
+  function corridor(): Grid {
+    const grid = new Grid(8, 3, Tile.Wall);
+    for (let x = 1; x < 7; x++) grid.set(x, 1, Tile.Floor);
+    return grid;
+  }
+  const still = { x: 0, z: 0, running: false };
+
+  it("avec le personnage humain : chute de 1,5 s, puis relevé", async () => {
+    const player = new Player(corridor(), DEFAULT_AVATAR, Promise.resolve(createFakeHumanAsset("male")));
+    for (let round = 0; round < 5; round++) await Promise.resolve();
+    expect(player.usesHumanModel).toBe(true);
+    player.playHit();
+    expect(() => player.update(1 / 30, still)).not.toThrow();
+    expect(player.knockDown()).toBeCloseTo(1.5);
+    expect(player.isAiming).toBe(false);
+    for (let frame = 0; frame < 20; frame++) player.update(1 / 30, still);
+    player.recover();
+    expect(() => player.update(1 / 30, still)).not.toThrow();
+    player.dispose();
+  });
+
+  it("agent procédural de repli : pas d'animation de chute, la vie se perd tout de suite (comme avant)", () => {
+    const player = new Player(corridor(), DEFAULT_AVATAR);
+    expect(player.knockDown()).toBe(0);
+    player.playHit();
+    expect(() => player.update(1 / 30, still)).not.toThrow();
+    player.dispose();
   });
 });
