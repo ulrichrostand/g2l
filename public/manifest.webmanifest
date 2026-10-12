@@ -1,0 +1,14 @@
+{
+  "name": "Shadow Ops — DevOps Infiltration",
+  "short_name": "Shadow Ops",
+  "description": "Jeu d'infiltration 3D pour apprendre le DevOps en suivant la roadmap roadmap.sh/devops.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#05080c",
+  "theme_color": "#05080c",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

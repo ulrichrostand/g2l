@@ -302,8 +302,11 @@ export class ScreenManager {
     timeline.querySelector<HTMLButtonElement>(".campaign-card.in-progress .btn.primary, .campaign-card.available .btn.primary")?.focus({ preventScroll: false });
   }
 
-  showBriefing(module: DevOpsModule, moduleNumber: number, warning: string | null, onLaunch: () => void, onBack: () => void): void {
+  /** `addTip` : l'appelant ajoute un encart au briefing (conseil d'orientation sur mobile) dans le conteneur donné. */
+  showBriefing(module: DevOpsModule, moduleNumber: number, warning: string | null, onLaunch: () => void, onBack: () => void, addTip?: (container: HTMLElement) => void): void {
     const launchButton = button("Lancer l'infiltration", onLaunch, "btn primary big");
+    const tipContainer = element("div", { className: "briefing-tip" });
+    addTip?.(tipContainer);
     this.show(
       element("div", { className: "panel briefing" }, [
         element("p", { className: "eyebrow", text: `Module ${moduleNumber} · ${module.roadmapSection}` }),
@@ -319,6 +322,7 @@ export class ScreenManager {
           text: "Astuce : les dossiers jaunes contiennent les leçons. Les racks bloquent la vue et les balles des sentinelles : observe leurs rondes avant de bouger. Si elles te voient, elles tirent.",
         }),
         warning ? element("p", { className: "save-status warn", text: warning }) : null,
+        tipContainer,
         element("div", { className: "row" }, [launchButton, button("Retour", onBack, "btn ghost")]),
       ]),
     );

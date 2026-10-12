@@ -33,6 +33,8 @@ import { RenderPipeline } from "./render/renderPipeline";
 import { ScreenManager, type CampaignSummary } from "./ui/screens";
 import { placeMarker, TutorialSession } from "./game/tutorial";
 import { MARKER_EDGE_MARGIN, TutorialGuide } from "./ui/tutorialGuide";
+import { isPortrait, shouldSuggestLandscape } from "./core/orientation";
+import { OrientationHint } from "./ui/orientationHint";
 import { prefersTouchControls, TouchControls } from "./ui/touchControls";
 
 const MAX_FRAME_DELTA_SECONDS = 0.05;
@@ -59,6 +61,9 @@ class ShadowOpsApp {
   private tutorial: TutorialSession | null = null;
   private readonly tutorialGuide = new TutorialGuide(this.hud.root, { onSkip: () => this.finishTutorial("skipped") });
   private readonly tutorialTargetScratch = new THREE.Vector3();
+  private readonly orientationHint = new OrientationHint(this.hud.root, document, screen, { onDismiss: () => this.dismissOrientationHint() });
+  /** Le conseil a déjà été montré pendant ce passage en portrait : il ne revient pas à chaque redimensionnement. */
+  private orientationHintOffered = false;
   private readonly touchControls = new TouchControls(requireElement("#ui"), this.input);
   private readonly challengeContainer = requireElement<HTMLElement>("#challenge");
   private readonly lessonPanel = new LessonPanel(this.challengeContainer);
@@ -128,6 +133,7 @@ class ShadowOpsApp {
     document.body.classList.add("touch");
     this.hud.setTouchMode(true);
     if (this.mission && !this.hud.root.hidden) this.touchControls.show();
+    this.updateOrientationHint();
   }
 
   private showMissionUi(title: string): void {
@@ -260,7 +266,12 @@ class ShadowOpsApp {
       : checkpoint?.moduleId === module.id
         ? "Tu avais une partie en cours sur ce secteur : lancer l'infiltration la recommence depuis le début."
         : null;
-    this.screens.showBriefing(module, moduleIndex, warning, () => this.startMission(module), () => this.showCampaignMap());
+    this.screens.showBriefing(module, moduleIndex, warning, () => this.startMission(module), () => this.showCampaignMap(), (container) => {
+      // Avant la mission : le joueur lit à son rythme, et le conseil ne gêne ni le tutoriel ni le HUD.
+      const wanted = shouldSuggestLandscape({ touch: this.touchMode, portrait: isPortrait(window.innerWidth, window.innerHeight), dismissed: readOrientationDismissed(), inMission: true });
+      if (!wanted) return;
+      new OrientationHint(container, document, screen, { onDismiss: () => this.dismissOrientationHint() }, { autoHideMs: null, inline: true }).show();
+    });
   }
 
   private showSaveManager(): void {
@@ -340,6 +351,7 @@ class ShadowOpsApp {
     this.mission.setCameraZoom(cameraZoomForAspect(this.camera.aspect));
     this.showMissionUi(`${module.codename} · ${module.title}`);
     this.startTutorialIfNeeded(module, checkpoint !== null);
+    this.updateOrientationHint();
     // Le tutoriel donne déjà la première consigne : pas de bandeau qui la double ou la recouvre.
     if (!this.tutorial) {
       this.hud.showNotice(
@@ -826,6 +838,8 @@ class ShadowOpsApp {
     this.mission = null;
     this.tutorial = null;
     this.tutorialGuide.hide();
+    this.orientationHint.hide();
+    this.orientationHintOffered = false;
     this.ambience.stop();
     this.hideMissionUi();
     this.challengeContainer.hidden = true;
@@ -959,6 +973,29 @@ class ShadowOpsApp {
     document.body.classList.add(className);
   }
 
+  /** Conseil « paysage » : une fois par passage en portrait, jamais après un « Plus tard ». */
+  private updateOrientationHint(): void {
+    const portrait = isPortrait(window.innerWidth, window.innerHeight);
+    if (!portrait) this.orientationHintOffered = false;
+    const wanted = shouldSuggestLandscape({ touch: this.touchMode, portrait, dismissed: readOrientationDismissed(), inMission: this.mission !== null && this.tutorial === null });
+    if (!wanted) {
+      this.orientationHint.hide();
+      return;
+    }
+    if (this.orientationHintOffered) return;
+    this.orientationHintOffered = true;
+    this.orientationHint.show();
+  }
+
+  private dismissOrientationHint(): void {
+    try {
+      window.sessionStorage.setItem(ORIENTATION_DISMISSED_KEY, "1");
+    } catch (error) {
+      // Stockage de session bloqué : le conseil pourra revenir, sans gravité.
+      console.warn("Impossible de mémoriser que le conseil d'orientation est écarté.", error);
+    }
+  }
+
   private resize(): void {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -966,6 +1003,7 @@ class ShadowOpsApp {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.mission?.setCameraZoom(cameraZoomForAspect(this.camera.aspect));
+    this.updateOrientationHint();
   }
 
   private requireMission(): Mission {
@@ -1027,6 +1065,16 @@ function safeLocalStorage(): Storage | null {
   } catch (error) {
     console.warn("localStorage inaccessible : la progression ne sera pas sauvegardée.", error);
     return null;
+  }
+}
+
+const ORIENTATION_DISMISSED_KEY = "shadow-ops-devops/orientation-hint-dismissed";
+
+function readOrientationDismissed(): boolean {
+  try {
+    return window.sessionStorage.getItem(ORIENTATION_DISMISSED_KEY) === "1";
+  } catch {
+    return false;
   }
 }
 

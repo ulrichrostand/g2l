@@ -197,6 +197,14 @@ et qu'aucune commande n'est posée deux fois).
 Provenance exacte, empreintes SHA-256 des sources et reconstruction : `public/models/characters/README.md`
 (script : `scripts/build-agent-glb.mjs`). Textes de licence : `public/models/characters/licenses/`.
 
+## Mobile : orientation et plein écran
+
+Aucun navigateur ne permet d'imposer le paysage partout, le jeu le **conseille** donc sans le forcer : sur un
+écran tactile en portrait, un encart (sur l'écran de briefing, ou en mission si aucun tutoriel n'est affiché)
+propose « Plein écran », qui verrouille le paysage quand le navigateur l'autorise (Android / Chrome). Sur iPhone,
+sans API plein écran, il invite seulement à tourner le téléphone. « Plus tard » l'écarte pour la session. Installé
+sur l'écran d'accueil, le jeu s'ouvre directement en paysage plein écran sur Android (`public/manifest.webmanifest`).
+
 ## Limites connues
 
 - Nécessite WebGL.
