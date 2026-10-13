@@ -16,6 +16,7 @@ import {
   type ColorPreset,
 } from "../avatar/avatarConfig";
 import { DEFAULT_PANEL_COVERAGE, type StudioLayout } from "../render/avatarStudio";
+import { t } from "../i18n/messages/creator";
 import { button, element } from "./dom";
 import "./characterCreator.css";
 
@@ -36,10 +37,10 @@ export interface CreatorHint {
 }
 
 export const CREATOR_TABS: readonly { id: CreatorTabId; label: string }[] = [
-  { id: "body", label: "Corps" },
-  { id: "hair", label: "Cheveux" },
-  { id: "outfit", label: "Tenue" },
-  { id: "gear", label: "Équipement" },
+  { id: "body", label: t("tabBody") },
+  { id: "hair", label: t("tabHair") },
+  { id: "outfit", label: t("tabOutfit") },
+  { id: "gear", label: t("tabGear") },
 ];
 
 /** Taille réelle affichée pour l'échelle 1 : « 1,75 m » parle plus à un joueur qu'un facteur 1,00. */
@@ -50,7 +51,7 @@ const ROTATE_STEP_RADIANS = Math.PI / 4;
 const TITLE_ID = "creator-title";
 /** Un message (tirage, couleur refusée) reste lisible ce temps-là, puis s'efface pour rendre la place aux options. */
 const STATUS_VISIBLE_MS = 6000;
-const RESERVED_VISOR_MESSAGE = "Le rouge est réservé aux sentinelles d'ENTROPIA : choisis une autre teinte pour tes optiques.";
+const RESERVED_VISOR_MESSAGE = t("reservedVisor");
 
 type ChoiceField = "body" | "build" | "hairStyle";
 type ColorField = "skinTone" | "hairColor" | "topColor" | "topAccent" | "bottomColor" | "shoesColor" | "visorColor";
@@ -88,7 +89,7 @@ export function heightFromSlider(rawValue: string): number | null {
 
 export function formatAgentHeight(height: number): string {
   const centimeters = Math.round(height * REFERENCE_HEIGHT_CM);
-  return `${Math.floor(centimeters / 100)},${String(centimeters % 100).padStart(2, "0")} m`;
+  return t("heightFormat", { meters: Math.floor(centimeters / 100), centimeters: String(centimeters % 100).padStart(2, "0") });
 }
 
 export function dragToRadians(deltaPixels: number): number {
@@ -147,8 +148,8 @@ export function trapFocusTarget<T>(controls: readonly T[], active: T | null, bac
  */
 export function avatarHints(config: AvatarConfig): CreatorHint[] {
   const hints: CreatorHint[] = [];
-  if (config.body === "female") hints.push({ tab: "hair", text: "La barbe n'existe que sur la silhouette masculine." });
-  if (config.hairStyle === "bald" && config.beard) hints.push({ tab: "hair", text: "Crâne rasé et barbe : la couleur des cheveux colore la barbe et les sourcils." });
+  if (config.body === "female") hints.push({ tab: "hair", text: t("hintBeardMaleOnly") });
+  if (config.hairStyle === "bald" && config.beard) hints.push({ tab: "hair", text: t("hintBaldBeard") });
   return hints;
 }
 
@@ -184,7 +185,7 @@ export class CharacterCreator {
   ) {
     const parsed = parseAvatarConfig(initial) ?? { ...DEFAULT_AVATAR };
     this.config = withPlayerVisor(parsed);
-    this.openingNotice = this.config === parsed ? "" : "Tes optiques étaient rouges, la couleur des sentinelles : elles repassent au vert.";
+    this.openingNotice = this.config === parsed ? "" : t("openingVisorReplaced");
     this.status = element("p", { className: "creator-status", attributes: { role: "status", "aria-live": "polite" } });
     this.stage = this.buildStage();
     this.panel = this.buildPanel();
@@ -337,16 +338,16 @@ export class CharacterCreator {
     const parsed = parseAvatarConfig(randomAvatar(Math.random));
     const drawn = parsed === null ? null : withPlayerVisor(parsed);
     if (drawn === null) {
-      this.announce("Le tirage au hasard a échoué : ton agent n'a pas changé.");
+      this.announce(t("randomFailed"));
       return;
     }
     this.replaceConfig(drawn, "now");
-    this.announce("Nouvel agent tiré au hasard. Clique encore pour un autre look !");
+    this.announce(t("randomDone"));
   }
 
   private reset(): void {
     this.replaceConfig({ ...DEFAULT_AVATAR }, "now");
-    this.announce("Agent par défaut restauré : tenue sombre et optiques vertes.");
+    this.announce(t("resetDone"));
   }
 
   private save(): void {
@@ -356,7 +357,7 @@ export class CharacterCreator {
     // on ne sauvegarde rien et le créateur reste ouvert sur l'agent affiché.
     const validated = parseAvatarConfig(this.config);
     if (validated === null) {
-      this.announce("Un réglage est invalide : modifie-le puis valide à nouveau.");
+      this.announce(t("invalidSetting"));
       return;
     }
     if (isReservedVisorColor(validated.visorColor)) {
@@ -394,13 +395,13 @@ export class CharacterCreator {
 
   private buildStage(): HTMLElement {
     const rotateLeft = button("⟲", () => this.callbacks.onRotate?.(-ROTATE_STEP_RADIANS), "creator-rotate");
-    rotateLeft.setAttribute("aria-label", "Tourner l'agent vers la gauche");
+    rotateLeft.setAttribute("aria-label", t("rotateLeft"));
     const rotateRight = button("⟳", () => this.callbacks.onRotate?.(ROTATE_STEP_RADIANS), "creator-rotate");
-    rotateRight.setAttribute("aria-label", "Tourner l'agent vers la droite");
+    rotateRight.setAttribute("aria-label", t("rotateRight"));
     const stage = element("div", { className: "creator-stage" }, [
       element("div", { className: "creator-stage-controls" }, [
         rotateLeft,
-        element("span", { className: "creator-stage-hint", text: "↔ Glisse pour tourner l'agent", attributes: { "aria-hidden": "true" } }),
+        element("span", { className: "creator-stage-hint", text: t("dragHint"), attributes: { "aria-hidden": "true" } }),
         rotateRight,
       ]),
     ]);
@@ -442,7 +443,7 @@ export class CharacterCreator {
   }
 
   private buildPanel(): HTMLElement {
-    const tabList = element("div", { className: "creator-tabs", attributes: { role: "tablist", "aria-label": "Catégories de personnalisation" } });
+    const tabList = element("div", { className: "creator-tabs", attributes: { role: "tablist", "aria-label": t("tabsLabel") } });
     const body = element("div", { className: "creator-body" });
     for (const { id, label } of CREATOR_TABS) {
       const selected = id === this.activeTab;
@@ -472,18 +473,18 @@ export class CharacterCreator {
 
     return element("section", { className: "creator-panel" }, [
       element("header", { className: "creator-header" }, [
-        element("p", { className: "creator-eyebrow", text: "Cellule Écho — fiche agent" }),
-        element("h1", { className: "creator-title", text: "Crée ton agent", attributes: { id: TITLE_ID } }),
-        element("p", { className: "creator-lead", text: "Choisis le look de Spectre. C'est juste ton style : ça ne change rien à la difficulté." }),
+        element("p", { className: "creator-eyebrow", text: t("eyebrow") }),
+        element("h1", { className: "creator-title", text: t("title"), attributes: { id: TITLE_ID } }),
+        element("p", { className: "creator-lead", text: t("lead") }),
       ]),
       tabList,
       body,
       element("footer", { className: "creator-actions" }, [
         this.status,
-        button("Aléatoire", () => this.randomize(), "btn"),
-        button("Réinitialiser", () => this.reset(), "btn ghost"),
-        button("Annuler", () => this.cancel(), "btn ghost"),
-        button("Valider l'agent", () => this.save(), "btn primary"),
+        button(t("randomButton"), () => this.randomize(), "btn"),
+        button(t("resetButton"), () => this.reset(), "btn ghost"),
+        button(t("cancelButton"), () => this.cancel(), "btn ghost"),
+        button(t("saveButton"), () => this.save(), "btn primary"),
       ]),
     ]);
   }
@@ -492,22 +493,22 @@ export class CharacterCreator {
     switch (tab) {
       case "body":
         return [
-          this.choiceField("body", "Silhouette", AVATAR_OPTIONS.body),
-          this.choiceField("build", "Carrure", AVATAR_OPTIONS.build),
+          this.choiceField("body", t("legendBody"), AVATAR_OPTIONS.body),
+          this.choiceField("build", t("legendBuild"), AVATAR_OPTIONS.build),
           this.heightField(),
-          this.colorField("skinTone", "Teinte de peau", SKIN_TONES),
+          this.colorField("skinTone", t("legendSkinTone"), SKIN_TONES),
         ];
       case "hair":
-        return [this.choiceField("hairStyle", "Coiffure", AVATAR_OPTIONS.hairStyle), this.beardField(), this.colorField("hairColor", "Couleur des cheveux", HAIR_COLORS)];
+        return [this.choiceField("hairStyle", t("legendHairStyle"), AVATAR_OPTIONS.hairStyle), this.beardField(), this.colorField("hairColor", t("legendHairColor"), HAIR_COLORS)];
       case "outfit":
         return [
-          this.colorField("topColor", "Gilet", CLOTH_COLORS),
-          this.colorField("topAccent", "Chemise et ceintures", CLOTH_COLORS),
-          this.colorField("bottomColor", "Pantalon", CLOTH_COLORS),
-          this.colorField("shoesColor", "Bottes", CLOTH_COLORS),
+          this.colorField("topColor", t("legendTop"), CLOTH_COLORS),
+          this.colorField("topAccent", t("legendTopAccent"), CLOTH_COLORS),
+          this.colorField("bottomColor", t("legendBottom"), CLOTH_COLORS),
+          this.colorField("shoesColor", t("legendShoes"), CLOTH_COLORS),
         ];
       case "gear":
-        return [this.colorField("visorColor", "Optiques de vision nocturne", VISOR_COLORS)];
+        return [this.colorField("visorColor", t("legendVisor"), VISOR_COLORS)];
     }
   }
 
@@ -582,8 +583,8 @@ export class CharacterCreator {
   /** Barbe : deux puces exclusives, grisées sur la silhouette féminine (le modèle n'en a pas). */
   private beardField(): HTMLFieldSetElement {
     const chips = [
-      { value: false, label: "Sans barbe" },
-      { value: true, label: "Barbe" },
+      { value: false, label: t("beardNone") },
+      { value: true, label: t("beardYes") },
     ].map(({ value, label }) => {
       const chip = element("button", { className: "creator-chip", attributes: { type: "button", "aria-pressed": "false" } }, [element("span", { text: label })]);
       chip.addEventListener("click", () => this.applyField("beard", value, "now"));
@@ -596,13 +597,13 @@ export class CharacterCreator {
         if (chip.disabled === available) chip.disabled = !available;
       }
     });
-    return this.fieldset("Barbe", [element("div", { className: "creator-chips" }, chips.map(({ chip }) => chip))]);
+    return this.fieldset(t("legendBeard"), [element("div", { className: "creator-chips" }, chips.map(({ chip }) => chip))]);
   }
 
   private heightField(): HTMLFieldSetElement {
     const slider = element("input", {
       className: "creator-range",
-      attributes: { type: "range", min: String(HEIGHT_RANGE.min), max: String(HEIGHT_RANGE.max), step: "0.01", "aria-label": "Taille de l'agent" },
+      attributes: { type: "range", min: String(HEIGHT_RANGE.min), max: String(HEIGHT_RANGE.max), step: "0.01", "aria-label": t("heightAria") },
     });
     const readout = element("output", { className: "creator-range-value", attributes: { "aria-hidden": "true" } });
     const onSlide = (timing: ChangeTiming): void => {
@@ -624,7 +625,7 @@ export class CharacterCreator {
       slider.setAttribute("aria-valuetext", text);
       readout.textContent = text;
     });
-    return this.fieldset("Taille", [element("div", { className: "creator-range-row" }, [slider, readout])]);
+    return this.fieldset(t("legendHeight"), [element("div", { className: "creator-range-row" }, [slider, readout])]);
   }
 
   private colorField(field: ColorField, legend: string, presets: readonly ColorPreset[]): HTMLFieldSetElement {
@@ -638,7 +639,7 @@ export class CharacterCreator {
       return { value: preset.value, swatch };
     });
 
-    const picker = element("input", { className: "creator-picker", attributes: { type: "color", "aria-label": `${legend} : autre couleur (sélecteur libre)`, title: "Autre couleur" } });
+    const picker = element("input", { className: "creator-picker", attributes: { type: "color", "aria-label": t("customColorAria", { legend }), title: t("customColorTitle") } });
     const mark = element("span", { className: "creator-custom-mark", text: "+", attributes: { "aria-hidden": "true" } });
     const custom = element("label", { className: "creator-custom" }, [picker, mark]);
     const onPick = (timing: ChangeTiming): void => {
@@ -678,7 +679,7 @@ export class CharacterCreator {
       custom.classList.toggle("creator-custom-active", !matched);
       custom.style.background = matched ? "" : current;
       mark.textContent = matched ? "+" : "✓";
-      picker.setAttribute("aria-label", matched ? `${legend} : autre couleur (sélecteur libre)` : `${legend} : couleur personnalisée ${current}, sélectionnée`);
+      picker.setAttribute("aria-label", matched ? t("customColorAria", { legend }) : t("customColorSelectedAria", { legend, color: current }));
       if (picker.value !== current) picker.value = current;
     });
     return this.fieldset(legend, [element("div", { className: "creator-swatches" }, [...swatches.map(({ swatch }) => swatch), custom])]);

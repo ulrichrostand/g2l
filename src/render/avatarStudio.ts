@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { DEFAULT_AVATAR, HEIGHT_RANGE, parseAvatarConfig, type AvatarConfig, type BodyType } from "../avatar/avatarConfig";
 import { HumanCharacter, type HumanCharacterAsset } from "../avatar/humanCharacter";
+import { t } from "../i18n/messages/creator";
 
 /** "side" : interface à gauche (ordinateur, paysage) ; "bottom" : feuille en bas (téléphone en portrait). */
 export type StudioLayout = "side" | "bottom";
@@ -261,7 +262,7 @@ export class AvatarStudio {
         // Autorise un nouvel essai au prochain changement de silhouette.
         this.requestedBody = this.character?.body ?? null;
         console.error("Modèle de l'agent indisponible pour l'aperçu.", error);
-        this.onPreviewError("Aperçu 3D indisponible (connexion ?) : tes choix seront quand même enregistrés.");
+        this.onPreviewError(t("previewUnavailable"));
       });
   }
 
