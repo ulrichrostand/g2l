@@ -2,8 +2,12 @@ import * as THREE from "three";
 import { Tile, type Cell, type Grid } from "../core/grid";
 import { SeededRandom } from "../core/rng";
 import type { QualityProfile } from "../core/settings";
-import type { LevelLayout, Room } from "./generator";
+import type { LevelLayout } from "./generator";
+import { addPosters } from "../ads/posterScene";
+import { placePosters } from "../ads/placement";
+import type { Sponsor } from "../ads/sponsors";
 import { roomCenter } from "./generator";
+import { AMBIENT_LIGHT, LIGHT_LEVELS, assignRoomLightLevels, canFlicker, type LightLevelSpec } from "./lighting";
 
 export const WALL_HEIGHT = 1.8;
 const COVER_HEIGHT = 1.15;
@@ -14,6 +18,8 @@ export interface LevelVisualOptions {
   accent: THREE.Color;
   profile: QualityProfile;
   seed: number;
+  /** Annonceurs à afficher sur les murs ; vide ou absent = aucune affiche. */
+  sponsors?: readonly Sponsor[];
 }
 
 /** Éléments animés du décor (néons qui grésillent, LED, poussière). */
@@ -47,6 +53,8 @@ export function buildLevelScene(scene: THREE.Scene, layout: LevelLayout, options
   scene.add(createFloorDetails(random, grid, layout, options.accent));
   for (const slot of layout.terminals) scene.add(createHazardDecal(slot.accessCell));
   const lights = addLighting(scene, random, layout, options);
+  // Générateur dédié : changer les annonces ne doit pas déplacer les néons ni le reste du décor.
+  addPosters(scene, placePosters(layout, options.sponsors ?? [], new SeededRandom(options.seed ^ 0xad5)));
   const dust = options.profile.dustParticles > 0 ? createDust(random, grid, options.profile.dustParticles) : null;
   if (dust) scene.add(dust);
 
@@ -380,7 +388,7 @@ interface FlickeringLight {
   light: THREE.PointLight;
   fixture: THREE.MeshBasicMaterial;
   pool: THREE.MeshBasicMaterial;
-  baseIntensity: number;
+  spec: LightLevelSpec;
   flickers: boolean;
   phase: number;
 }
@@ -395,8 +403,8 @@ function addLighting(
   layout: LevelLayout,
   options: LevelVisualOptions,
 ): { update(elapsedSeconds: number): void } {
-  scene.add(new THREE.HemisphereLight(0x6f8cab, 0x0d1217, 0.6));
-  const moonlight = new THREE.DirectionalLight(0x8fb4ff, 0.35);
+  scene.add(new THREE.HemisphereLight(0x6f8cab, 0x0d1217, AMBIENT_LIGHT.hemisphereIntensity));
+  const moonlight = new THREE.DirectionalLight(0x8fb4ff, AMBIENT_LIGHT.moonlightIntensity);
   moonlight.position.set(10, 20, 6);
   scene.add(moonlight);
 
@@ -405,21 +413,21 @@ function addLighting(
   const poolGeometry = new THREE.PlaneGeometry(6, 6);
   const warm = new THREE.Color(0xffb46b);
   const lit: FlickeringLight[] = [];
-  const litRooms = random
-    .shuffle(layout.rooms.filter((room) => room !== layout.rooms[0]))
-    .slice(0, Math.max(0, options.profile.roomLights - 1));
-  // La salle de départ est toujours éclairée : premier contact rassurant pour le joueur.
-  const rooms: Room[] = [layout.rooms[0] as Room, ...litRooms];
+  const levels = assignRoomLightLevels(layout.rooms.length, options.profile.roomLights, random);
 
-  rooms.forEach((room, index) => {
-    const color = index % 3 === 2 ? warm.clone() : options.accent.clone().lerp(new THREE.Color(0xffffff), 0.35);
+  layout.rooms.forEach((room, roomIndex) => {
+    const level = levels[roomIndex] ?? "off";
+    // Salle sans néon : ni source, ni réglette, ni flaque. L'ambiance seule l'éclaire.
+    if (level === "off") return;
+    const spec = LIGHT_LEVELS[level];
+    const color = lit.length % 3 === 2 ? warm.clone() : options.accent.clone().lerp(new THREE.Color(0xffffff), 0.35);
     // Réglette décalée vers le fond de la salle : vue de la caméra, elle ne masque jamais un personnage au centre.
     const center = cellToWorld(roomCenter(room)).add(new THREE.Vector3(0, 0, -Math.min(1.5, room.height / 2 - 1)));
-    const light = new THREE.PointLight(color, 9, 10, 1.6);
+    const light = new THREE.PointLight(color, spec.intensity, 10, 1.6);
     light.position.set(center.x, LIGHT_FIXTURE_HEIGHT - 0.2, center.z);
     scene.add(light);
 
-    const fixtureMaterial = new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(1.6) });
+    const fixtureMaterial = new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(spec.fixtureGlow) });
     const fixture = new THREE.Mesh(fixtureGeometry, fixtureMaterial);
     fixture.position.set(center.x, LIGHT_FIXTURE_HEIGHT, center.z);
     scene.add(fixture);
@@ -428,7 +436,7 @@ function addLighting(
       map: poolTexture,
       color,
       transparent: true,
-      opacity: 0.22,
+      opacity: spec.poolOpacity,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
@@ -437,7 +445,7 @@ function addLighting(
     pool.position.set(center.x, 0.01, center.z);
     scene.add(pool);
 
-    lit.push({ light, fixture: fixtureMaterial, pool: poolMaterial, baseIntensity: 9, flickers: index > 0 && random.next() < 0.35, phase: random.next() * 10 });
+    lit.push({ light, fixture: fixtureMaterial, pool: poolMaterial, spec, flickers: roomIndex > 0 && canFlicker(level) && random.next() < 0.35, phase: random.next() * 10 });
   });
 
   return {
@@ -447,9 +455,9 @@ function addLighting(
         // Néon fatigué : quelques coupures brèves et irrégulières, pas un clignotement régulier.
         const signal = Math.sin(elapsedSeconds * 13 + entry.phase) * Math.sin(elapsedSeconds * 7.3 + entry.phase * 2);
         const level = signal > 0.82 ? 0.15 : 1;
-        entry.light.intensity = entry.baseIntensity * level;
-        entry.fixture.color.copy(entry.light.color).multiplyScalar(1.6 * level);
-        entry.pool.opacity = 0.22 * level;
+        entry.light.intensity = entry.spec.intensity * level;
+        entry.fixture.color.copy(entry.light.color).multiplyScalar(entry.spec.fixtureGlow * level);
+        entry.pool.opacity = entry.spec.poolOpacity * level;
       }
     },
   };

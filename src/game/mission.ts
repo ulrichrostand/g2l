@@ -25,6 +25,7 @@ import { SecurityCamera } from "../entities/securityCamera";
 import { Player, type Posture } from "../entities/player";
 import { ExtractionZone, HackTerminal } from "../entities/terminal";
 import { generateLevel, type LevelLayout, type Room } from "../level/generator";
+import { sponsorsToShow } from "../ads/sponsors";
 import { accentForModule, buildLevelScene, cellToWorld, disposeScene, type LevelVisuals } from "../level/levelScene";
 import type { MissionDifficulty } from "./difficulty";
 import { t } from "../i18n/messages/mission";
@@ -328,6 +329,7 @@ export class Mission {
       accent: accentForModule(options.moduleIndex),
       profile: options.quality,
       seed,
+      sponsors: sponsorsToShow(new Date()),
     });
     this.shadowLight = options.quality.shadows ? createShadowLight() : null;
     if (this.shadowLight) this.scene.add(this.shadowLight, this.shadowLight.target);

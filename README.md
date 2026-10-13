@@ -224,6 +224,15 @@ première visite sur l'accueil français, un navigateur anglophone est redirigé
 - Sécurité : tout le texte passe par `textContent` (aucun `innerHTML`), CSP stricte dans chaque page HTML (`jeux/devops/index.html`, `index.html`) (`connect-src 'self' blob:` : le `GLTFLoader` décode les textures
   intégrées au `.glb` via des URL `blob:` créées par la page elle-même), sauvegarde locale validée avant usage.
 
+## Affiches publicitaires et éclairage
+
+**Affiches** (`src/ads/`) : des affiches texte sont accrochées au mur nord de quelques salles (4 par niveau au plus, une par salle, jamais sur une caméra ni un terminal).
+- Les annonceurs se déclarent dans **un seul fichier** : `src/ads/sponsors.ts` (`SPONSORS`), avec dates de début/fin, accroche FR/EN, adresse https et couleur. Un test (`sponsorProblems`) refuse une annonce invalide.
+- Sans annonceur actif, l'affiche « Votre annonce ici » s'affiche à la place.
+- Chaque affiche porte la mention « PUBLICITÉ » / « ADVERTISEMENT ». Elle est dessinée en canvas : aucun script, aucune requête, aucun clic, aucun suivi, donc rien à ajouter dans la CSP.
+
+**Éclairage** (`src/level/lighting.ts`) : chaque salle a un niveau `off`, `dim`, `normal` ou `bright` (valeurs dans `LIGHT_LEVELS`). La salle de départ est toujours `normal`, le nombre de salles allumées est plafonné par la qualité graphique, et l'ambiance (`AMBIENT_LIGHT`) garantit que les salles sans néon restent lisibles.
+
 ## Ressources 3D et licences
 
 | Ressource | Auteur | Licence | Fichier |
