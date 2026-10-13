@@ -1,5 +1,378 @@
 import type { Scenario } from "../types";
-import { SCENARIOS_FR } from "../fr/scenarios";
 
-/** Provisoire : repris du français tant que la traduction n'est pas faite (voir tests/contentLanguages.test.ts). */
-export const SCENARIOS_EN: Record<string, Scenario> = SCENARIOS_FR;
+/**
+ * One hands-on intervention per module: the sector's "main console".
+ * Patterns apply to the normalized command (without "sudo", quotes unified to ").
+ */
+export const SCENARIOS_EN: Record<string, Scenario> = {
+  genesis: {
+    title: "First contact with a server",
+    context: "You are logged in for the first time to the terminal of a Helix Corp server. Get to know it.",
+    steps: [
+      { goal: "Say hello: display the text Hello with the echo command.", exam: "Which command displays the text Hello on screen?", accepted: ['echo "Hello"', "echo Hello"], output: ["Hello"] },
+      { goal: "Ask the server which user you are logged in as: the command is called whoami (\"who am I\").", exam: "Which command displays the name of the user you are logged in as?", accepted: ["whoami"], output: ["spectre"] },
+      { goal: "Display the server's date and time with the date command.", exam: "Which command displays the server's date and time?", accepted: ["date"], output: ["Thu Oct  8 22:14:07 UTC 2026"] },
+      { goal: "The screen is cluttered: clear it with clear.", exam: "Which command clears the terminal screen?", accepted: ["clear"], output: [] },
+    ],
+    debrief: "echo displays text, whoami shows your user, date shows the time, clear cleans the screen. You just drove a server without a mouse.",
+  },
+  kernel: {
+    title: "Install a web server",
+    context: "Helix Corp's web server has vanished. Find your way around the system, then install and check nginx.",
+    steps: [
+      { goal: "Where are you? Display the current folder with pwd.", exam: "Which command displays the folder you are in?", accepted: ["pwd"], output: ["/home/spectre"] },
+      { goal: "Go to the logs folder: cd /var/log", exam: "Which command takes you to the /var/log folder?", accepted: ["cd /var/log", "cd /var/log/"], output: [] },
+      { goal: "List its contents with ls.", exam: "Which command lists the contents of the current folder?", accepted: ["ls", "ls -l", "ls -la", "ls -al", "ls -lh"], output: ["apt  auth.log  dpkg.log  nginx  syslog"] },
+      {
+        goal: "The nginx folder is empty: the software is not installed. Install it with sudo apt install nginx.",
+        exam: "On Ubuntu, which command installs the nginx software? (sudo is optional)",
+        accepted: ["apt install nginx", "apt-get install nginx", "apt install -y nginx", "apt-get install -y nginx"],
+        output: ["Reading package lists... Done", "The following NEW packages will be installed: nginx", "Setting up nginx (1.24.0-2ubuntu7) ..."],
+      },
+      {
+        goal: "Check that the service is running: systemctl status nginx",
+        exam: "Which command checks whether the nginx service is running?",
+        accepted: ["systemctl status nginx", "systemctl status nginx.service"],
+        output: ["● nginx.service - A high performance web server and a reverse proxy server", "     Loaded: loaded (/usr/lib/systemd/system/nginx.service; enabled)", "     Active: active (running) since Thu 2026-10-08 22:16:41 UTC; 4s ago"],
+      },
+    ],
+    debrief: "pwd = where am I, cd = move around, ls = list, apt install = install, systemctl status = check a service. This is the daily life of a Linux admin.",
+  },
+  shell: {
+    title: "Investigate the logs",
+    context: "The application has been crashing since this morning. Dig through the logs, then run the cleanup script.",
+    steps: [
+      { goal: "Go to /var/log with cd.", accepted: ["cd /var/log", "cd /var/log/"], output: [] },
+      {
+        goal: "Display the lines containing ERROR in app.log with grep.",
+        exam: "Which command displays the lines containing ERROR in the app.log file?",
+        accepted: ["grep ERROR app.log", 'grep "ERROR" app.log'],
+        output: ["08:12:03 ERROR disk full (/tmp)", "08:12:09 ERROR cannot write: session.tmp", "08:13:44 ERROR cleanup job failed"],
+      },
+      { goal: "How many are there? Add the -c option (count): grep -c ERROR app.log", exam: "Which command counts the lines containing ERROR in app.log?", accepted: ["grep -c ERROR app.log", 'grep -c "ERROR" app.log'], output: ["3"] },
+      {
+        goal: "The script /opt/clean.sh refuses to run (\"Permission denied\"). Make it executable: chmod +x /opt/clean.sh",
+        exam: "The script /opt/clean.sh answers \"Permission denied\". Which command makes it executable?",
+        accepted: ["chmod +x /opt/clean.sh", "chmod u+x /opt/clean.sh", "chmod 755 /opt/clean.sh"],
+        output: [],
+      },
+      { goal: "Run it with its full path: /opt/clean.sh", exam: "Which command runs the script /opt/clean.sh?", accepted: ["/opt/clean.sh"], output: ["Cleanup complete: 42 temporary files deleted, 3.1 GB freed."] },
+      { goal: "Check live that the errors have stopped: tail -f app.log", exam: "Which command follows the new lines added to app.log live?", accepted: ["tail -f app.log", "tail -F app.log"], output: ["08:20:01 INFO cleanup job OK", "08:20:15 INFO session saved", "(Ctrl+C to stop following)"] },
+    ],
+    debrief: "grep finds, grep -c counts, chmod +x allows execution, tail -f watches live: the classic incident diagnosis.",
+  },
+  branch: {
+    title: "Publish a fix",
+    context: "You fixed a bug in login.js. Publish this fix cleanly, on a dedicated branch.",
+    steps: [
+      { goal: "Check the state of the repository with git status.", exam: "Which command shows the modified files of a Git repository?", accepted: ["git status"], output: ["On branch main", "Changes not staged for commit:", "        modified:   login.js"] },
+      {
+        goal: "Create a branch fix-login and switch to it: git switch -c fix-login",
+        exam: "Which command creates the branch fix-login and switches to it?",
+        accepted: ["git switch -c fix-login", "git checkout -b fix-login"],
+        output: ["Switched to a new branch 'fix-login'"],
+      },
+      { goal: "Add login.js to the next version: git add login.js", exam: "Which command adds login.js to the next version (the next commit)?", accepted: ["git add login.js", "git add .", "git add -A"], output: [] },
+      {
+        goal: 'Save the version with a message in quotes: git commit -m "fix login"',
+        exam: 'Which command saves a version with the message "fix login"?',
+        accepted: ['git commit -m "fix login"'],
+        patterns: ['git commit -m ".+"'],
+        output: ["[fix-login 3e1f9a2] fix login", " 1 file changed, 4 insertions(+), 2 deletions(-)"],
+      },
+      {
+        goal: "Send the branch to GitHub: git push -u origin fix-login",
+        exam: "Which command sends the fix-login branch to the remote repository origin?",
+        accepted: ["git push -u origin fix-login", "git push origin fix-login", "git push --set-upstream origin fix-login"],
+        output: ["remote: Create a pull request for 'fix-login' on GitHub by visiting:", "remote:      https://github.com/helix-corp/app/pull/new/fix-login", " * [new branch]      fix-login -> fix-login"],
+      },
+    ],
+    debrief: "status, branch, add, commit, push: every developer's routine. All that is left is to open the Pull Request.",
+  },
+  packet: {
+    title: "Network diagnosis",
+    context: "Users say helix.local no longer responds. Check each layer: network, DNS, web, SSH access.",
+    steps: [
+      {
+        goal: "Does the machine respond? Send 3 pings: ping -c 3 helix.local",
+        exam: "Which command checks that the machine helix.local responds, by sending it 3 packets?",
+        accepted: ["ping -c 3 helix.local", "ping helix.local"],
+        patterns: ["ping -c \\d+ helix\\.local"],
+        output: ["64 bytes from 10.0.0.5: icmp_seq=1 ttl=64 time=0.42 ms", "64 bytes from 10.0.0.5: icmp_seq=2 ttl=64 time=0.39 ms", "3 packets transmitted, 3 received, 0% packet loss"],
+      },
+      {
+        goal: "Which IP address hides behind this name? Ask the DNS: dig helix.local",
+        exam: "Which command queries the DNS to find the IP address of helix.local?",
+        accepted: ["dig helix.local", "nslookup helix.local", "dig +short helix.local"],
+        output: [";; ANSWER SECTION:", "helix.local.		300	IN	A	10.0.0.5"],
+      },
+      {
+        goal: "Does the website respond? Ask only for the HTTP headers: curl -I http://helix.local",
+        exam: "Which command asks only for the HTTP headers of http://helix.local?",
+        accepted: ["curl -I http://helix.local", "curl -I helix.local", "curl --head http://helix.local"],
+        output: ["HTTP/1.1 502 Bad Gateway", "Server: nginx/1.24.0"],
+      },
+      { goal: "Error 502: the application behind nginx is down. Log in to the server: ssh deploy@10.0.0.5", exam: "Which command logs you in to the server 10.0.0.5 as the user deploy?", accepted: ["ssh deploy@10.0.0.5", "ssh -l deploy 10.0.0.5"], output: ["Welcome to Ubuntu 24.04.1 LTS", "deploy@helix:~$"] },
+      { goal: "Restart the application: sudo systemctl restart helix-app", exam: "Which command restarts the helix-app service?", accepted: ["systemctl restart helix-app", "systemctl restart helix-app.service"], output: [] },
+      { goal: "Close the SSH connection with exit.", exam: "Which command closes an SSH connection?", accepted: ["exit", "logout"], output: ["logout", "Connection to 10.0.0.5 closed."] },
+    ],
+    debrief: "ping (does the machine respond?), dig (is the name right?), curl (does the web respond?), ssh (we step in). You go down layer by layer to the cause.",
+  },
+  gateway: {
+    title: "Bring the gateway back online",
+    context: "The nginx configuration was changed and the HTTPS port is blocked. Put everything back in order without taking the site down.",
+    steps: [
+      { goal: "Test the configuration first: sudo nginx -t", exam: "Which command tests the nginx configuration without applying it?", accepted: ["nginx -t"], output: ["nginx: the configuration file /etc/nginx/nginx.conf syntax is ok", "nginx: configuration file /etc/nginx/nginx.conf test is successful"] },
+      { goal: "Reload nginx without cutting connections: sudo systemctl reload nginx", exam: "Which command reloads nginx without cutting the connections in progress?", accepted: ["systemctl reload nginx", "nginx -s reload"], output: [] },
+      { goal: "Look at the firewall rules: sudo ufw status", exam: "Which command displays the ufw firewall rules?", accepted: ["ufw status", "ufw status verbose", "ufw status numbered"], output: ["Status: active", "To                         Action      From", "22/tcp                     ALLOW       10.0.0.0/8", "80/tcp                     ALLOW       Anywhere"] },
+      { goal: "Port 443 (HTTPS) is not open. Allow it: sudo ufw allow 443/tcp", exam: "Which command opens port 443 (HTTPS) in the ufw firewall?", accepted: ["ufw allow 443/tcp", "ufw allow 443", "ufw allow https"], output: ["Rule added", "Rule added (v6)"] },
+      { goal: "Check that the site responds over HTTPS: curl -I https://helix.local", exam: "Which command checks that https://helix.local responds, asking only for the headers?", accepted: ["curl -I https://helix.local", "curl --head https://helix.local"], output: ["HTTP/2 200", "server: nginx/1.24.0", "content-type: text/html"] },
+    ],
+    debrief: "Always test (nginx -t) before reloading, and only open the ports you need in the firewall (ufw allow 443/tcp).",
+  },
+  container: {
+    title: "Deploy an application in a container",
+    context: "Helix's API must be rebuilt and restarted in Docker, reachable on port 8080.",
+    steps: [
+      { goal: "List the running containers: docker ps", exam: "Which command lists the Docker containers that are running?", accepted: ["docker ps", "docker container ls"], output: ["CONTAINER ID   IMAGE         STATUS         PORTS                NAMES", "3f2a1c9e8b7d   nginx:1.27    Up 3 hours     0.0.0.0:80->80/tcp   web"] },
+      {
+        goal: "Build the API image from the Dockerfile in the current folder: docker build -t api:1.0 .",
+        exam: "Which command builds the image api:1.0 from the Dockerfile in the current folder?",
+        accepted: ["docker build -t api:1.0 .", "docker build --tag api:1.0 ."],
+        output: ["[+] Building 12.4s (9/9) FINISHED", " => naming to docker.io/library/api:1.0"],
+      },
+      {
+        goal: "Run it in the background, named api, with the machine's port 8080 mapped to 80: docker run -d -p 8080:80 --name api api:1.0",
+        exam: "Which command runs the image api:1.0 in the background, named api, with the machine's port 8080 linked to the container's port 80?",
+        accepted: ["docker run -d -p 8080:80 --name api api:1.0"],
+        patterns: ["docker run (?=(?:.* )?(?:-d|--detach) )(?=(?:.* )?(?:-p|--publish) 8080:80 )(?=(?:.* )?--name api ).* api:1\\.0"],
+        output: ["9c1d4e7a2b3f5d8e6a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f"],
+      },
+      { goal: "Read its logs to check that it started: docker logs api", exam: "Which command displays the logs of the api container?", accepted: ["docker logs api", "docker container logs api"], output: ["[api] Database connection: OK", "[api] Server listening on :80"] },
+      { goal: "Test it from the machine: curl http://localhost:8080/health", exam: "Which command tests the address http://localhost:8080/health?", accepted: ["curl http://localhost:8080/health", "curl localhost:8080/health"], output: ['{"status":"ok","version":"1.0"}'] },
+    ],
+    debrief: "build (make the image), run -d -p (start and expose), logs (check), curl (test): the life cycle of a container.",
+  },
+  nimbus: {
+    title: "First steps with AWS cloud",
+    context: "You received access to Helix's AWS account. Check your identity, then put a backup in a safe place in S3 storage.",
+    steps: [
+      { goal: "Check that the AWS tool is installed: aws --version", exam: "Which command checks that the AWS tool is installed, by displaying its version?", accepted: ["aws --version"], output: ["aws-cli/2.17.40 Python/3.12.6 Linux/6.8.0 exe/x86_64.ubuntu.24"] },
+      {
+        goal: "Who are you for AWS? Ask for your identity: aws sts get-caller-identity",
+        exam: "Which AWS command displays the identity you are logged in with?",
+        accepted: ["aws sts get-caller-identity"],
+        output: ["{", '    "Account": "123456789012",', '    "Arn": "arn:aws:iam::123456789012:user/spectre"', "}"],
+      },
+      { goal: "List the S3 storage spaces (buckets): aws s3 ls", exam: "Which command lists your S3 buckets?", accepted: ["aws s3 ls"], output: ["2026-03-12 09:41:02 helix-backups", "2026-05-02 14:03:55 helix-website"] },
+      {
+        goal: "Upload the file backup.sql to the bucket helix-backups: aws s3 cp backup.sql s3://helix-backups/",
+        exam: "Which command uploads the file backup.sql to the S3 bucket helix-backups?",
+        accepted: ["aws s3 cp backup.sql s3://helix-backups/", "aws s3 cp backup.sql s3://helix-backups"],
+        output: ["upload: ./backup.sql to s3://helix-backups/backup.sql"],
+      },
+      { goal: "Check that it arrived: aws s3 ls s3://helix-backups/", exam: "Which command lists the contents of the S3 bucket helix-backups?", accepted: ["aws s3 ls s3://helix-backups/", "aws s3 ls s3://helix-backups"], output: ["2026-10-08 22:31:12   48213760 backup.sql"] },
+    ],
+    debrief: "In the cloud too, everything is driven from the command line: check your identity (IAM), then handle the resources (here, S3 storage).",
+  },
+  blueprint: {
+    title: "Build the infrastructure with Terraform",
+    context: "The file main.tf describes 2 servers. Have Terraform create them, cleanly and checking each step.",
+    steps: [
+      { goal: "Prepare the project (plugin download): terraform init", exam: "Which command prepares a Terraform project (plugin download)?", accepted: ["terraform init"], output: ["Initializing provider plugins...", "Terraform has been successfully initialized!"] },
+      { goal: "Reformat the code automatically: terraform fmt", exam: "Which command automatically reformats the Terraform code?", accepted: ["terraform fmt"], output: ["main.tf"] },
+      { goal: "Check that the configuration is valid: terraform validate", exam: "Which command checks that the Terraform configuration is valid?", accepted: ["terraform validate"], output: ["Success! The configuration is valid."] },
+      {
+        goal: "See what is going to be created, without touching anything: terraform plan",
+        exam: "Which Terraform command shows what is going to be created, without changing anything?",
+        accepted: ["terraform plan", "terraform plan -out=tfplan", "terraform plan -out tfplan"],
+        output: ["  + aws_instance.web[0]", "  + aws_instance.web[1]", "Plan: 2 to add, 0 to change, 0 to destroy."],
+      },
+      {
+        goal: "The plan looks good: apply it with terraform apply",
+        exam: "Which Terraform command actually creates the described resources?",
+        accepted: ["terraform apply", "terraform apply -auto-approve", "terraform apply tfplan"],
+        output: ["aws_instance.web[0]: Creation complete after 31s", "aws_instance.web[1]: Creation complete after 33s", "Apply complete! Resources: 2 added, 0 changed, 0 destroyed."],
+      },
+    ],
+    debrief: "init, fmt, validate, plan, apply. You always read the plan before applying: it is the safety net of infrastructure as code.",
+  },
+  puppeteer: {
+    title: "Configure a whole fleet with Ansible",
+    context: "Three web servers must receive nginx. The inventory inventory.ini and the playbook site.yml are ready.",
+    steps: [
+      {
+        goal: "Check that Ansible can reach all the servers with the ping module: ansible all -i inventory.ini -m ping",
+        exam: "Which command checks that Ansible can reach all the servers in inventory.ini, with the ping module?",
+        accepted: ["ansible all -i inventory.ini -m ping", "ansible -i inventory.ini all -m ping"],
+        output: ['web1 | SUCCESS => {"ping": "pong"}', 'web2 | SUCCESS => {"ping": "pong"}', 'web3 | SUCCESS => {"ping": "pong"}'],
+      },
+      {
+        goal: "One-off command, without a playbook: ask all the servers how long they have been running with ansible all -i inventory.ini -a uptime",
+        exam: "Without writing a playbook, which command runs uptime on all the servers in inventory.ini?",
+        accepted: ["ansible all -i inventory.ini -a uptime", 'ansible all -i inventory.ini -a "uptime"', "ansible -i inventory.ini all -a uptime", 'ansible -i inventory.ini all -a "uptime"'],
+        patterns: ['ansible (all -i inventory\\.ini|-i inventory\\.ini all)( -m (ansible\\.builtin\\.)?(command|shell))? -a "?uptime"?'],
+        output: ["web1 | CHANGED | rc=0 >>", " 22:40:01 up 41 days,  3:12,  0 users,  load average: 0.08, 0.05, 0.01", "web2 | CHANGED | rc=0 >>", " 22:40:01 up 41 days,  3:12,  0 users,  load average: 0.11, 0.07, 0.02"],
+      },
+      {
+        goal: "Simulate the playbook without changing anything (option --check): ansible-playbook -i inventory.ini site.yml --check",
+        exam: "Which command simulates the playbook site.yml (inventory inventory.ini) without changing anything?",
+        accepted: ["ansible-playbook -i inventory.ini site.yml --check", "ansible-playbook site.yml -i inventory.ini --check", "ansible-playbook -i inventory.ini site.yml --check --diff"],
+        output: ["PLAY RECAP", "web1 : ok=3 changed=2 failed=0", "web2 : ok=3 changed=2 failed=0", "web3 : ok=3 changed=2 failed=0"],
+      },
+      {
+        goal: "Everything is consistent: run it for real (without --check).",
+        exam: "Which command really runs the playbook site.yml with the inventory inventory.ini?",
+        accepted: ["ansible-playbook -i inventory.ini site.yml", "ansible-playbook site.yml -i inventory.ini"],
+        output: ["TASK [Install nginx] changed: [web1] changed: [web2] changed: [web3]", "PLAY RECAP", "web1 : ok=3 changed=2 failed=0"],
+      },
+      {
+        goal: "Run exactly the same command again. Thanks to idempotence, nothing should change.",
+        accepted: ["ansible-playbook -i inventory.ini site.yml", "ansible-playbook site.yml -i inventory.ini"],
+        output: ["TASK [Install nginx] ok: [web1] ok: [web2] ok: [web3]", "PLAY RECAP", "web1 : ok=3 changed=0 failed=0   <- nothing to redo"],
+      },
+    ],
+    debrief: "ping, one-off command (-a), --check, run, re-run with no effect: you just saw idempotence in action. Re-running a playbook is safe; a one-off command, however, is not always idempotent.",
+  },
+  pipeline: {
+    title: "Fix a broken CI pipeline",
+    context: "Your push triggered the CI, and it is red. Find out why and fix it before it goes to production.",
+    steps: [
+      { goal: "List the latest pipeline runs with the GitHub tool: gh run list", exam: "With the gh tool, which command lists the latest pipeline runs?", accepted: ["gh run list"], output: ["STATUS  TITLE              WORKFLOW  BRANCH     ID", "X       fix login          CI        fix-login  4242", "✓       add the page       CI        main       4231"] },
+      {
+        goal: "Display the logs of the failed step: gh run view 4242 --log-failed",
+        exam: "Which gh command displays only the failed logs of run 4242?",
+        accepted: ["gh run view 4242 --log-failed"],
+        patterns: ["gh run view( 4242)? --log-failed"],
+        output: ["test  ✕ login rejects an empty password", "test    Expected: 400   Received: 500", "test  Tests: 1 failed, 41 passed"],
+      },
+      { goal: "Reproduce the failure locally: npm test", exam: "Which command runs the tests of a Node.js project?", accepted: ["npm test", "npm run test"], output: ["FAIL  tests/login.test.js", "  ✕ login rejects an empty password", "Tests: 1 failed, 41 passed, 42 total"] },
+      { goal: "You fixed login.js. Run the tests again to prove it: npm test", accepted: ["npm test", "npm run test"], output: ["PASS  tests/login.test.js", "Tests: 42 passed, 42 total"] },
+      {
+        goal: 'Save the fix (option -a includes the modified files): git commit -am "fix: empty password"',
+        exam: "Which command saves all the modified files in a commit, with a message, in one go?",
+        accepted: ['git commit -am "fix: empty password"'],
+        patterns: ['git commit -am ".+"', 'git commit -a -m ".+"'],
+        output: ["[fix-login 8b2c4d1] fix: empty password", " 1 file changed, 3 insertions(+)"],
+      },
+      { goal: "Push: the CI will run again automatically. git push", exam: "The branch already tracks the remote repository: which command sends your new commits to it?", accepted: ["git push", "git push origin fix-login"], output: ["To github.com:helix-corp/app.git", "   3e1f9a2..8b2c4d1  fix-login -> fix-login"] },
+    ],
+    debrief: "When the CI is red: read the failure log, reproduce locally, fix, prove it with the tests, push again. You never work around a red CI.",
+  },
+  vault: {
+    title: "Put a secret in the vault",
+    context: "An API key is lying around in plain text in the code. Store it in Vault, then check that no trace of it is left.",
+    steps: [
+      { goal: "Check that the vault is open and ready: vault status", exam: "Which command checks the state of the Vault?", accepted: ["vault status"], output: ["Key             Value", "Sealed          false", "Version         1.17.3"] },
+      {
+        goal: "Store the key: vault kv put secret/api key=s3cr3t-2026",
+        exam: "Which command stores key=s3cr3t-2026 in Vault, at the path secret/api?",
+        accepted: ["vault kv put secret/api key=s3cr3t-2026"],
+        patterns: ["vault kv put secret/api key=\\S+"],
+        output: ["== Secret Path ==", "secret/data/api", "version    1"],
+      },
+      { goal: "Read it back to check: vault kv get secret/api", exam: "Which command reads back the secret secret/api in Vault?", accepted: ["vault kv get secret/api"], output: ["====== Data ======", "Key    Value", "key    s3cr3t-2026"] },
+      {
+        goal: "Look for any key still hard-coded in the code (recursive in the current folder): grep -r s3cr3t .",
+        exam: "Which command searches for the text s3cr3t in all the files of the current folder and its subfolders?",
+        accepted: ["grep -r s3cr3t .", 'grep -r "s3cr3t" .', "grep -rn s3cr3t ."],
+        output: ["./src/config.js:3:const API_KEY = 's3cr3t-2026';"],
+      },
+      {
+        goal: "It is still in config.js! Delete this config file that is no longer needed: git rm src/config.js",
+        exam: "Which command removes src/config.js from the Git repository?",
+        accepted: ["git rm src/config.js"],
+        output: ["rm 'src/config.js'"],
+      },
+    ],
+    debrief: "The secret now lives in Vault, no longer in the code. And since it was committed in the past, you will also have to revoke it and generate a new one.",
+  },
+  helm: {
+    title: "Rescue a crashing pod",
+    context: "The API keeps restarting in a loop in Kubernetes. Find the cause and fix the deployment.",
+    steps: [
+      {
+        goal: "List the pods: kubectl get pods",
+        exam: "Which command lists the Kubernetes pods?",
+        accepted: ["kubectl get pods", "kubectl get pod", "kubectl get po"],
+        output: ["NAME                   READY   STATUS             RESTARTS   AGE", "api-7d9f8c6b5-x2k4p    0/1     CrashLoopBackOff   7          12m", "web-5c8d7f9b4-qm7nz    1/1     Running            0          3h"],
+      },
+      {
+        goal: "Look at the events of the failing pod: kubectl describe pod api-7d9f8c6b5-x2k4p",
+        exam: "Which command displays the details and events of the pod api-7d9f8c6b5-x2k4p?",
+        accepted: ["kubectl describe pod api-7d9f8c6b5-x2k4p", "kubectl describe pods api-7d9f8c6b5-x2k4p", "kubectl describe po api-7d9f8c6b5-x2k4p"],
+        output: ["Events:", "  Warning  BackOff  Back-off restarting failed container api"],
+      },
+      {
+        goal: "Read its logs to find the error: kubectl logs api-7d9f8c6b5-x2k4p",
+        exam: "Which command displays the logs of the pod api-7d9f8c6b5-x2k4p?",
+        accepted: ["kubectl logs api-7d9f8c6b5-x2k4p", "kubectl logs api-7d9f8c6b5-x2k4p --previous", "kubectl logs -p api-7d9f8c6b5-x2k4p"],
+        output: ["Error: the DATABASE_URL variable is not set", "Process stopped (code 1)"],
+      },
+      {
+        goal: "You added DATABASE_URL in api-deployment.yaml. Apply this file: kubectl apply -f api-deployment.yaml",
+        exam: "Which command applies the file api-deployment.yaml to the Kubernetes cluster?",
+        accepted: ["kubectl apply -f api-deployment.yaml"],
+        output: ["deployment.apps/api configured"],
+      },
+      {
+        goal: "Follow the deployment until the end: kubectl rollout status deployment/api",
+        exam: "Which command follows the api deployment until it is finished?",
+        accepted: ["kubectl rollout status deployment/api", "kubectl rollout status deploy/api", "kubectl rollout status deployment api"],
+        output: ['Waiting for deployment "api" rollout to finish: 0 of 1 updated replicas are available...', 'deployment "api" successfully rolled out'],
+      },
+    ],
+    debrief: "get (see), describe (events), logs (cause), apply (fix), rollout status (check): the method for any pod in CrashLoopBackOff.",
+  },
+  sync: {
+    title: "Roll back a release with GitOps",
+    context: "The latest change to the configuration repository breaks the site. With GitOps, you fix things from Git, not from the cluster.",
+    steps: [
+      { goal: "Display the last 3 commits: git log --oneline -3", exam: "Which command displays the last 3 commits, one per line?", accepted: ["git log --oneline -3", "git log --oneline -n 3", "git log -3 --oneline"], output: ["a1b2c3d (HEAD -> main) switch the API to v2.0", "9f8e7d6 add a replica to the front end", "5c4b3a2 update nginx"] },
+      { goal: "Undo the last commit by creating an opposite commit: git revert HEAD", exam: "Which command undoes the last commit by creating an opposite commit?", accepted: ["git revert HEAD", "git revert a1b2c3d", "git revert --no-edit HEAD", "git revert --no-edit a1b2c3d"], output: ["[main e5f6a7b] Revert \"switch the API to v2.0\"", " 1 file changed, 1 insertion(+), 1 deletion(-)"] },
+      { goal: "Push the rollback: git push", accepted: ["git push", "git push origin main"], output: ["To github.com:helix-corp/config.git", "   a1b2c3d..e5f6a7b  main -> main"] },
+      { goal: "See what ArgoCD thinks of it: argocd app get helix", exam: "Which command displays the state of the application helix in ArgoCD?", accepted: ["argocd app get helix"], output: ["Name:          helix", "Sync Status:   OutOfSync from main (e5f6a7b)", "Health Status: Degraded"] },
+      { goal: "Ask for the synchronization: argocd app sync helix", exam: "Which command asks ArgoCD to synchronize the application helix?", accepted: ["argocd app sync helix"], output: ["Operation:     Sync", "Sync Status:   Synced to main (e5f6a7b)", "Health Status: Healthy"] },
+    ],
+    debrief: "The cluster follows Git: a single git revert is enough to go back, and the history keeps a trace of everything that happened.",
+  },
+  watchtower: {
+    title: "Investigate with monitoring tools",
+    context: "The site is slowing down and returning errors. Use the metrics, the logs and the resources to find the culprit.",
+    steps: [
+      {
+        goal: "Read the system load exposed by the Prometheus exporter, filtering with a pipe: curl -s localhost:9100/metrics | grep node_load1",
+        exam: "Which command reads the metrics from localhost:9100/metrics and keeps only the node_load1 lines?",
+        accepted: ["curl -s localhost:9100/metrics | grep node_load1", "curl localhost:9100/metrics | grep node_load1", "curl -s http://localhost:9100/metrics | grep node_load1"],
+        output: ["# HELP node_load1 1m load average.", "node_load1 7.92"],
+      },
+      { goal: "High load! Which process is consuming? Run top.", exam: "Which command displays live the processes that consume the most?", accepted: ["top", "htop"], output: ["  PID USER      %CPU %MEM COMMAND", " 4242 www-data  187.0  9.1 helix-api", "  812 root        0.3  0.1 sshd"] },
+      {
+        goal: "Count the 500 errors in the access log: grep -c \" 500 \" access.log",
+        exam: "Which command counts the lines containing 500 in access.log?",
+        accepted: ['grep -c " 500 " access.log', "grep -c 500 access.log"],
+        output: ["128"],
+      },
+      { goal: "Read the latest logs of the helix-api service: journalctl -u helix-api -n 20", exam: "Which command displays the logs of the helix-api service?", accepted: ["journalctl -u helix-api -n 20", "journalctl -u helix-api"], patterns: ["journalctl -u helix-api( -n \\d+)?"], output: ["helix-api[4242]: WARN connection pool saturated (100/100)", "helix-api[4242]: ERROR timeout reaching the database"] },
+      { goal: "Cause found (database saturated). Restart the service to free the connections: sudo systemctl restart helix-api", exam: "Which command restarts the helix-api service?", accepted: ["systemctl restart helix-api"], output: [] },
+    ],
+    debrief: "Metric (something is wrong), process (who?), logs (why?), action. An alert is only useful if you can trace it back to the cause.",
+  },
+  architect: {
+    title: "Eliminate a single point of failure",
+    context: "The API runs as a single copy and the backup has never been tested. Make the whole thing resilient.",
+    steps: [
+      { goal: "See how many copies are running: kubectl get deployment api", exam: "Which command displays the Kubernetes deployment api and its number of copies?", accepted: ["kubectl get deployment api", "kubectl get deploy api", "kubectl get deployments api"], output: ["NAME   READY   UP-TO-DATE   AVAILABLE   AGE", "api    1/1     1            1           42d"] },
+      { goal: "Only one! Scale to 3 replicas: kubectl scale deployment api --replicas=3", exam: "Which command scales the Kubernetes deployment api to 3 replicas?", accepted: ["kubectl scale deployment api --replicas=3", "kubectl scale deploy api --replicas=3", "kubectl scale deployment/api --replicas=3"], output: ["deployment.apps/api scaled"] },
+      { goal: "Check: kubectl get pods", accepted: ["kubectl get pods", "kubectl get pod", "kubectl get po"], output: ["api-7d9f8c6b5-x2k4p   1/1   Running   0   42d", "api-7d9f8c6b5-b7r2m   1/1   Running   0   12s", "api-7d9f8c6b5-k9t4w   1/1   Running   0   12s"] },
+      {
+        goal: "Finally, test the backup: restore it into a test database with pg_restore -d test backup.dump",
+        exam: "Which command restores the backup backup.dump into the test database?",
+        accepted: ["pg_restore -d test backup.dump"],
+        output: ["pg_restore: connecting to database \"test\"", "pg_restore: 42 tables restored, 0 errors"],
+      },
+      { goal: "Final health check: curl -I https://helix.local/health", exam: "Which command checks that https://helix.local/health responds, asking only for the headers?", accepted: ["curl -I https://helix.local/health", "curl --head https://helix.local/health"], output: ["HTTP/2 200", "x-replicas: 3"] },
+    ],
+    debrief: "Three replicas = no more single point of failure; a restored backup = a backup that really exists.",
+  },
+};
