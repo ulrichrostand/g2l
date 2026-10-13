@@ -1,0 +1,24 @@
+{
+  "name": "Shadow Ops — DevOps Stealth",
+  "short_name": "Shadow Ops",
+  "description": "3D stealth game to learn DevOps by following the roadmap.sh/devops roadmap.",
+  "lang": "en",
+  "start_url": "./en/games/devops/",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
+  "orientation": "landscape",
+  "background_color": "#05080c",
+  "theme_color": "#05080c",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

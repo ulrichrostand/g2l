@@ -1,9 +1,11 @@
 import { defineConfig } from "vitest/config";
+import { LANGS } from "./src/i18n/lang";
+import { gameHtmlFile } from "./src/i18n/routes";
 
 /**
  * Préfixe d'URL du site : « /rostand/ » sur GitHub Pages, « / » sur un serveur à domaine propre (VPS) et en local.
  * Un préfixe absolu (plutôt que « ./ ») garde les chargements de modèles 3D corrects depuis les pages imbriquées
- * (le portail est à la racine, le jeu sous /jeux/devops/).
+ * (le portail est à la racine, les jeux sous /jeux/<jeu>/ et /en/games/<jeu>/).
  */
 function siteBase(): string {
   const raw = process.env.APP_BASE ?? "/";
@@ -11,18 +13,22 @@ function siteBase(): string {
   return raw;
 }
 
+/** Une page par langue et par produit : le portail et chaque jeu, en français et en anglais. */
+function htmlEntries(): Record<string, string> {
+  const entries: Record<string, string> = {};
+  for (const lang of LANGS) {
+    entries[`portal-${lang}`] = lang === "en" ? "en/index.html" : "index.html";
+    entries[`devops-${lang}`] = gameHtmlFile("devops", lang);
+  }
+  return entries;
+}
+
 export default defineConfig({
   base: siteBase(),
   build: {
     target: "es2022",
     chunkSizeWarningLimit: 900,
-    rollupOptions: {
-      // Une page par produit : le portail (catalogue des parcours) et chaque jeu.
-      input: {
-        portal: "index.html",
-        devops: "jeux/devops/index.html",
-      },
-    },
+    rollupOptions: { input: htmlEntries() },
   },
   test: {
     environment: "node",

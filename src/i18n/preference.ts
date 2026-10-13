@@ -48,3 +48,12 @@ export function browserLang(languages: readonly string[]): Lang | null {
 export function preferredLang(stored: Lang | null, browserLanguages: readonly string[]): Lang {
   return stored ?? browserLang(browserLanguages) ?? "fr";
 }
+
+/**
+ * Faut-il envoyer le visiteur vers la version anglaise à l'arrivée sur la page d'accueil française ? Oui seulement si
+ * son choix mémorisé, ou à défaut la langue de son navigateur, est l'anglais. Jamais depuis une page anglaise : une adresse
+ * anglaise partagée reste anglaise, et on ne boucle pas.
+ */
+export function autoRedirectTarget(pageLang: Lang, stored: Lang | null, browserLanguages: readonly string[]): Lang | null {
+  return pageLang === "fr" && preferredLang(stored, browserLanguages) === "en" ? "en" : null;
+}

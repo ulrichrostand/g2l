@@ -2,6 +2,8 @@ import { isAnswerCorrect, normalizeCommand, type ChallengeAnswer } from "../chal
 import { isStepCommandCorrect } from "../challenges/scenario";
 import type { Challenge, DevOpsModule, Scenario, ScenarioStep } from "../content/types";
 import type { SeededRandom } from "../core/rng";
+import { LOCALE } from "../i18n/lang";
+import { t } from "../i18n/messages/exam";
 
 /** Identifiant de l'examen qui couvre tous les secteurs libérés (les autres portent l'id du module). */
 export const GENERAL_EXAM_ID = "general";
@@ -105,18 +107,18 @@ export function gradeOutOf20(correctCount: number, questionCount: number): numbe
 }
 
 export function mentionFor(grade: number): Mention {
-  if (grade >= 16) return { label: "Mention très bien", passed: true };
-  if (grade >= 14) return { label: "Mention bien", passed: true };
-  if (grade >= 12) return { label: "Mention assez bien", passed: true };
-  if (grade >= PASSING_GRADE) return { label: "Admis", passed: true };
-  return { label: "Ajourné — à retravailler", passed: false };
+  if (grade >= 16) return { label: t("honorsHigh"), passed: true };
+  if (grade >= 14) return { label: t("honors"), passed: true };
+  if (grade >= 12) return { label: t("honorsLow"), passed: true };
+  if (grade >= PASSING_GRADE) return { label: t("passed"), passed: true };
+  return { label: t("failed"), passed: false };
 }
 
 export function examTimeLimitSeconds(questionCount: number): number {
   return questionCount * SECONDS_PER_QUESTION;
 }
 
-/** Note au format français : « 15,5/20 ». */
+/** Note au format de la langue : « 15,5/20 » en français, « 15.5/20 » en anglais. */
 export function formatGrade(grade: number): string {
-  return `${grade.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}/20`;
+  return `${grade.toLocaleString(LOCALE, { maximumFractionDigits: 1 })}/20`;
 }

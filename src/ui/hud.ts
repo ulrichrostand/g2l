@@ -1,8 +1,9 @@
 import { Tile } from "../core/grid";
 import type { HudState, MinimapSnapshot } from "../game/mission";
+import { t } from "../i18n/messages/hud";
 import { element, richText } from "./dom";
 
-const POSTURE_LABELS = { standing: "Debout", crouching: "Accroupi (discret)", running: "Course (bruyant)" } as const;
+const postureLabel = (posture: HudState["posture"]): string => ({ standing: t("postureStanding"), crouching: t("postureCrouching"), running: t("postureRunning") })[posture];
 const MINIMAP_SCALE = 4;
 /** Les gardes n'apparaissent sur la carte que dans ce rayon : un « sonar » à courte portée. */
 const SONAR_RADIUS = 7;
@@ -14,13 +15,13 @@ export class Hud {
   readonly root = element("div", { className: "hud" });
   private readonly missionLabel = element("div", { className: "hud-mission" });
   private readonly objective = element("div", { className: "hud-objective" });
-  private readonly lives = element("div", { className: "hud-lives", attributes: { "aria-label": "Vies" } });
+  private readonly lives = element("div", { className: "hud-lives", attributes: { "aria-label": t("lives") } });
   private readonly healthFill = element("div", { className: "health-fill" });
   private readonly healthLabel = element("span", { className: "health-label" });
   private readonly magazine = element("span", { className: "ammo-magazine" });
   private readonly reserve = element("span", { className: "ammo-reserve" });
   private readonly reloadFill = element("div", { className: "reload-fill" });
-  private readonly alarmBanner = element("div", { className: "hud-alarm", text: "ALERTE — tu es repéré", attributes: { role: "alert" } });
+  private readonly alarmBanner = element("div", { className: "hud-alarm", text: t("alarmBanner"), attributes: { role: "alert" } });
   private readonly bossName = element("span", { className: "boss-bar-name" });
   private readonly bossStatus = element("span", { className: "boss-bar-status", attributes: { "aria-hidden": "true" } });
   /**
@@ -44,7 +45,7 @@ export class Hud {
   private readonly gadget = element("div", { className: "hud-gadget" });
   private readonly intel = element("div", { className: "hud-intel" });
   private readonly notice = element("div", { className: "hud-notice", attributes: { role: "status", "aria-live": "polite" } });
-  private readonly saved = element("div", { className: "hud-saved", text: "Sauvegardé", attributes: { "aria-hidden": "true" } });
+  private readonly saved = element("div", { className: "hud-saved", text: t("savedBadge"), attributes: { "aria-hidden": "true" } });
   private savedTimer: number | undefined;
   private readonly minimap = element("canvas", { className: "minimap", attributes: { "aria-hidden": "true" } });
   private readonly minimapContext: CanvasRenderingContext2D | null;
@@ -67,7 +68,7 @@ export class Hud {
       this.alarmBanner,
       this.bossBar,
       element("div", { className: "hud-ammo" }, [
-        element("span", { className: "ammo-icon", text: "MUN", attributes: { "aria-label": "Munitions" } }),
+        element("span", { className: "ammo-icon", text: t("ammoIcon"), attributes: { "aria-label": t("ammoLabel") } }),
         this.magazine,
         this.reserve,
         element("div", { className: "reload-track" }, [this.reloadFill]),
@@ -79,7 +80,7 @@ export class Hud {
         this.posture,
         element("div", {
           className: "hud-help",
-          text: "ZQSD bouger · Clic droit viser · Clic/Espace tirer · R recharger · F commande sur cible touchée · E action · C accroupi · Maj courir · Échap pause",
+          text: t("helpKeys"),
         }),
       ]),
       this.notice,
@@ -137,25 +138,25 @@ export class Hud {
 
     this.objective.textContent =
       state.hackedCount < state.terminalCount
-        ? `Terminaux piratés : ${state.hackedCount}/${state.terminalCount}`
+        ? t("objectiveTerminals", { hacked: state.hackedCount, total: state.terminalCount })
         : state.bossDefeated
-          ? "Objectif : rejoindre l'extraction"
-          : "Objectif : vaincre le boss (salle d'extraction)";
-    this.intel.textContent = `Dossiers : ${state.intelCollected}/${state.intelTotal}`;
+          ? t("objectiveExtraction")
+          : t("objectiveBoss");
+    this.intel.textContent = t("intelCount", { collected: state.intelCollected, total: state.intelTotal });
     this.gadget.hidden = !state.gadgetAvailable;
-    this.gadget.textContent = "Commande : touche d'abord ta cible, puis F";
-    this.lives.textContent = `Vies ${"■".repeat(state.livesLeft)}${"□".repeat(Math.max(0, 3 - state.livesLeft))}`;
+    this.gadget.textContent = t("gadgetHint");
+    this.lives.textContent = `${t("lives")} ${"■".repeat(state.livesLeft)}${"□".repeat(Math.max(0, 3 - state.livesLeft))}`;
     const healthPercent = Math.round((state.health / state.maxHealth) * 100);
     this.healthFill.style.width = `${healthPercent}%`;
     this.healthFill.dataset.level = healthPercent <= 30 ? "low" : healthPercent <= 60 ? "medium" : "high";
-    this.healthLabel.textContent = `Santé ${healthPercent}%`;
+    this.healthLabel.textContent = t("health", { percent: healthPercent });
     this.renderAmmo(state, reloadPercent);
     this.alarmBanner.hidden = !state.alarm;
     this.renderBoss(state.boss);
     this.exposureFill.style.width = `${exposurePercent}%`;
     this.exposureFill.dataset.level = exposurePercent > 66 ? "high" : exposurePercent > 25 ? "medium" : "low";
-    this.exposureLabel.textContent = state.alarm ? "ALERTE — combat" : exposurePercent === 0 ? "Invisible" : `Exposition ${exposurePercent}%`;
-    this.posture.textContent = `${POSTURE_LABELS[state.posture]}${state.aiming ? " · En visée" : ""}${state.nightVision ? " · Vision nocturne" : ""}`;
+    this.exposureLabel.textContent = state.alarm ? t("alarmCombat") : exposurePercent === 0 ? t("invisible") : t("exposure", { percent: exposurePercent });
+    this.posture.textContent = `${postureLabel(state.posture)}${state.aiming ? t("aiming") : ""}${state.nightVision ? t("nightVision") : ""}`;
     this.prompt.replaceChildren(...this.promptLines(state, commandSeconds));
     this.prompt.hidden = this.prompt.childElementCount === 0;
     this.prompt.dataset.kind = state.contextAction?.kind ?? "command";
@@ -187,12 +188,12 @@ export class Hud {
     const exposed = boss.state === "exposed";
     this.bossStatus.textContent =
       boss.state === "awakening"
-        ? "se réveille…"
+        ? t("bossAwakening")
         : exposed
-          ? `À GENOUX · ${this.touchMode ? "Gadget" : "[F]"} · ${Math.ceil(boss.exposedSecondsLeft)} s`
+          ? t("bossKneeling", { control: this.touchMode ? t("bossControlTouch") : t("bossControlKey"), seconds: Math.ceil(boss.exposedSecondsLeft) })
           : boss.state === "defeated"
-            ? "vaincu"
-            : `Phase ${boss.phase}/${boss.phaseCount}`;
+            ? t("bossDefeated")
+            : t("bossPhase", { phase: boss.phase, count: boss.phaseCount });
     this.bossFill.style.width = `${Math.round(boss.armor * 100)}%`;
     this.bossBar.dataset.state = boss.state;
     this.announceBoss(boss);
@@ -203,16 +204,16 @@ export class Hud {
     if (key === this.bossAnnouncedKey) return;
     this.bossAnnouncedKey = key;
     const announcements: Record<string, string> = {
-      awakening: `${boss.name} se réveille.`,
-      exposed: `${boss.name} est à genoux : achève-le avec une commande.`,
-      defeated: `${boss.name} est vaincu.`,
+      awakening: t("announceAwakening", { name: boss.name }),
+      exposed: t("announceExposed", { name: boss.name }),
+      defeated: t("announceDefeated", { name: boss.name }),
     };
-    this.bossAnnouncer.textContent = announcements[boss.state] ?? `${boss.name}, phase ${boss.phase} sur ${boss.phaseCount}.`;
+    this.bossAnnouncer.textContent = announcements[boss.state] ?? t("announcePhase", { name: boss.name, phase: boss.phase, count: boss.phaseCount });
   }
 
   private renderAmmo(state: HudState, reloadPercent: number): void {
     const reloading = reloadPercent > 0;
-    this.magazine.textContent = reloading ? "RECHARGEMENT" : `${state.magazine}/${state.magazineSize}`;
+    this.magazine.textContent = reloading ? t("reloading") : `${state.magazine}/${state.magazineSize}`;
     this.reserve.textContent = reloading ? "" : `+${state.reserve}`;
     this.magazine.dataset.level = state.magazine === 0 ? "empty" : state.magazine <= 2 ? "low" : "ok";
     this.reloadFill.style.width = `${reloadPercent}%`;
@@ -221,19 +222,19 @@ export class Hud {
   private promptLines(state: HudState, commandSeconds: number): HTMLElement[] {
     const lines: HTMLElement[] = [];
     if (state.contextAction) {
-      lines.push(element("span", { text: `${this.touchMode ? "" : "[E] "}${state.contextAction.label}` }));
+      lines.push(element("span", { text: `${this.touchMode ? "" : t("keyPrefixAction")}${state.contextAction.label}` }));
     }
     if (state.commandTarget) {
-      const verb = state.commandTarget.kind === "camera" ? "Couper" : state.commandTarget.kind === "boss" ? "Achever" : "Terminer";
+      const verb = state.commandTarget.kind === "camera" ? t("verbCut") : state.commandTarget.kind === "boss" ? t("verbFinish") : t("verbEnd");
       lines.push(
         element("span", {
           className: "prompt-gadget",
-          text: `${this.touchMode ? "" : "[F] "}${verb} → ${state.commandTarget.name} · ${commandSeconds} s`,
+          text: `${this.touchMode ? "" : t("keyPrefixCommand")}${t("commandPrompt", { verb, name: state.commandTarget.name, seconds: commandSeconds })}`,
         }),
       );
     }
     if (state.magazine === 0 && state.reserve > 0 && state.reloadProgress === 0) {
-      lines.push(element("span", { className: "prompt-shoot", text: this.touchMode ? "Chargeur vide : tire pour recharger" : "[R] Recharger" }));
+      lines.push(element("span", { className: "prompt-shoot", text: this.touchMode ? t("emptyMagazineTouch") : t("reload") }));
     }
     return lines;
   }

@@ -1,6 +1,7 @@
 import type { DevOpsModule } from "../content/types";
 import { PASSING_GRADE } from "./exam";
 import type { PlayerProgress } from "./progress";
+import { t } from "../i18n/messages/skills";
 
 /**
  * Bilan de compétences : ce que le joueur maîtrise, ce qu'il doit consolider, et quelles notions revoir.
@@ -48,16 +49,7 @@ export interface SkillReport {
 }
 
 export function skillLevelLabel(level: SkillLevel): string {
-  switch (level) {
-    case "todo":
-      return "À faire";
-    case "learning":
-      return "À consolider";
-    case "solid":
-      return "Acquis";
-    case "mastered":
-      return "Maîtrisé";
-  }
+  return t(level);
 }
 
 function notionsToReview(module: DevOpsModule, missed: readonly number[] | undefined): NotionToReview[] {

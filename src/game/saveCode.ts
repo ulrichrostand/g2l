@@ -1,4 +1,5 @@
 import { seedFromString } from "../core/rng";
+import { t } from "../i18n/messages/save";
 import { progressFromUnknown, type PlayerProgress } from "./progress";
 
 const PREFIX = "SHADOWOPS1";
@@ -37,21 +38,21 @@ export function encodeSaveCode(progress: PlayerProgress): string {
 
 export function decodeSaveCode(rawCode: string): PlayerProgress {
   const code = rawCode.replace(/\s+/g, "");
-  if (code.length === 0) throw new SaveCodeError("Le code est vide.");
-  if (code.length > MAX_CODE_LENGTH) throw new SaveCodeError("Ce code est beaucoup trop long pour être un code de sauvegarde.");
+  if (code.length === 0) throw new SaveCodeError(t("empty"));
+  if (code.length > MAX_CODE_LENGTH) throw new SaveCodeError(t("tooLong"));
   const parts = code.split(".");
   if (parts.length !== 3 || parts[0] !== PREFIX) {
-    throw new SaveCodeError("Ce n'est pas un code de sauvegarde Shadow Ops (il doit commencer par SHADOWOPS1).");
+    throw new SaveCodeError(t("notSaveCode"));
   }
   const [, payload, receivedChecksum] = parts as [string, string, string];
   if (checksum(payload) !== receivedChecksum) {
-    throw new SaveCodeError("Le code est incomplet ou a été modifié. Recopie-le en entier.");
+    throw new SaveCodeError(t("checksum"));
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(fromBase64Url(payload));
   } catch {
-    throw new SaveCodeError("Le contenu du code est illisible.");
+    throw new SaveCodeError(t("unreadable"));
   }
   return progressFromUnknown(parsed);
 }
