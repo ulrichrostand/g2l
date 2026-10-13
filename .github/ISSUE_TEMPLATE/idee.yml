@@ -1,0 +1,24 @@
+name: Idée
+description: Un nouveau parcours, une mécanique de jeu, une amélioration.
+labels: ["idée"]
+body:
+  - type: textarea
+    id: idee
+    attributes:
+      label: Ton idée
+      description: Décris-la simplement.
+    validations:
+      required: true
+  - type: textarea
+    id: pourquoi
+    attributes:
+      label: Pourquoi c'est utile pour apprendre
+      description: Qu'est-ce qu'un débutant y gagnerait ?
+    validations:
+      required: true
+  - type: checkboxes
+    id: aide
+    attributes:
+      label: Participation
+      options:
+        - label: Je suis prêt à aider à la réaliser (contenu, code ou tests)

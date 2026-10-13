@@ -183,6 +183,11 @@ et qu'aucune commande n'est posée deux fois).
 moyenne des examens, et liste des notions à revoir avec leur point clé. Une notion est « à revoir » si son défi a
 été raté au moins une fois lors de la dernière mission du secteur (champ `missed` de la sauvegarde, facultatif).
 
+### Contribuer
+
+Idées, corrections de contenu et code sont les bienvenus : voir [CONTRIBUTING.md](CONTRIBUTING.md). Tout passe par une issue ou une
+pull request, relue et validée par le mainteneur avant publication. Faille de sécurité : [SECURITY.md](SECURITY.md).
+
 ### Structure du site (portail + jeux)
 
 - `index.html` + `src/portal/` : le **portail**, qui liste les parcours (`src/portal/catalog.ts` : une entrée par parcours,

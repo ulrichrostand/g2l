@@ -1,0 +1,24 @@
+name: Bug
+description: Quelque chose ne fonctionne pas comme prévu.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: etapes
+    attributes:
+      label: Étapes pour reproduire
+      value: "1. \n2. \n3. "
+    validations:
+      required: true
+  - type: textarea
+    id: attendu
+    attributes:
+      label: Ce qui devrait se passer / ce qui se passe
+    validations:
+      required: true
+  - type: input
+    id: appareil
+    attributes:
+      label: Appareil et navigateur
+      description: Par exemple « Pixel 7, Chrome 130, paysage plein écran ».
+    validations:
+      required: true
