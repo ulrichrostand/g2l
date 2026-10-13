@@ -1,5 +1,6 @@
 import { isAnswerCorrect, type ChallengeAnswer } from "../challenges/evaluate";
 import type { Challenge, ChoiceChallenge, CommandChallenge, Lesson, OrderChallenge } from "../content/types";
+import { t } from "../i18n/messages/panels";
 import { choiceInput, commandInput, orderInput } from "./answerInputs";
 import { button, element, richText } from "./dom";
 import { lessonCard } from "./lessonPanel";
@@ -19,11 +20,16 @@ export interface ChallengePanelCallbacks {
 /** Après 2 échecs on révèle la réponse : l'objectif est d'apprendre, pas de bloquer. */
 const ATTEMPTS_BEFORE_REVEAL = 2;
 
-const KIND_LABELS: Record<Challenge["kind"], string> = {
-  choice: "QCM",
-  command: "Commande",
-  order: "Séquence",
-};
+function kindLabel(kind: Challenge["kind"]): string {
+  switch (kind) {
+    case "choice":
+      return t("kindChoice");
+    case "command":
+      return t("kindCommand");
+    case "order":
+      return t("kindOrder");
+  }
+}
 
 export class ChallengePanel {
   private wrongAttempts = 0;
@@ -49,10 +55,10 @@ export class ChallengePanel {
       element("div", { className: "panel challenge-panel", attributes: { role: "dialog", "aria-modal": "true" } }, [
         element("div", { className: "challenge-header" }, [
           element("span", { className: "blink", text: "●" }),
-          element("span", { text: ` ${this.terminalLabel} // accès sécurisé` }),
-          element("span", { className: "tag", text: KIND_LABELS[this.challenge.kind] }),
+          element("span", { text: ` ${t("secureAccess", { terminal: this.terminalLabel })}` }),
+          element("span", { className: "tag", text: kindLabel(this.challenge.kind) }),
         ]),
-        element("p", { className: "challenge-note", text: "Le temps est figé pendant le piratage. Une erreur fait du bruit : les gardes proches viendront vérifier." }),
+        element("p", { className: "challenge-note", text: t("hackNote") }),
         richText("h2", this.challenge.prompt, "challenge-prompt"),
         this.lessonBox,
         this.body,
@@ -95,12 +101,12 @@ export class ChallengePanel {
 
   private renderCommand(challenge: CommandChallenge): void {
     const { form, input } = commandInput("agent@helix:~$", (typedCommand) => this.submit({ kind: "command", typedCommand }));
-    const hint = element("p", { className: "hint", text: `Indice : ${challenge.hint}` });
+    const hint = element("p", { className: "hint", text: t("hintLine", { hint: challenge.hint }) });
     hint.hidden = this.wrongAttempts === 0;
     this.body.replaceChildren(form, hint);
     this.actions.replaceChildren(
-      button("Exécuter ⏎", () => this.submit({ kind: "command", typedCommand: input.value }), "btn primary"),
-      button("Indice", () => (hint.hidden = false), "btn ghost"),
+      button(t("run"), () => this.submit({ kind: "command", typedCommand: input.value }), "btn primary"),
+      button(t("hintButton"), () => (hint.hidden = false), "btn ghost"),
       ...this.secondaryActions(),
     );
     input.focus();
@@ -109,7 +115,7 @@ export class ChallengePanel {
   private renderOrder(challenge: OrderChallenge): void {
     const order = orderInput(challenge.steps);
     this.body.replaceChildren(order.element);
-    this.actions.replaceChildren(button("Valider la séquence", () => this.submit({ kind: "order", orderedSteps: order.currentOrder() }), "btn primary"), ...this.secondaryActions());
+    this.actions.replaceChildren(button(t("validateSequence"), () => this.submit({ kind: "order", orderedSteps: order.currentOrder() }), "btn primary"), ...this.secondaryActions());
   }
 
   private submit(answer: ChallengeAnswer): void {
@@ -124,7 +130,7 @@ export class ChallengePanel {
       return;
     }
     this.feedback.replaceChildren(
-      element("p", { className: "denied", text: "ACCÈS REFUSÉ — bruit détecté. Analyse et réessaie." }),
+      element("p", { className: "denied", text: t("accessDenied") }),
     );
     if (this.challenge.kind !== "command") {
       // Le QCM et la séquence sont re-mélangés ; la commande garde la saisie pour la corriger.
@@ -137,29 +143,29 @@ export class ChallengePanel {
 
   private showResult(correct: boolean, revealed: boolean): void {
     const verdict = correct
-      ? element("p", { className: "granted", text: "ACCÈS AUTORISÉ ✔" })
-      : element("p", { className: "denied", text: "Trop d'échecs — la cellule Écho force l'accès. Retiens bien ceci :" });
+      ? element("p", { className: "granted", text: t("accessGranted") })
+      : element("p", { className: "denied", text: t("tooManyFailures") });
     const children: Node[] = [verdict];
-    if (revealed) children.push(element("div", { className: "solution" }, [element("strong", { text: "Réponse : " }), richText("span", describeSolution(this.challenge))]));
+    if (revealed) children.push(element("div", { className: "solution" }, [element("strong", { text: t("answerLabel") }), richText("span", describeSolution(this.challenge))]));
     children.push(richText("p", this.challenge.explanation, "explanation"));
     this.body.replaceChildren();
     this.lessonBox.hidden = true;
     this.feedback.replaceChildren(...children);
-    const continueButton = button("Continuer la mission", () => this.callbacks.onSolved({ wrongAttempts: this.wrongAttempts, revealed }), "btn primary");
+    const continueButton = button(t("continueMission"), () => this.callbacks.onSolved({ wrongAttempts: this.wrongAttempts, revealed }), "btn primary");
     this.actions.replaceChildren(continueButton);
     continueButton.focus();
   }
 
   private secondaryActions(): HTMLButtonElement[] {
-    const reviewButton = button(this.lessonBox.hidden ? "Revoir le dossier" : "Masquer le dossier", () => {
+    const reviewButton = button(this.lessonBox.hidden ? t("reviewFile") : t("hideFile"), () => {
       this.lessonBox.hidden = !this.lessonBox.hidden;
-      reviewButton.textContent = this.lessonBox.hidden ? "Revoir le dossier" : "Masquer le dossier";
+      reviewButton.textContent = this.lessonBox.hidden ? t("reviewFile") : t("hideFile");
     }, "btn ghost");
     return [reviewButton, this.disconnectButton()];
   }
 
   private disconnectButton(): HTMLButtonElement {
-    return button("Se déconnecter", () => this.callbacks.onDisconnect(this.wrongAttempts), "btn ghost");
+    return button(t("disconnect"), () => this.callbacks.onDisconnect(this.wrongAttempts), "btn ghost");
   }
 }
 

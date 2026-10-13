@@ -1,4 +1,5 @@
 import type { Lesson } from "../content/types";
+import { t } from "../i18n/messages/panels";
 import { button, element, richText } from "./dom";
 
 /** Carte de leçon réutilisée partout : dossier ramassé, rappel au terminal, codex de fin de module. */
@@ -7,14 +8,14 @@ export function lessonCard(lesson: Lesson): HTMLElement {
     element("h2", { className: "lesson-title", text: lesson.title }),
     richText("p", lesson.summary, "lesson-summary"),
     element("div", { className: "lesson-block analogy" }, [
-      element("span", { className: "lesson-label", text: "Pour imaginer" }),
+      element("span", { className: "lesson-label", text: t("forImagining") }),
       richText("p", lesson.analogy),
     ]),
   ];
   if (lesson.example) {
     sections.push(
       element("div", { className: "lesson-block example" }, [
-        element("span", { className: "lesson-label", text: "Exemple" }),
+        element("span", { className: "lesson-label", text: t("example") }),
         element("pre", { className: "lesson-code", text: lesson.example.code }),
         richText("p", lesson.example.meaning),
       ]),
@@ -22,7 +23,7 @@ export function lessonCard(lesson: Lesson): HTMLElement {
   }
   sections.push(
     element("div", { className: "lesson-block keypoint" }, [
-      element("span", { className: "lesson-label", text: "À retenir" }),
+      element("span", { className: "lesson-label", text: t("keyPoint") }),
       richText("p", lesson.keyPoint),
     ]),
   );

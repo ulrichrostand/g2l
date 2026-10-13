@@ -1,6 +1,7 @@
 import { canonicalCommand, isStepCommandCorrect, simulateWrongCommand } from "../challenges/scenario";
 import { normalizeCommand } from "../challenges/evaluate";
 import type { Scenario } from "../content/types";
+import { t } from "../i18n/messages/panels";
 import { button, element, richText } from "./dom";
 
 export interface ScenarioPanelCallbacks {
@@ -29,7 +30,7 @@ export class ScenarioPanel {
   private readonly actions = element("div", { className: "challenge-actions" });
   private readonly input = element("input", {
     className: "command-input",
-    attributes: { type: "text", autocomplete: "off", autocapitalize: "off", spellcheck: "false", maxlength: "200", "aria-label": "Commande" },
+    attributes: { type: "text", autocomplete: "off", autocapitalize: "off", spellcheck: "false", maxlength: "200", "aria-label": t("command") },
   });
 
   constructor(
@@ -65,8 +66,8 @@ export class ScenarioPanel {
       element("div", { className: "panel challenge-panel scenario-panel", attributes: { role: "dialog", "aria-modal": "true" } }, [
         element("div", { className: "challenge-header" }, [
           element("span", { className: "blink", text: "●" }),
-          element("span", { text: ` ${this.terminalLabel} // intervention` }),
-          element("span", { className: "tag", text: "Pratique" }),
+          element("span", { text: ` ${t("intervention", { terminal: this.terminalLabel })}` }),
+          element("span", { className: "tag", text: t("practiceTag") }),
         ]),
         element("h2", { className: "challenge-prompt", text: this.scenario.title }),
         richText("p", this.scenario.context, "scenario-context"),
@@ -77,7 +78,7 @@ export class ScenarioPanel {
       ]),
     );
     this.container.hidden = false;
-    if (this.stepIndex > 0) this.appendLine(`(reprise de l'intervention à l'étape ${this.stepIndex + 1})`, "muted");
+    if (this.stepIndex > 0) this.appendLine(t("resumed", { step: this.stepIndex + 1 }), "muted");
     this.render();
   }
 
@@ -97,18 +98,18 @@ export class ScenarioPanel {
       return;
     }
     this.goalBox.replaceChildren(
-      element("span", { className: "scenario-step", text: `Étape ${this.stepIndex + 1}/${this.scenario.steps.length}` }),
+      element("span", { className: "scenario-step", text: t("stepOf", { step: this.stepIndex + 1, total: this.scenario.steps.length }) }),
       richText("p", step.goal),
     );
-    const showSolution = button("Montrer la commande", () => {
-      this.appendLine(`Commande attendue : ${canonicalCommand(step)}`, "hint");
+    const showSolution = button(t("showCommand"), () => {
+      this.appendLine(t("expectedCommandLine", { command: canonicalCommand(step) }), "hint");
       this.input.focus();
     }, "btn ghost");
     showSolution.hidden = this.wrongOnCurrentStep < ATTEMPTS_BEFORE_SOLUTION;
     this.actions.replaceChildren(
-      button("Exécuter ⏎", () => this.execute(this.input.value), "btn primary"),
+      button(t("run"), () => this.execute(this.input.value), "btn primary"),
       showSolution,
-      button("Se déconnecter", () => this.callbacks.onDisconnect(this.wrongAttempts), "btn ghost"),
+      button(t("disconnect"), () => this.callbacks.onDisconnect(this.wrongAttempts), "btn ghost"),
     );
     this.input.disabled = false;
     this.input.focus();
@@ -141,11 +142,11 @@ export class ScenarioPanel {
 
   private renderCompleted(): void {
     this.goalBox.replaceChildren(
-      element("p", { className: "granted", text: "INTERVENTION RÉUSSIE ✔" }),
+      element("p", { className: "granted", text: t("interventionSuccess") }),
       richText("p", this.scenario.debrief, "explanation"),
     );
     this.input.disabled = true;
-    const continueButton = button("Continuer la mission", () => this.callbacks.onCompleted(this.wrongAttempts), "btn primary");
+    const continueButton = button(t("continueMission"), () => this.callbacks.onCompleted(this.wrongAttempts), "btn primary");
     this.actions.replaceChildren(continueButton);
     continueButton.focus();
   }

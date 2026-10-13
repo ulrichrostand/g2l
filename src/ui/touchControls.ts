@@ -1,4 +1,5 @@
 import type { GameAction, InputController, MoveIntent } from "../core/input";
+import { t } from "../i18n/messages/touch";
 import { element } from "./dom";
 
 const JOYSTICK_RADIUS_PX = 52;
@@ -80,8 +81,8 @@ export class TouchControls {
   private readonly crouchButton: HTMLButtonElement;
   private readonly commandButton: HTMLButtonElement;
   private readonly exitFullscreenButton: HTMLButtonElement;
-  private readonly aimPad = element("div", { className: "touch-btn aim-pad", attributes: { role: "button", "aria-label": "Tirer : glisser pour viser, relâcher pour tirer" } });
-  private readonly aimKnob = element("div", { className: "aim-knob", text: "Tirer" });
+  private readonly aimPad = element("div", { className: "touch-btn aim-pad", attributes: { role: "button", "aria-label": t("aimPad") } });
+  private readonly aimKnob = element("div", { className: "aim-knob", text: t("fire") });
   private aimPointerId: number | null = null;
   /** Le pouce est sorti de la zone morte depuis la pose : distingue une tape d'une visée annulée. */
   private hasAimed = false;
@@ -96,10 +97,10 @@ export class TouchControls {
   ) {
     this.joystickBase.append(this.joystickKnob);
     this.joystickZone.append(this.joystickBase);
-    this.interactButton = this.actionButton("Pirater", "interact", "touch-btn primary");
-    this.crouchButton = this.actionButton("Accroupir", "crouch", "touch-btn crouch", crouchIcon());
-    this.commandButton = this.actionButton("Gadget", "command", "touch-btn gadget");
-    this.exitFullscreenButton = element("button", { className: "touch-pill exit-fullscreen", text: "Réduire", attributes: { type: "button", "aria-label": "Quitter le plein écran", title: "Quitter le plein écran" } });
+    this.interactButton = this.actionButton(t("hack"), "interact", "touch-btn primary");
+    this.crouchButton = this.actionButton(t("crouch"), "crouch", "touch-btn crouch", crouchIcon());
+    this.commandButton = this.actionButton(t("gadget"), "command", "touch-btn gadget");
+    this.exitFullscreenButton = element("button", { className: "touch-pill exit-fullscreen", text: t("shrink"), attributes: { type: "button", "aria-label": t("exitFullscreen"), title: t("exitFullscreen") } });
     this.exitFullscreenButton.hidden = true;
     this.exitFullscreenButton.addEventListener("pointerdown", (event) => {
       event.preventDefault();
@@ -109,9 +110,9 @@ export class TouchControls {
     this.root.append(
       this.joystickZone,
       // Pause en haut de l'écran, loin des pouces : on ne l'appuie pas par erreur en plein combat.
-      element("div", { className: "touch-topbar" }, [this.exitFullscreenButton, this.actionButton("Pause", "pause", "touch-pill pause")]),
+      element("div", { className: "touch-topbar" }, [this.exitFullscreenButton, this.actionButton(t("pause"), "pause", "touch-pill pause")]),
       // Disposition façon jeux mobiles : le gros pad de tir dans le coin, les actions en arc autour (voir style.css).
-      element("div", { className: "touch-actions" }, [this.crouchButton, this.interactButton, this.commandButton, this.actionButton("Vision", "nightVision", "touch-btn vision"), this.aimPad]),
+      element("div", { className: "touch-actions" }, [this.crouchButton, this.interactButton, this.commandButton, this.actionButton(t("vision"), "nightVision", "touch-btn vision"), this.aimPad]),
     );
     this.aimPad.append(this.aimKnob);
     this.bindJoystick();
@@ -137,7 +138,7 @@ export class TouchControls {
 
   /** Mise à jour à chaque frame : on ne touche au DOM que si l'état change. */
   sync(state: { contextLabel: string | null; crouched: boolean; gadgetVisible: boolean; gadgetReady: boolean; shootReady: boolean }): void {
-    const interactLabel = state.contextLabel ?? "Action";
+    const interactLabel = state.contextLabel ?? t("action");
     if (this.interactButton.textContent !== interactLabel) {
       this.interactButton.textContent = interactLabel;
       this.interactButton.setAttribute("aria-label", interactLabel);

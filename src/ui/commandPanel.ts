@@ -1,4 +1,5 @@
 import { isWeaponCommandCorrect, type CommandWeapon, type SentinelIdentity } from "../combat/weapons";
+import { t } from "../i18n/messages/panels";
 import { button, element, richText } from "./dom";
 
 export interface CommandPanelCallbacks {
@@ -37,10 +38,10 @@ export class CommandPanel {
       element("div", { className: "panel challenge-panel command-panel", attributes: { role: "dialog", "aria-modal": "true" } }, [
         element("div", { className: "challenge-header" }, [
           element("span", { className: "blink", text: "◎" }),
-          element("span", { text: ` Cible verrouillée : ${this.target.containerName}` }),
-          element("span", { className: "tag", text: "Gadget" }),
+          element("span", { text: ` ${t("targetLocked", { name: this.target.containerName })}` }),
+          element("span", { className: "tag", text: t("gadgetTag") }),
         ]),
-        element("p", { className: "challenge-note", text: "Le temps est ralenti. Une commande fausse fait du bruit et attire les sentinelles." }),
+        element("p", { className: "challenge-note", text: t("gadgetNote") }),
         this.body,
       ]),
     );
@@ -73,7 +74,7 @@ export class CommandPanel {
 
     const input = element("input", {
       className: "command-input",
-      attributes: { type: "text", autocomplete: "off", autocapitalize: "off", spellcheck: "false", maxlength: "200", "aria-label": "Commande gadget" },
+      attributes: { type: "text", autocomplete: "off", autocapitalize: "off", spellcheck: "false", maxlength: "200", "aria-label": t("gadgetCommand") },
     });
     let historyCursor = this.history.length;
     input.addEventListener("keydown", (event) => {
@@ -89,14 +90,14 @@ export class CommandPanel {
       this.submit(input.value);
     });
 
-    const hint = element("p", { className: "hint", text: `Aide : ${this.weapon.hint}` });
+    const hint = element("p", { className: "hint", text: t("helpLine", { hint: this.weapon.hint }) });
     hint.hidden = this.wrongAttempts === 0;
     const reveal =
       this.wrongAttempts >= ATTEMPTS_BEFORE_REVEAL
         ? element("div", { className: "solution" }, [
-            element("strong", { text: "Commande attendue : " }),
+            element("strong", { text: t("expectedCommand") }),
             element("code", { text: this.weapon.acceptedCommands(this.target)[0] ?? "" }),
-            element("span", { text: " — tape-la pour valider." }),
+            element("span", { text: t("typeToConfirm") }),
           ])
         : null;
 
@@ -111,9 +112,9 @@ export class CommandPanel {
         reveal,
         feedback,
         element("div", { className: "challenge-actions" }, [
-          button("Exécuter ⏎", () => this.submit(input.value), "btn primary"),
-          button("Aide", () => (hint.hidden = false), "btn ghost"),
-          button("Annuler", () => this.callbacks.onCancel(), "btn ghost"),
+          button(t("run"), () => this.submit(input.value), "btn primary"),
+          button(t("help"), () => (hint.hidden = false), "btn ghost"),
+          button(t("cancel"), () => this.callbacks.onCancel(), "btn ghost"),
         ]),
       ].filter((node): node is HTMLElement => node !== null),
     );
@@ -129,6 +130,6 @@ export class CommandPanel {
     }
     this.wrongAttempts++;
     this.callbacks.onFailure();
-    this.render(element("p", { className: "denied", text: "Commande refusée — la sentinelle a entendu quelque chose. Vérifie la sortie ci-dessus." }));
+    this.render(element("p", { className: "denied", text: t("commandRefused") }));
   }
 }

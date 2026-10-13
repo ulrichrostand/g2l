@@ -1,5 +1,6 @@
 import { canonicalCommand } from "../challenges/scenario";
 import { formatGrade, gradeOutOf20, isExamAnswerCorrect, mentionFor, PASSING_GRADE, type ExamQuestion, type ExamResponse } from "../game/exam";
+import { t } from "../i18n/messages/exampanel";
 import { choiceInput, commandInput, orderInput } from "./answerInputs";
 import { describeSolution } from "./challengePanel";
 import { button, element, richText } from "./dom";
@@ -62,19 +63,19 @@ export class ExamPanel {
 
   open(): void {
     const minutes = Math.round(this.plan.timeLimitSeconds / 60);
-    const startButton = button("Commencer l'examen", () => this.start(), "btn primary big");
+    const startButton = button(t("start"), () => this.start(), "btn primary big");
     this.mount(
       element("div", { className: "panel exam" }, [
-        element("p", { className: "eyebrow", text: "Mode examen" }),
+        element("p", { className: "eyebrow", text: t("modeExam") }),
         element("h1", { text: this.plan.title }),
         element("h2", { className: "subtitle", text: this.plan.subtitle }),
         element("ul", { className: "exam-rules" }, [
-          element("li", { text: `${this.plan.questions.length} questions : QCM, séquences et vraies commandes à taper.` }),
-          element("li", { text: `Temps limite : ${minutes} min. Le chrono ne s'arrête pas, même si tu changes d'onglet.` }),
-          element("li", { text: "Une seule réponse par question, aucun indice. La correction détaillée arrive à la fin." }),
-          element("li", { text: `Note sur 20 : ${PASSING_GRADE}/20 pour être admis.${this.plan.previousBestGrade !== null ? ` Ta meilleure note : ${formatGrade(this.plan.previousBestGrade)}.` : ""}` }),
+          element("li", { text: t("rulesQuestions", { count: this.plan.questions.length }) }),
+          element("li", { text: t("rulesTime", { minutes }) }),
+          element("li", { text: t("rulesOneAnswer") }),
+          element("li", { text: this.plan.previousBestGrade !== null ? t("rulesGradeBest", { passing: PASSING_GRADE, best: formatGrade(this.plan.previousBestGrade) }) : t("rulesGrade", { passing: PASSING_GRADE }) }),
         ]),
-        element("div", { className: "row" }, [startButton, button("← Carte", () => this.callbacks.onExit(), "btn ghost")]),
+        element("div", { className: "row" }, [startButton, button(t("backToMapShort"), () => this.callbacks.onExit(), "btn ghost")]),
       ]),
     );
     startButton.focus({ preventScroll: true });
@@ -120,8 +121,8 @@ export class ExamPanel {
     progressFill.style.width = `${Math.round((this.currentIndex / total) * 100)}%`;
     const body = element("div", { className: "challenge-body" });
     const actions = element("div", { className: "challenge-actions" });
-    const skipButton = button("Passer", () => this.answer(null), "btn ghost");
-    const abandonButton = button("Abandonner", () => this.abandon(), "btn ghost");
+    const skipButton = button(t("skip"), () => this.answer(null), "btn ghost");
+    const abandonButton = button(t("abandon"), () => this.abandon(), "btn ghost");
     let focusTarget: HTMLElement | null = null;
 
     if (question.source === "challenge" && question.challenge.kind === "choice") {
@@ -132,7 +133,7 @@ export class ExamPanel {
     } else if (question.source === "challenge" && question.challenge.kind === "order") {
       const order = orderInput(question.challenge.steps);
       body.append(order.element);
-      actions.append(button("Valider la séquence", () => this.answer({ kind: "order", orderedSteps: order.currentOrder() }), "btn primary"), skipButton, abandonButton);
+      actions.append(button(t("validateSequence"), () => this.answer({ kind: "order", orderedSteps: order.currentOrder() }), "btn primary"), skipButton, abandonButton);
     } else {
       // Les commandes vides sont ignorées : un Entrée par réflexe ne doit pas coûter une question.
       const submitCommand = (typedCommand: string): void => {
@@ -144,7 +145,7 @@ export class ExamPanel {
       };
       const { form, input } = commandInput("spectre@helix:~$", submitCommand);
       body.append(form);
-      actions.append(button("Valider ⏎", () => submitCommand(input.value), "btn primary"), skipButton, abandonButton);
+      actions.append(button(t("validate"), () => submitCommand(input.value), "btn primary"), skipButton, abandonButton);
       focusTarget = input;
     }
 
@@ -152,7 +153,7 @@ export class ExamPanel {
     this.mount(
       element("div", { className: "panel exam challenge-panel" }, [
         element("div", { className: "challenge-header exam-header" }, [
-          element("span", { text: `Question ${this.currentIndex + 1}/${total}` }),
+          element("span", { text: t("questionOf", { number: this.currentIndex + 1, total }) }),
           this.plan.showModuleTags ? element("span", { className: "tag", text: this.plan.moduleLabel(question.moduleId) }) : null,
           this.timerLabel,
         ]),
@@ -174,7 +175,7 @@ export class ExamPanel {
   }
 
   private abandon(): void {
-    if (!window.confirm("Abandonner l'examen ? Il ne sera pas noté.")) return;
+    if (!window.confirm(t("abandonConfirm"))) return;
     this.finished = true;
     this.stopTimer();
     this.callbacks.onExit();
@@ -199,24 +200,24 @@ export class ExamPanel {
 
   private renderResults(outcome: ExamOutcome, results: boolean[], best: { bestGrade: number; improved: boolean }): void {
     const mention = mentionFor(outcome.grade);
-    const retryButton = button("Repasser l'examen", () => this.callbacks.onRetry(), mention.passed ? "btn" : "btn primary");
-    const mapButton = button("Retour à la carte", () => this.callbacks.onExit(), mention.passed ? "btn primary" : "btn ghost");
+    const retryButton = button(t("retry"), () => this.callbacks.onRetry(), mention.passed ? "btn" : "btn primary");
+    const mapButton = button(t("backToMap"), () => this.callbacks.onExit(), mention.passed ? "btn primary" : "btn ghost");
     const correction = element("ol", { className: "review" });
     this.plan.questions.forEach((question, index) => correction.append(this.correctionItem(question, this.responses[index] ?? null, results[index] ?? false)));
 
     this.mount(
       element("div", { className: "panel exam debrief" }, [
-        element("p", { className: "eyebrow", text: `Résultat · ${this.plan.title}` }),
+        element("p", { className: "eyebrow", text: t("resultTitle", { title: this.plan.title }) }),
         element("p", { className: mention.passed ? "exam-grade passed" : "exam-grade failed", text: formatGrade(outcome.grade) }),
         element("p", { className: mention.passed ? "exam-mention passed" : "exam-mention failed", text: mention.label }),
-        outcome.timedOut ? element("p", { className: "save-status warn", text: "Temps écoulé : les questions restantes sont comptées fausses." }) : null,
+        outcome.timedOut ? element("p", { className: "save-status warn", text: t("timedOut") }) : null,
         element("div", { className: "stats" }, [
-          stat("Bonnes réponses", `${outcome.correctCount}/${outcome.questionCount}`),
-          stat("Temps", formatClock(outcome.elapsedSeconds)),
-          stat("Meilleure note", `${formatGrade(best.bestGrade)}${best.improved ? " · record" : ""}`),
+          stat(t("statCorrect"), `${outcome.correctCount}/${outcome.questionCount}`),
+          stat(t("statTime"), formatClock(outcome.elapsedSeconds)),
+          stat(t("statBest"), `${formatGrade(best.bestGrade)}${best.improved ? t("recordSuffix") : ""}`),
         ]),
-        best.improved ? element("p", { className: "granted", text: "Nouveau record enregistré !" }) : null,
-        element("h2", { text: "Correction" }),
+        best.improved ? element("p", { className: "granted", text: t("newRecord") }) : null,
+        element("h2", { text: t("correction") }),
         correction,
         element("div", { className: "row" }, [mapButton, retryButton]),
       ]),
@@ -227,12 +228,12 @@ export class ExamPanel {
   private correctionItem(question: ExamQuestion, response: ExamResponse, correct: boolean): HTMLLIElement {
     const prompt = question.source === "challenge" ? question.challenge.prompt : question.prompt;
     const expected = question.source === "challenge" ? describeSolution(question.challenge) : `\`${canonicalCommand(question.step)}\``;
-    const explanation = question.source === "challenge" ? question.challenge.explanation : `Rappel de l'intervention : ${question.step.goal}`;
+    const explanation = question.source === "challenge" ? question.challenge.explanation : t("interventionReminder", { goal: question.step.goal });
     return element("li", { className: correct ? "review-item" : "review-item to-review" }, [
       this.plan.showModuleTags ? element("span", { className: "tag", text: this.plan.moduleLabel(question.moduleId) }) : null,
       richText("p", `${correct ? "✔" : "✖"} ${prompt}`, "review-prompt"),
-      correct ? null : element("p", { className: "review-answer" }, [element("strong", { text: "Ta réponse : " }), describeResponse(question, response)]),
-      element("p", { className: "review-answer" }, [element("strong", { text: correct ? "Réponse : " : "Réponse attendue : " }), richText("span", expected)]),
+      correct ? null : element("p", { className: "review-answer" }, [element("strong", { text: t("yourAnswer") }), describeResponse(question, response)]),
+      element("p", { className: "review-answer" }, [element("strong", { text: correct ? t("answerLabel") : t("expectedAnswer") }), richText("span", expected)]),
       richText("p", explanation, "review-explanation"),
     ]);
   }
@@ -240,7 +241,7 @@ export class ExamPanel {
 
 /** La saisie du joueur passe par textContent (jamais richText) : un accent grave tapé ne doit rien interpréter. */
 function describeResponse(question: ExamQuestion, response: ExamResponse): HTMLElement {
-  if (response === null) return element("em", { text: "sans réponse" });
+  if (response === null) return element("em", { text: t("noAnswer") });
   switch (response.kind) {
     case "command":
       return element("code", { text: response.typedCommand.trim() });

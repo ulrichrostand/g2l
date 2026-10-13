@@ -1,4 +1,5 @@
 import { placeMarker, tutorialInstruction, type MarkerPlacement, type TutorialStep } from "../game/tutorial";
+import { t } from "../i18n/messages/tutorial";
 import { button, element } from "./dom";
 
 /** Marge (part de l'écran) gardée libre autour du repère quand il est collé au bord : sous les blocs du HUD. */
@@ -33,8 +34,8 @@ export class TutorialGuide {
     parent: HTMLElement,
     private readonly callbacks: TutorialGuideCallbacks,
   ) {
-    this.skipButton = button("Passer le tutoriel", () => this.callbacks.onSkip(), "btn ghost small");
-    this.card = element("section", { className: "tutorial-card", attributes: { role: "status", "aria-live": "polite", "aria-label": "Tutoriel" } }, [
+    this.skipButton = button(t("skip"), () => this.callbacks.onSkip(), "btn ghost small");
+    this.card = element("section", { className: "tutorial-card", attributes: { role: "status", "aria-live": "polite", "aria-label": t("label") } }, [
       this.eyebrow,
       this.title,
       this.hint,
@@ -52,7 +53,7 @@ export class TutorialGuide {
     this.renderedKey = key;
     window.clearTimeout(this.completionTimer);
     const instruction = tutorialInstruction(step.id, touch);
-    this.eyebrow.textContent = `Tutoriel · étape ${stepNumber} sur ${stepCount}`;
+    this.eyebrow.textContent = t("eyebrow", { step: stepNumber, total: stepCount });
     this.title.textContent = instruction.title;
     this.hint.textContent = instruction.hint;
     this.pips.replaceChildren(
@@ -73,9 +74,9 @@ export class TutorialGuide {
   /** Fin du tutoriel : un message de passage de relais, qui s'efface tout seul. */
   showCompletion(): void {
     this.renderedKey = "complete";
-    this.eyebrow.textContent = "Tutoriel terminé";
-    this.title.textContent = "À toi de jouer";
-    this.hint.textContent = "Pirate les terminaux restants, réponds aux questions, puis rejoins l'extraction (le faisceau vert).";
+    this.eyebrow.textContent = t("doneEyebrow");
+    this.title.textContent = t("doneTitle");
+    this.hint.textContent = t("doneHint");
     this.pips.replaceChildren(...Array.from({ length: 7 }, () => element("span", { className: "pip done" })));
     this.skipButton.hidden = true;
     this.card.classList.add("complete");

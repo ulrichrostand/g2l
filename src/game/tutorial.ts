@@ -1,3 +1,5 @@
+import { t } from "../i18n/messages/tutorial";
+
 /**
  * Tutoriel guidé du premier secteur : une suite d'étapes validées par ce que le joueur fait vraiment dans le jeu
  * (déplacement, dossier ramassé, terminal piraté, tir, accroupi, neutralisation), jamais par un « Suivant ».
@@ -139,31 +141,19 @@ export class TutorialSession {
 export function tutorialInstruction(id: TutorialStepId, touch: boolean): { title: string; hint: string } {
   switch (id) {
     case "move":
-      return touch
-        ? { title: "Déplace-toi", hint: "Pose le pouce gauche sur l'écran et glisse : un joystick apparaît là où tu poses le doigt." }
-        : { title: "Déplace-toi", hint: "Utilise Z, Q, S, D (ou les flèches du clavier)." };
+      return { title: t("moveTitle"), hint: touch ? t("moveHintTouch") : t("moveHintKeys") };
     case "intel":
-      return { title: "Ramasse un dossier", hint: "Marche jusqu'au dossier jaune indiqué : il contient une leçon qui prépare les terminaux." };
+      return { title: t("intelTitle"), hint: t("intelHint") };
     case "terminal":
-      return touch
-        ? { title: "Pirate un terminal", hint: "Approche du terminal rouge indiqué puis touche le bouton Pirater, et réponds à la question." }
-        : { title: "Pirate un terminal", hint: "Approche du terminal rouge indiqué, appuie sur E, puis réponds à la question." };
+      return { title: t("terminalTitle"), hint: touch ? t("terminalHintTouch") : t("terminalHintKeys") };
     case "aim":
-      return touch
-        ? { title: "Épaule ton arme", hint: "Pose le pouce sur le pad Tirer et glisse : un laser rouge montre où tu vises." }
-        : { title: "Épaule ton arme", hint: "Maintiens le clic droit : un laser rouge montre où tu vises, et le tir devient précis." };
+      return { title: t("aimTitle"), hint: touch ? t("aimHintTouch") : t("aimHintKeys") };
     case "shoot":
-      return touch
-        ? { title: "Tire", hint: "Relâche le pad Tirer pour faire feu. Tu peux rater : une balle qui touche suspend une sentinelle." }
-        : { title: "Tire", hint: "Clic gauche ou Espace. Tu peux rater : une balle qui touche suspend une sentinelle." };
+      return { title: t("shootTitle"), hint: touch ? t("shootHintTouch") : t("shootHintKeys") };
     case "crouch":
-      return touch
-        ? { title: "Accroupis-toi", hint: "Touche le bouton à l'icône de personnage accroupi : tu es moins visible et moins bruyant." }
-        : { title: "Accroupis-toi", hint: "Appuie sur C : tu es moins visible et moins bruyant. Rappuie pour te relever." };
+      return { title: t("crouchTitle"), hint: touch ? t("crouchHintTouch") : t("crouchHintKeys") };
     case "takedown":
-      return touch
-        ? { title: "Neutralise une sentinelle", hint: "Approche-la par derrière sans te faire voir, puis touche le bouton Neutraliser." }
-        : { title: "Neutralise une sentinelle", hint: "Approche-la par derrière sans te faire voir, puis appuie sur E." };
+      return { title: t("takedownTitle"), hint: touch ? t("takedownHintTouch") : t("takedownHintKeys") };
   }
 }
 

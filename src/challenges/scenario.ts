@@ -1,4 +1,5 @@
 import type { ScenarioStep } from "../content/types";
+import { t } from "../i18n/messages/challenge";
 import { normalizeCommand } from "./evaluate";
 
 /**
@@ -35,7 +36,7 @@ export function simulateWrongCommand(typedCommand: string): string[] {
   const program = normalized.split(" ")[0] ?? "";
   if (program.length === 0) return [];
   if (!KNOWN_COMMANDS.has(program)) return [`bash: ${program}: command not found`];
-  return ["(la commande s'exécute, mais ce n'est pas ce qui est demandé à cette étape)"];
+  return [t("notWhatAsked")];
 }
 
 /** Commande montrée quand on révèle la solution : la première forme acceptée, la plus canonique. */
