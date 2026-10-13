@@ -54,6 +54,7 @@ export const t = createTranslator("screens", {
     allGames: "Tous les parcours",
     saveMenu: "Sauvegarde",
     soundTitle: "Ambiance sonore et effets du jeu.",
+    brightnessTitle: "Plus claire ou plus sombre : règle la luminosité de l'image, en plus de l'éclairage des salles.",
     qualityTitle: "Haute : ombres et effets lumineux. Basse : le plus fluide sur les appareils modestes.",
     // Dossier de mission
     firstSector: "Premier secteur",
@@ -233,6 +234,7 @@ export const t = createTranslator("screens", {
     allGames: "All games",
     saveMenu: "Save",
     soundTitle: "Game ambience and sound effects.",
+    brightnessTitle: "Lighter or darker: adjusts overall image brightness, on top of the room lighting.",
     qualityTitle: "High: shadows and lighting effects. Low: smoothest on modest devices.",
     firstSector: "First sector",
     nextSector: "Next sector",

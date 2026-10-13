@@ -26,6 +26,29 @@ export const QUALITY_PROFILES: Record<GraphicsQuality, QualityProfile> = {
   low: { label: t("qualityLow"), pixelRatioCap: 1, bloom: false, vignette: false, shadows: false, dustParticles: 0, roomLights: 3, detailedAndroids: false },
 };
 
+/** Luminosité choisie par le joueur : s'ajoute à l'éclairage des salles sans le remplacer. */
+export type Brightness = "dim" | "normal" | "bright";
+
+const BRIGHTNESS_ORDER: readonly Brightness[] = ["normal", "bright", "dim"];
+
+/** Multiplicateur d'exposition de l'image : agit tout de suite, sans reconstruire le niveau. */
+export const BRIGHTNESS_EXPOSURE: Readonly<Record<Brightness, number>> = { dim: 0.8, normal: 1, bright: 1.35 };
+
+export const BRIGHTNESS_LABELS: Readonly<Record<Brightness, string>> = {
+  dim: t("brightnessDim"),
+  normal: t("brightnessNormal"),
+  bright: t("brightnessBright"),
+};
+
+export function isBrightness(value: unknown): value is Brightness {
+  return value === "dim" || value === "normal" || value === "bright";
+}
+
+/** Cycle du bouton : Normale → Claire → Sombre → Normale. */
+export function nextBrightness(brightness: Brightness): Brightness {
+  return BRIGHTNESS_ORDER[(BRIGHTNESS_ORDER.indexOf(brightness) + 1) % BRIGHTNESS_ORDER.length] as Brightness;
+}
+
 const QUALITY_ORDER: readonly GraphicsQuality[] = ["high", "medium", "low"];
 
 export function isGraphicsQuality(value: unknown): value is GraphicsQuality {
@@ -86,12 +109,14 @@ const SETTINGS_KEY = "shadow-ops-devops/settings";
 interface StoredSettings {
   quality: GraphicsQuality | null;
   soundEnabled: boolean | null;
+  brightness: Brightness | null;
 }
 
 /** Réglages propres à l'appareil : volontairement hors du code de sauvegarde (un PC n'est pas un téléphone). */
 export class SettingsStore {
   private currentQuality: GraphicsQuality;
   private currentSoundEnabled: boolean;
+  private currentBrightness: Brightness;
 
   constructor(
     private readonly storage: Pick<Storage, "getItem" | "setItem"> | null,
@@ -100,6 +125,16 @@ export class SettingsStore {
     const stored = this.read();
     this.currentQuality = stored.quality ?? defaultQuality(isTouchDevice);
     this.currentSoundEnabled = stored.soundEnabled ?? true;
+    this.currentBrightness = stored.brightness ?? "normal";
+  }
+
+  get brightness(): Brightness {
+    return this.currentBrightness;
+  }
+
+  setBrightness(brightness: Brightness): void {
+    this.currentBrightness = brightness;
+    this.write();
   }
 
   get quality(): GraphicsQuality {
@@ -123,7 +158,7 @@ export class SettingsStore {
   private write(): void {
     if (!this.storage) return;
     try {
-      this.storage.setItem(SETTINGS_KEY, JSON.stringify({ quality: this.currentQuality, soundEnabled: this.currentSoundEnabled }));
+      this.storage.setItem(SETTINGS_KEY, JSON.stringify({ quality: this.currentQuality, soundEnabled: this.currentSoundEnabled, brightness: this.currentBrightness }));
     } catch (error) {
       console.warn("Réglages non enregistrés (stockage indisponible).", error);
     }
@@ -131,17 +166,18 @@ export class SettingsStore {
 
   /** Chaque réglage est validé séparément : une valeur corrompue n'efface pas les autres. */
   private read(): StoredSettings {
-    const empty: StoredSettings = { quality: null, soundEnabled: null };
+    const empty: StoredSettings = { quality: null, soundEnabled: null, brightness: null };
     if (!this.storage) return empty;
     try {
       const raw = this.storage.getItem(SETTINGS_KEY);
       if (!raw) return empty;
       const parsed: unknown = JSON.parse(raw);
       if (typeof parsed !== "object" || parsed === null) return empty;
-      const { quality, soundEnabled } = parsed as { quality?: unknown; soundEnabled?: unknown };
+      const { quality, soundEnabled, brightness } = parsed as { quality?: unknown; soundEnabled?: unknown; brightness?: unknown };
       return {
         quality: isGraphicsQuality(quality) ? quality : null,
         soundEnabled: typeof soundEnabled === "boolean" ? soundEnabled : null,
+        brightness: isBrightness(brightness) ? brightness : null,
       };
     } catch (error) {
       console.warn("Réglages illisibles, valeurs par défaut utilisées.", error);

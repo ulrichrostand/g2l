@@ -7,6 +7,7 @@ import type { ExamRecord, ModuleRecord } from "../game/progress";
 import { describeSolution } from "./challengePanel";
 import { lessonCard } from "./lessonPanel";
 import { createLanguageSwitch } from "../i18n/switcher";
+import { createSettingsMenu, languageRow } from "./settingsMenu";
 import { LANG, LOCALE, isSingular } from "../i18n/lang";
 import { portalPath } from "../i18n/routes";
 import { t } from "../i18n/messages/screens";
@@ -52,6 +53,9 @@ export interface TitleScreenOptions {
   qualityLabel: string;
   /** Passe à la qualité suivante et renvoie le nouveau libellé du bouton. */
   onCycleQuality(): string;
+  brightnessLabel: string;
+  /** Passe à la luminosité suivante et renvoie le nouveau libellé du bouton. */
+  onCycleBrightness(): string;
   soundLabel: string;
   /** Active ou coupe le son et renvoie le nouveau libellé du bouton. */
   onToggleSound(): string;
@@ -61,6 +65,9 @@ export interface PauseScreenOptions {
   persistent: boolean;
   qualityLabel: string;
   onCycleQuality(): string;
+  brightnessLabel: string;
+  /** Passe à la luminosité suivante et renvoie le nouveau libellé du bouton. */
+  onCycleBrightness(): string;
   soundLabel: string;
   onToggleSound(): string;
   onResume(): void;
@@ -157,15 +164,18 @@ export class ScreenManager {
           element("div", { className: "title-actions" }, [resumeButton, campaignButton]),
           options.resume ? element("p", { className: "resume-detail", text: t("gameInProgress", { detail: options.resume.detail }) }) : null,
           element("div", { className: "title-toolbar" }, [
-            switcher,
             button(t("customizeAgent"), options.onCustomize, "btn ghost small"),
             button(t("mySkills"), options.onSkills, "btn ghost small"),
             // Retour au portail : le jeu n'est qu'un parcours parmi d'autres.
             button(t("allGames"), () => window.location.assign(portalPath(LANG, import.meta.env.BASE_URL)), "btn ghost small"),
             button(t("saveMenu"), options.onSaveManager, "btn ghost small"),
-            qualityButton(options.qualityLabel, options.onCycleQuality),
-            toggleButton(options.soundLabel, options.onToggleSound, t("soundTitle")),
-            resetButton,
+            createSettingsMenu([
+              ...(switcher ? [languageRow(switcher)] : []),
+              qualityButton(options.qualityLabel, options.onCycleQuality),
+              brightnessButton(options.brightnessLabel, options.onCycleBrightness),
+              toggleButton(options.soundLabel, options.onToggleSound, t("soundTitle")),
+              resetButton,
+            ]),
           ]),
         ]),
         this.missionFile(options.campaign),
@@ -458,9 +468,12 @@ export class ScreenManager {
         element("div", { className: "row" }, [
           resumeButton,
           ...(options.fullscreen ? [fullscreenButton(options.fullscreen)] : []),
-          qualityButton(options.qualityLabel, options.onCycleQuality),
-          toggleButton(options.soundLabel, options.onToggleSound, t("soundTitle")),
           button(t("quitMission"), options.onQuit, "btn ghost"),
+          createSettingsMenu([
+            qualityButton(options.qualityLabel, options.onCycleQuality),
+            brightnessButton(options.brightnessLabel, options.onCycleBrightness),
+            toggleButton(options.soundLabel, options.onToggleSound, t("soundTitle")),
+          ]),
         ]),
       ]),
     );
@@ -628,6 +641,10 @@ function starPips(stars: number): HTMLElement {
 
 function qualityButton(label: string, onCycle: () => string): HTMLButtonElement {
   return toggleButton(label, onCycle, t("qualityTitle"));
+}
+
+function brightnessButton(label: string, onCycle: () => string): HTMLButtonElement {
+  return toggleButton(label, onCycle, t("brightnessTitle"));
 }
 
 /** Le plein écran est asynchrone : le libellé change une fois la réponse du navigateur connue, pas avant. */

@@ -233,6 +233,8 @@ première visite sur l'accueil français, un navigateur anglophone est redirigé
 
 **Éclairage** (`src/level/lighting.ts`) : chaque salle a un niveau `off`, `dim`, `normal` ou `bright` (valeurs dans `LIGHT_LEVELS`). La salle de départ est toujours `normal`, le nombre de salles allumées est plafonné par la qualité graphique, et l'ambiance (`AMBIENT_LIGHT`) garantit que les salles sans néon restent lisibles.
 
+**Réglages joueur** : le menu « Paramètres » (hamburger) de l'écran titre et de la pause regroupe la langue, les graphismes, la **luminosité** (Normale / Claire / Sombre, via l'exposition de l'image) et le son. Les réglages sont mémorisés sur l'appareil.
+
 ## Ressources 3D et licences
 
 | Ressource | Auteur | Licence | Fichier |

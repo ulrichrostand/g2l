@@ -935,3 +935,14 @@ body.touch .keyboard-only, body:not(.touch) .touch-only { display: none; }
 @media (max-width: 600px) {
   .skills-stats { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Menu de réglages replié (hamburger) : le panneau s'insère dans le flux, pleine largeur de la rangée. */
+.settings-menu { display: contents; }
+.settings-toggle { display: inline-flex; align-items: center; gap: 0.6em; min-height: 44px; }
+.settings-toggle.open { color: var(--accent); border-color: var(--accent); }
+.burger { display: inline-flex; flex-direction: column; gap: 3px; width: 16px; }
+.burger span { display: block; height: 2px; background: currentColor; border-radius: 1px; }
+.settings-panel { flex: 1 0 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border: 1px solid var(--panel-border); border-radius: 8px; background: rgba(255, 255, 255, 0.03); }
+.settings-panel[hidden] { display: none; }
+.settings-row { display: inline-flex; align-items: center; gap: 8px; }
+.settings-heading { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }

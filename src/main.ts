@@ -3,7 +3,7 @@ import "./style.css";
 import { unlockedWeapons } from "./combat/weapons";
 import { InputController } from "./core/input";
 import { SeededRandom } from "./core/rng";
-import { FrameRateMonitor, lowerQuality, nextQuality, QUALITY_PROFILES, SettingsStore, type GraphicsQuality } from "./core/settings";
+import { BRIGHTNESS_EXPOSURE, BRIGHTNESS_LABELS, FrameRateMonitor, lowerQuality, nextBrightness, nextQuality, QUALITY_PROFILES, SettingsStore, type GraphicsQuality } from "./core/settings";
 import { Ambience } from "./core/ambience";
 import { AudioEngine, SoundFx } from "./core/sound";
 import { CURRICULUM } from "./content/curriculum";
@@ -177,6 +177,8 @@ class ShadowOpsApp {
       onSkills: () => this.showSkills(() => this.showTitle()),
       qualityLabel: this.qualityLabel(),
       onCycleQuality: () => this.cycleQuality(),
+      brightnessLabel: this.brightnessLabel(),
+      onCycleBrightness: () => this.cycleBrightness(),
       soundLabel: this.soundLabel(),
       onToggleSound: () => this.toggleSound(),
       onReset: () => {
@@ -791,6 +793,8 @@ class ShadowOpsApp {
       persistent: this.progress.isPersistent,
       qualityLabel: this.qualityLabel(),
       onCycleQuality: () => this.cycleQuality(),
+      brightnessLabel: this.brightnessLabel(),
+      onCycleBrightness: () => this.cycleBrightness(),
       soundLabel: this.soundLabel(),
       onToggleSound: () => this.toggleSound(),
       onResume: () => {
@@ -856,6 +860,16 @@ class ShadowOpsApp {
     return this.soundLabel();
   }
 
+  private brightnessLabel(): string {
+    return t("brightnessLabel", { level: BRIGHTNESS_LABELS[this.settings.brightness] });
+  }
+
+  /** Prend effet à l'image suivante : l'exposition est relue à chaque rendu. */
+  private cycleBrightness(): string {
+    this.settings.setBrightness(nextBrightness(this.settings.brightness));
+    return this.brightnessLabel();
+  }
+
   private qualityLabel(): string {
     return t("graphicsLabel", { quality: QUALITY_PROFILES[this.settings.quality].label });
   }
@@ -905,7 +919,7 @@ class ShadowOpsApp {
     if (!mission.isPaused) this.watchFrameRate(deltaSeconds);
 
     this.canvas.classList.toggle("night-vision", mission.isNightVisionOn);
-    this.pipeline.exposure = mission.isNightVisionOn ? 2.4 : 1;
+    this.pipeline.exposure = (mission.isNightVisionOn ? 2.4 : 1) * BRIGHTNESS_EXPOSURE[this.settings.brightness];
     const hudState = mission.hudState();
     this.hud.render(hudState);
     this.updateTutorial(mission);
@@ -993,14 +1007,14 @@ class ShadowOpsApp {
     studio.update(deltaSeconds, elapsedSeconds);
     // Recadré à chaque image : la mise en page (panneau à gauche ou en bas) suit la rotation de l'écran.
     studio.frameCamera(this.camera, creator.layout, creator.panelCoverage);
-    this.pipeline.exposure = 1;
+    this.pipeline.exposure = BRIGHTNESS_EXPOSURE[this.settings.brightness];
     this.pipeline.render(studio.scene, this.camera);
   }
 
   private animateIdleScene(elapsedSeconds: number): void {
     this.camera.position.set(Math.cos(elapsedSeconds * 0.1) * 14, 9, Math.sin(elapsedSeconds * 0.1) * 14);
     this.camera.lookAt(0, 0, 0);
-    this.pipeline.exposure = 1;
+    this.pipeline.exposure = BRIGHTNESS_EXPOSURE[this.settings.brightness];
     this.pipeline.render(this.idleScene, this.camera);
   }
 

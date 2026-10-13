@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultQuality, FrameRateMonitor, lowerQuality, nextQuality, QUALITY_PROFILES, SettingsStore } from "../src/core/settings";
+import { BRIGHTNESS_EXPOSURE, defaultQuality, isBrightness, nextBrightness, FrameRateMonitor, lowerQuality, nextQuality, QUALITY_PROFILES, SettingsStore } from "../src/core/settings";
 
 class MemoryStorage {
   values = new Map<string, string>();
@@ -64,5 +64,34 @@ describe("FrameRateMonitor", () => {
     const monitor = new FrameRateMonitor();
     expect(run(monitor, 25, 2.5)).toBe(false);
     expect(run(monitor, 25, 6)).toBe(true);
+  });
+});
+
+describe("luminosité choisie par le joueur", () => {
+  it("part de normale et le bouton boucle : Normale, Claire, Sombre", () => {
+    expect(new SettingsStore(new MemoryStorage(), false).brightness).toBe("normal");
+    expect(nextBrightness("normal")).toBe("bright");
+    expect(nextBrightness("bright")).toBe("dim");
+    expect(nextBrightness("dim")).toBe("normal");
+  });
+
+  it("l'exposition croît de sombre à claire, normale valant exactement 1", () => {
+    expect(BRIGHTNESS_EXPOSURE.normal).toBe(1);
+    expect(BRIGHTNESS_EXPOSURE.dim).toBeLessThan(1);
+    expect(BRIGHTNESS_EXPOSURE.bright).toBeGreaterThan(1);
+  });
+
+  it("mémorise le choix sans effacer qualité ni son, et ignore une valeur corrompue", () => {
+    const storage = new MemoryStorage();
+    const store = new SettingsStore(storage, false);
+    store.setQuality("low");
+    store.setSoundEnabled(false);
+    store.setBrightness("bright");
+    const reloaded = new SettingsStore(storage, false);
+    expect([reloaded.quality, reloaded.soundEnabled, reloaded.brightness]).toEqual(["low", false, "bright"]);
+    storage.setItem("shadow-ops-devops/settings", '{"quality":"low","brightness":"blinding"}');
+    const corrupted = new SettingsStore(storage, false);
+    expect([corrupted.quality, corrupted.brightness]).toEqual(["low", "normal"]);
+    expect(isBrightness("blinding")).toBe(false);
   });
 });
