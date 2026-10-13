@@ -3,10 +3,12 @@ import type { SeededRandom } from "../core/rng";
 import type { LevelLayout, Room } from "../level/generator";
 import type { Sponsor } from "./sponsors";
 
-/** Une affiche accrochée sur la face sud d'un mur de salle (celle que la caméra de jeu voit). */
+/** Emprise d'une affiche au sol, en cases : large pour rester lisible depuis la caméra de jeu (vue plongeante). */
+export const POSTER_FOOTPRINT = { cellsX: 4, cellsZ: 3 } as const;
+
+/** Une affiche peinte au sol : `cell` est le coin nord-ouest de son emprise. */
 export interface PosterSlot {
-  /** Case de mur qui porte l'affiche. */
-  wallCell: Cell;
+  cell: Cell;
   roomIndex: number;
 }
 
@@ -16,36 +18,56 @@ export interface PlacedPoster extends PosterSlot {
 
 /** Une affiche par salle au plus, et un plafond par niveau : trop d'affiches rendraient le décor bruyant. */
 export const MAX_POSTERS_PER_LEVEL = 4;
-/** Marge aux angles : une affiche collée à un coin serait coupée par le mur voisin. */
-const CORNER_MARGIN = 1;
 
 /**
- * Emplacements possibles : cases du mur nord de chaque salle, hors coins, hors caméras de surveillance
- * et hors terminaux (qui s'adossent au mur) pour ne jamais superposer deux éléments.
+ * Emplacements possibles : rectangles de sol entièrement dans une salle, sans aucun élément de jeu dessus
+ * (départ, sortie, terminaux et leur accès, dossiers, caméras, rondes de gardes), pour ne jamais en cacher un.
  */
 export function candidatePosterSlots(layout: LevelLayout): PosterSlot[] {
-  const { grid, rooms } = layout;
-  const blocked = new Set<string>([
-    ...layout.cameras.map((camera) => key(camera.wallCell)),
-    ...layout.terminals.map((slot) => key({ x: slot.cell.x, z: slot.cell.z - 1 })),
-  ]);
+  const blocked = occupiedCells(layout);
   const slots: PosterSlot[] = [];
-  rooms.forEach((room, roomIndex) => {
-    for (const wallCell of northWallCells(grid, room)) {
-      if (!blocked.has(key(wallCell))) slots.push({ wallCell, roomIndex });
+  layout.rooms.forEach((room, roomIndex) => {
+    for (let z = room.z; z + POSTER_FOOTPRINT.cellsZ <= room.z + room.height; z++) {
+      for (let x = room.x; x + POSTER_FOOTPRINT.cellsX <= room.x + room.width; x++) {
+        if (isFreeFloor(layout.grid, blocked, x, z)) slots.push({ cell: { x, z }, roomIndex });
+      }
     }
   });
   return slots;
 }
 
-function northWallCells(grid: Grid, room: Room): Cell[] {
-  const wallZ = room.z - 1;
-  const cells: Cell[] = [];
-  for (let x = room.x + CORNER_MARGIN; x < room.x + room.width - CORNER_MARGIN; x++) {
-    // Mur plein devant un sol praticable : pas de porte ni de couloir à cet endroit.
-    if (grid.get(x, wallZ) === Tile.Wall && grid.isWalkable(x, room.z)) cells.push({ x, z: wallZ });
+function isFreeFloor(grid: Grid, blocked: ReadonlySet<string>, originX: number, originZ: number): boolean {
+  for (let z = originZ; z < originZ + POSTER_FOOTPRINT.cellsZ; z++) {
+    for (let x = originX; x < originX + POSTER_FOOTPRINT.cellsX; x++) {
+      if (grid.get(x, z) !== Tile.Floor || blocked.has(key({ x, z }))) return false;
+    }
   }
-  return cells;
+  return true;
+}
+
+function occupiedCells(layout: LevelLayout): Set<string> {
+  const cells: Cell[] = [
+    layout.start,
+    layout.exit,
+    ...layout.intel,
+    ...layout.terminals.flatMap((slot) => [slot.cell, slot.accessCell]),
+    ...layout.cameras.map((camera) => camera.floorCell),
+    ...layout.guards.flatMap((route) => route.waypoints),
+  ];
+  return new Set(cells.map(key));
+}
+
+/** Le mur sud, haut et vu de dessus par la caméra, cache le sol jusqu'à environ trois cases derrière lui. */
+const SOUTH_WALL_SHADOW_CELLS = 3;
+
+/**
+ * Rangée préférée d'une salle : la plus au sud qui reste visible (hors de l'ombre du mur sud), ce qui place
+ * l'affiche loin du néon, décalé vers le nord. Une salle trop basse retombe sur sa rangée la plus au nord.
+ */
+export function preferredRow(room: Room, options: readonly PosterSlot[]): number {
+  const lastVisibleRow = room.z + room.height - POSTER_FOOTPRINT.cellsZ - SOUTH_WALL_SHADOW_CELLS;
+  const visible = options.filter((slot) => slot.cell.z <= lastVisibleRow).map((slot) => slot.cell.z);
+  return visible.length > 0 ? Math.max(...visible) : Math.min(...options.map((slot) => slot.cell.z));
 }
 
 /**
@@ -65,7 +87,8 @@ export function placePosters(layout: LevelLayout, sponsors: readonly Sponsor[], 
     .slice(0, maxPosters)
     .map((roomIndex) => {
       const options = byRoom.get(roomIndex) as PosterSlot[];
-      return options[random.int(0, options.length - 1)] as PosterSlot;
+      const rowChoices = options.filter((slot) => slot.cell.z === preferredRow(layout.rooms[roomIndex] as Room, options));
+      return rowChoices[random.int(0, rowChoices.length - 1)] as PosterSlot;
     });
   // Départ aléatoire dans la liste : d'un niveau à l'autre, chaque annonceur passe en premier à son tour.
   const offset = random.int(0, sponsors.length - 1);

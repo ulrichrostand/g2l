@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_POSTERS_PER_LEVEL, candidatePosterSlots, placePosters } from "../src/ads/placement";
+import { MAX_POSTERS_PER_LEVEL, POSTER_FOOTPRINT, candidatePosterSlots, placePosters, preferredRow } from "../src/ads/placement";
 import { wrapText } from "../src/ads/posterScene";
 import { HOUSE_POSTER, SPONSORS, activeSponsors, sponsorProblems, sponsorsToShow, type Sponsor } from "../src/ads/sponsors";
 import { SeededRandom } from "../src/core/rng";
@@ -45,15 +45,32 @@ describe("catalogue des annonceurs", () => {
 });
 
 describe("placement des affiches", () => {
-  it("n'utilise que des murs pleins devant un sol, hors caméras et terminaux", () => {
+  it("n'occupe que du sol dans une salle, sans aucun élément de jeu dessus", () => {
     const slots = candidatePosterSlots(layout);
     expect(slots.length).toBeGreaterThan(0);
-    const cameraWalls = new Set(layout.cameras.map((camera) => `${camera.wallCell.x},${camera.wallCell.z}`));
+    const occupied = new Set(
+      [layout.start, layout.exit, ...layout.intel, ...layout.terminals.flatMap((slot) => [slot.cell, slot.accessCell]), ...layout.cameras.map((camera) => camera.floorCell), ...layout.guards.flatMap((route) => route.waypoints)].map((cell) => `${cell.x},${cell.z}`),
+    );
     for (const slot of slots) {
-      expect(layout.grid.isWalkable(slot.wallCell.x, slot.wallCell.z)).toBe(false);
-      expect(layout.grid.isWalkable(slot.wallCell.x, slot.wallCell.z + 1)).toBe(true);
-      expect(cameraWalls.has(`${slot.wallCell.x},${slot.wallCell.z}`)).toBe(false);
-      for (const terminal of layout.terminals) expect(terminal.cell.x === slot.wallCell.x && terminal.cell.z - 1 === slot.wallCell.z).toBe(false);
+      const room = layout.rooms[slot.roomIndex]!;
+      expect(slot.cell.x).toBeGreaterThanOrEqual(room.x);
+      expect(slot.cell.z).toBeGreaterThanOrEqual(room.z);
+      expect(slot.cell.x + POSTER_FOOTPRINT.cellsX).toBeLessThanOrEqual(room.x + room.width);
+      expect(slot.cell.z + POSTER_FOOTPRINT.cellsZ).toBeLessThanOrEqual(room.z + room.height);
+      for (let z = slot.cell.z; z < slot.cell.z + POSTER_FOOTPRINT.cellsZ; z++) {
+        for (let x = slot.cell.x; x < slot.cell.x + POSTER_FOOTPRINT.cellsX; x++) {
+          expect(layout.grid.isWalkable(x, z)).toBe(true);
+          expect(occupied.has(`${x},${z}`)).toBe(false);
+        }
+      }
+    }
+  });
+
+  it("choisit la rangée la plus au sud encore visible, hors de l'ombre du mur sud", () => {
+    const posters = placePosters(layout, [sample], new SeededRandom(3));
+    for (const poster of posters) {
+      const sameRoom = candidatePosterSlots(layout).filter((slot) => slot.roomIndex === poster.roomIndex);
+      expect(poster.cell.z).toBe(preferredRow(layout.rooms[poster.roomIndex]!, sameRoom));
     }
   });
 
@@ -93,5 +110,18 @@ describe("découpe du texte des affiches", () => {
 
   it("gère un texte vide", () => {
     expect(wrapText("   ", measure, 100, 2)).toEqual([]);
+  });
+});
+
+describe("rangée préférée", () => {
+  const room = { x: 1, z: 10, width: 8, height: 8 };
+  const slotAt = (z: number) => ({ cell: { x: 1, z }, roomIndex: 0 });
+
+  it("prend la plus au sud hors de l'ombre du mur sud", () => {
+    expect(preferredRow(room, [10, 11, 12, 13, 14, 15].map(slotAt))).toBe(12);
+  });
+
+  it("retombe sur la plus au nord si toute la salle est dans l'ombre", () => {
+    expect(preferredRow({ ...room, height: 4 }, [11, 12].map(slotAt))).toBe(11);
   });
 });

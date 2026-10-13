@@ -4,14 +4,15 @@ import { t } from "../i18n/messages/ads";
 import type { PlacedPoster } from "./placement";
 import type { Sponsor } from "./sponsors";
 
-const POSTER_WIDTH = 1.5;
-const POSTER_HEIGHT = 0.94;
-/** Centre sous la bande lumineuse des murs (≈ 1,05 m) pour ne pas la chevaucher. */
-const POSTER_CENTER_HEIGHT = 0.52;
-/** Décalage devant le mur : évite le z-fighting sans que l'affiche paraisse décollée. */
-const WALL_OFFSET = 0.012;
-const CANVAS_WIDTH = 512;
-const CANVAS_HEIGHT = 320;
+import { POSTER_FOOTPRINT } from "./placement";
+
+/** Affiche peinte au sol, un peu plus petite que son emprise : une marge de sol nu l'entoure. */
+const POSTER_WIDTH = 3.84;
+const POSTER_DEPTH = 2.4;
+/** Juste au-dessus du sol et de la flaque de lumière (0,01) : évite le scintillement entre surfaces coplanaires. */
+const FLOOR_OFFSET = 0.015;
+const CANVAS_WIDTH = 1024;
+const CANVAS_HEIGHT = 640;
 const FONT_FAMILY = '"Barlow", "Segoe UI", system-ui, sans-serif';
 
 /**
@@ -49,59 +50,72 @@ function drawPoster(sponsor: Sponsor, lang: Lang): HTMLCanvasElement {
   canvas.height = CANVAS_HEIGHT;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas 2D indisponible : impossible de dessiner l'affiche");
-  const margin = 28;
-  const innerWidth = CANVAS_WIDTH - margin * 2;
+  const left = 72;
+  const textWidth = CANVAS_WIDTH - left - 48;
   const measure = (candidate: string) => context.measureText(candidate).width;
 
   context.fillStyle = "#0b1014";
   context.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
   context.fillStyle = sponsor.accent;
-  context.fillRect(0, 0, 14, CANVAS_HEIGHT);
+  context.fillRect(0, 0, 28, CANVAS_HEIGHT);
   context.strokeStyle = sponsor.accent;
-  context.lineWidth = 3;
-  context.strokeRect(1.5, 1.5, CANVAS_WIDTH - 3, CANVAS_HEIGHT - 3);
+  context.lineWidth = 6;
+  context.strokeRect(3, 3, CANVAS_WIDTH - 6, CANVAS_HEIGHT - 6);
 
   context.textBaseline = "top";
   context.fillStyle = sponsor.accent;
-  context.font = `600 22px ${FONT_FAMILY}`;
-  context.fillText(t("adLabel"), margin + 10, 22);
+  context.font = `600 36px ${FONT_FAMILY}`;
+  context.fillText(t("adLabel"), left, 34);
 
   context.fillStyle = "#f2f6f0";
-  context.font = `700 46px ${FONT_FAMILY}`;
-  const headline = wrapText(localized(sponsor.headline, lang), measure, innerWidth - 10, 3);
-  headline.forEach((line, index) => context.fillText(line, margin + 10, 62 + index * 52));
+  context.font = `700 76px ${FONT_FAMILY}`;
+  const headline = wrapText(localized(sponsor.headline, lang), measure, textWidth, 3);
+  headline.forEach((line, index) => context.fillText(line, left, 96 + index * 84));
 
   context.fillStyle = "#b9c4bd";
-  context.font = `500 24px ${FONT_FAMILY}`;
+  context.font = `500 40px ${FONT_FAMILY}`;
+  const detailTop = 96 + headline.length * 84 + 14;
   if (sponsor.detail) {
-    const detail = wrapText(localized(sponsor.detail, lang), measure, innerWidth - 10, 2);
-    detail.forEach((line, index) => context.fillText(line, margin + 10, 62 + headline.length * 52 + 8 + index * 30));
+    const detail = wrapText(localized(sponsor.detail, lang), measure, textWidth, 2);
+    detail.forEach((line, index) => context.fillText(line, left, detailTop + index * 48));
   }
 
   context.fillStyle = sponsor.accent;
-  context.font = `600 22px ${FONT_FAMILY}`;
-  context.fillText(sponsor.url.replace(/^https:\/\//, "").replace(/\/$/, ""), margin + 10, CANVAS_HEIGHT - 76);
+  context.font = `600 40px ${FONT_FAMILY}`;
+  context.fillText(sponsor.url.replace(/^https:\/\//, "").replace(/\/$/, ""), left, CANVAS_HEIGHT - 128);
   context.fillStyle = "#7d8a83";
-  context.font = `500 20px ${FONT_FAMILY}`;
-  context.fillText(t("partnerLabel", { advertiser: sponsor.advertiser }), margin + 10, CANVAS_HEIGHT - 44);
+  context.font = `500 32px ${FONT_FAMILY}`;
+  context.fillText(t("partnerLabel", { advertiser: sponsor.advertiser }), left, CANVAS_HEIGHT - 76);
   return canvas;
 }
 
 /**
- * Accroche les affiches sur les murs. Texte uniquement, dessiné en canvas : aucune requête réseau, aucun clic,
- * aucun suivi. L'éclairage de la scène les modèle, avec un léger auto-éclairage pour qu'elles restent lisibles
- * dans une salle sombre (sans dépasser le seuil du bloom).
+ * Peint les affiches sur le sol des salles : la caméra de jeu domine la scène, un mur est vu de très biaisé
+ * alors que le sol l'est de face. Le haut du texte pointe vers le nord, donc vers le haut de l'écran.
+ * Texte uniquement, dessiné en canvas : aucune requête réseau, aucun clic, aucun suivi.
  */
 export function addPosters(scene: THREE.Scene, posters: readonly PlacedPoster[], lang: Lang = LANG): void {
-  const geometry = new THREE.PlaneGeometry(POSTER_WIDTH, POSTER_HEIGHT);
+  const geometry = new THREE.PlaneGeometry(POSTER_WIDTH, POSTER_DEPTH);
   for (const poster of posters) {
     const texture = new THREE.CanvasTexture(drawPoster(poster.sponsor, lang));
     texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = 4;
-    const material = new THREE.MeshStandardMaterial({ map: texture, emissiveMap: texture, emissive: new THREE.Color(0xffffff), emissiveIntensity: 0.3, roughness: 0.8, metalness: 0 });
+    texture.anisotropy = 8;
+    // Léger auto-éclairage : lisible même dans une salle sans néon, sans dépasser le seuil du bloom.
+    const material = new THREE.MeshStandardMaterial({
+      map: texture,
+      emissiveMap: texture,
+      emissive: new THREE.Color(0xffffff),
+      emissiveIntensity: 0.4,
+      roughness: 0.9,
+      metalness: 0,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
     const mesh = new THREE.Mesh(geometry, material);
-    // Face sud du mur nord : le mur occupe [z, z + 1], la face visible est à z + 1.
-    mesh.position.set(poster.wallCell.x + 0.5, POSTER_CENTER_HEIGHT, poster.wallCell.z + 1 + WALL_OFFSET);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(poster.cell.x + POSTER_FOOTPRINT.cellsX / 2, FLOOR_OFFSET, poster.cell.z + POSTER_FOOTPRINT.cellsZ / 2);
+    mesh.receiveShadow = true;
     mesh.name = `poster:${poster.sponsor.id}`;
     scene.add(mesh);
   }
