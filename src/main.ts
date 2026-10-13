@@ -40,6 +40,8 @@ import { prefersTouchControls, TouchControls } from "./ui/touchControls";
 import { t } from "./i18n/messages/app";
 
 const MAX_FRAME_DELTA_SECONDS = 0.05;
+/** Part basse de l'écran couverte par l'interface de l'accueil en portrait (raccourcis, dossier, bouton de lancement). */
+const LOBBY_PORTRAIT_COVERAGE = 0.4;
 const MINIMAP_REFRESH_SECONDS = 0.1;
 
 /** Orchestre écrans, missions et progression. Une seule mission active à la fois. */
@@ -75,6 +77,8 @@ class ShadowOpsApp {
   /** Calque du créateur d'agent : au-dessus du canvas (le studio 3D reste visible), sous le HUD. */
   private readonly creatorContainer = createCreatorContainer();
   private studio: AvatarStudio | null = null;
+  /** Agent du joueur montré derrière l'accueil ; créé à l'affichage de l'accueil, libéré dès qu'on le quitte. */
+  private lobbyStudio: AvatarStudio | null = null;
   private creator: CharacterCreator | null = null;
 
   private mission: Mission | null = null;
@@ -159,6 +163,7 @@ class ShadowOpsApp {
     this.endMission();
     const checkpoint = this.resumableCheckpoint();
     const resumeModule = checkpoint ? this.moduleById(checkpoint.moduleId) : undefined;
+    this.showLobbyAgent();
     this.screens.showTitle({
       hasProgress: Object.keys(this.progress.snapshot.records).length > 0 || checkpoint !== null,
       campaign: this.campaignSummary(),
@@ -908,7 +913,9 @@ class ShadowOpsApp {
     const elapsedSeconds = this.clock.elapsedTime;
     const mission = this.mission;
     if (!mission) {
+      this.releaseLobbyStudioIfLeft();
       if (this.studio && this.creator) this.renderStudio(this.studio, this.creator, deltaSeconds, elapsedSeconds);
+      else if (this.lobbyStudio) this.renderLobby(this.lobbyStudio, deltaSeconds, elapsedSeconds);
       else this.animateIdleScene(elapsedSeconds);
       return;
     }
@@ -1007,6 +1014,33 @@ class ShadowOpsApp {
     studio.update(deltaSeconds, elapsedSeconds);
     // Recadré à chaque image : la mise en page (panneau à gauche ou en bas) suit la rotation de l'écran.
     studio.frameCamera(this.camera, creator.layout, creator.panelCoverage);
+    this.pipeline.exposure = BRIGHTNESS_EXPOSURE[this.settings.brightness];
+    this.pipeline.render(studio.scene, this.camera);
+  }
+
+  /** Crée l'agent de l'accueil. Un échec (WebGL, modèle) laisse simplement le décor d'ambiance : l'accueil reste utilisable. */
+  private showLobbyAgent(): void {
+    if (this.lobbyStudio) return;
+    try {
+      this.lobbyStudio = new AvatarStudio(this.progress.avatar ?? DEFAULT_AVATAR, loadHumanCharacterAsset, (message) => console.warn("Agent de l'accueil indisponible.", message));
+    } catch (error) {
+      console.warn("Agent de l'accueil indisponible, décor d'ambiance utilisé.", error);
+      this.lobbyStudio = null;
+    }
+  }
+
+  /** Libère le GPU dès que l'accueil n'est plus affiché (carte, compétences, mission, créateur...). */
+  private releaseLobbyStudioIfLeft(): void {
+    if (!this.lobbyStudio || this.screens.isTitleVisible) return;
+    this.lobbyStudio.dispose();
+    this.lobbyStudio = null;
+  }
+
+  /** Agent au centre de l'écran ; en portrait, l'interface occupe le bas et l'agent monte d'autant. */
+  private renderLobby(studio: AvatarStudio, deltaSeconds: number, elapsedSeconds: number): void {
+    studio.update(deltaSeconds, elapsedSeconds);
+    const portrait = window.innerHeight > window.innerWidth;
+    studio.frameCamera(this.camera, portrait ? "bottom" : "side", portrait ? LOBBY_PORTRAIT_COVERAGE : 0);
     this.pipeline.exposure = BRIGHTNESS_EXPOSURE[this.settings.brightness];
     this.pipeline.render(studio.scene, this.camera);
   }

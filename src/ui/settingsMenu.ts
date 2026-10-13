@@ -8,22 +8,24 @@ let menuCounter = 0;
  * (pas de fenêtre flottante, donc rien à rogner sur petit écran). Accessible : aria-expanded, Échap pour fermer,
  * focus rendu au bouton. Échap ne remonte pas, sinon il mettrait aussi le jeu en pause ou le relancerait.
  */
-export function createSettingsMenu(controls: readonly HTMLElement[]): HTMLElement {
+export function createSettingsMenu(controls: readonly HTMLElement[], variant: "inline" | "corner" = "inline"): HTMLElement {
+  // « corner » : icône seule dans un coin de l'écran, panneau flottant (accueil plein écran). « inline » : bouton avec libellé, panneau dans le flux.
+  const iconOnly = variant === "corner";
   const panelId = `settings-panel-${++menuCounter}`;
   const toggle = element(
     "button",
     {
-      className: "btn ghost small settings-toggle",
-      attributes: { type: "button", "aria-expanded": "false", "aria-controls": panelId, title: t("menuTitle") },
+      className: iconOnly ? "settings-toggle icon-only" : "btn ghost small settings-toggle",
+      attributes: { type: "button", "aria-expanded": "false", "aria-controls": panelId, "aria-label": t("menuLabel"), title: t("menuTitle") },
     },
     [
       element("span", { className: "burger", attributes: { "aria-hidden": "true" } }, [element("span"), element("span"), element("span")]),
-      element("span", { text: t("menuLabel") }),
+      iconOnly ? null : element("span", { text: t("menuLabel") }),
     ],
   );
   const panel = element("div", { className: "settings-panel", attributes: { id: panelId, role: "group", "aria-label": t("menuTitle") } }, [...controls]);
   panel.hidden = true;
-  const wrapper = element("div", { className: "settings-menu" }, [toggle, panel]);
+  const wrapper = element("div", { className: iconOnly ? "settings-menu corner" : "settings-menu" }, [toggle, panel]);
 
   const closeOnOutsidePress = (event: PointerEvent): void => {
     if (!wrapper.isConnected) return stopListening();

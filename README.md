@@ -233,6 +233,8 @@ première visite sur l'accueil français, un navigateur anglophone est redirigé
 
 **Éclairage** (`src/level/lighting.ts`) : chaque salle a un niveau `off`, `dim`, `normal` ou `bright` (valeurs dans `LIGHT_LEVELS`). La salle de départ est toujours `normal`, le nombre de salles allumées est plafonné par la qualité graphique, et l'ambiance (`AMBIENT_LIGHT`) garantit que les salles sans néon restent lisibles.
 
+**Accueil** : un seul écran façon lobby, sans défilement. L'agent du joueur (rendu 3D) est au centre, les raccourcis sont sur le bord gauche, le dossier de mission à droite, le gros bouton de lancement en bas à droite et le hamburger (icône seule) en haut à droite. L'agent est libéré dès qu'on quitte l'accueil.
+
 **Réglages joueur** : le menu « Paramètres » (hamburger) de l'écran titre et de la pause regroupe la langue, les graphismes, la **luminosité** (Normale / Claire / Sombre, via l'exposition de l'image) et le son. Les réglages sont mémorisés sur l'appareil.
 
 ## Ressources 3D et licences

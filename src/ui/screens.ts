@@ -7,6 +7,7 @@ import type { ExamRecord, ModuleRecord } from "../game/progress";
 import { describeSolution } from "./challengePanel";
 import { lessonCard } from "./lessonPanel";
 import { createLanguageSwitch } from "../i18n/switcher";
+import { icon, type IconName } from "./icons";
 import { createSettingsMenu, languageRow } from "./settingsMenu";
 import { LANG, LOCALE, isSingular } from "../i18n/lang";
 import { portalPath } from "../i18n/routes";
@@ -134,9 +135,18 @@ function controlsList(): HTMLElement[] {
 export class ScreenManager {
   constructor(private readonly root: HTMLElement) {}
 
+  /** Vrai tant que l'accueil est affiché : le jeu y montre l'agent 3D derrière l'interface. */
+  private titleVisible = false;
+
+  get isTitleVisible(): boolean {
+    return this.titleVisible;
+  }
+
   hide(): void {
     this.root.hidden = true;
     this.root.replaceChildren();
+    this.root.classList.remove("lobby-root");
+    this.titleVisible = false;
   }
 
   showTitle(options: TitleScreenOptions): void {
@@ -151,37 +161,51 @@ export class ScreenManager {
       options.resume ? "btn big" : "btn primary big",
     );
     const resumeButton = options.resume ? button(options.resume.label, options.resume.onResume, "btn primary big") : null;
+    const tile = (name: IconName, label: string, onClick: () => void): HTMLButtonElement => {
+      const node = element("button", { className: "lobby-tile", attributes: { type: "button" } }, [icon(name), element("span", { text: label })]);
+      node.addEventListener("click", onClick);
+      return node;
+    };
+    // Accueil façon lobby : un seul écran, sans défilement. Marque en haut à gauche, hamburger en haut à droite,
+    // raccourcis sur le bord gauche, dossier de mission à droite, gros bouton de lancement en bas à droite.
     this.show(
-      element("div", { className: "panel title-screen" }, [
-        element("section", { className: "title-hero" }, [
-          element("p", { className: "eyebrow", text: t("titleEyebrow") }),
-          element("h1", { className: "logo", text: "SHADOW OPS" }),
-          element("p", { className: "logo-sub", text: "DevOps Infiltration" }),
-          element("p", {
-            className: "lead",
-            text: t("titleLead"),
-          }),
-          element("div", { className: "title-actions" }, [resumeButton, campaignButton]),
-          options.resume ? element("p", { className: "resume-detail", text: t("gameInProgress", { detail: options.resume.detail }) }) : null,
-          element("div", { className: "title-toolbar" }, [
-            button(t("customizeAgent"), options.onCustomize, "btn ghost small"),
-            button(t("mySkills"), options.onSkills, "btn ghost small"),
-            // Retour au portail : le jeu n'est qu'un parcours parmi d'autres.
-            button(t("allGames"), () => window.location.assign(portalPath(LANG, import.meta.env.BASE_URL)), "btn ghost small"),
-            button(t("saveMenu"), options.onSaveManager, "btn ghost small"),
-            createSettingsMenu([
+      element("div", { className: "lobby" }, [
+        element("header", { className: "lobby-top" }, [
+          element("div", { className: "lobby-brand" }, [
+            element("p", { className: "eyebrow", text: t("titleEyebrow") }),
+            element("h1", { className: "logo", text: "SHADOW OPS" }),
+            element("p", { className: "logo-sub", text: "DevOps Infiltration" }),
+            element("p", { className: "lead lobby-lead", text: t("titleLead") }),
+          ]),
+          createSettingsMenu(
+            [
               ...(switcher ? [languageRow(switcher)] : []),
               qualityButton(options.qualityLabel, options.onCycleQuality),
               brightnessButton(options.brightnessLabel, options.onCycleBrightness),
               toggleButton(options.soundLabel, options.onToggleSound, t("soundTitle")),
               resetButton,
-            ]),
-          ]),
+            ],
+            "corner",
+          ),
+        ]),
+        element("nav", { className: "lobby-side", attributes: { "aria-label": t("lobbyShortcuts") } }, [
+          tile("agent", t("customizeAgent"), options.onCustomize),
+          tile("skills", t("mySkills"), options.onSkills),
+          // Retour au portail : le jeu n'est qu'un parcours parmi d'autres.
+          tile("games", t("allGames"), () => window.location.assign(portalPath(LANG, import.meta.env.BASE_URL))),
+          tile("save", t("saveMenu"), options.onSaveManager),
         ]),
         this.missionFile(options.campaign),
+        element("div", { className: "lobby-play" }, [
+          options.resume ? element("p", { className: "resume-detail", text: t("gameInProgress", { detail: options.resume.detail }) }) : null,
+          resumeButton,
+          campaignButton,
+        ]),
         this.roadmapCredit(),
       ]),
     );
+    this.root.classList.add("lobby-root");
+    this.titleVisible = true;
     (resumeButton ?? campaignButton).focus({ preventScroll: true });
   }
 
@@ -202,11 +226,6 @@ export class ScreenManager {
           element("strong", { text: t("allSectorsFreed") }),
           element("span", { text: t("replayHint") }),
         ]);
-    const steps: [string, string, string][] = [
-      ["01", t("stepLearn"), t("stepLearnText")],
-      ["02", t("stepProve"), t("stepProveText")],
-      ["03", t("stepTakeDown"), t("stepTakeDownText")],
-    ];
     return element("aside", { className: "mission-file", attributes: { "aria-label": t("missionFile") } }, [
       element("p", { className: "mission-label", text: t("missionFile") }),
       element("div", { className: "mission-progress" }, [
@@ -215,13 +234,6 @@ export class ScreenManager {
       ]),
       element("div", { className: "progress-track" }, [fill]),
       next,
-      element(
-        "ol",
-        { className: "mission-steps" },
-        steps.map(([number, title, text]) =>
-          element("li", {}, [element("span", { className: "step-number", text: number }), element("div", {}, [element("strong", { text: title }), element("p", { text })])]),
-        ),
-      ),
     ]);
   }
 
@@ -510,6 +522,8 @@ export class ScreenManager {
   }
 
   private show(content: HTMLElement): void {
+    this.root.classList.remove("lobby-root");
+    this.titleVisible = false;
     this.root.replaceChildren(content);
     this.root.hidden = false;
     this.root.scrollTop = 0;
