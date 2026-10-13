@@ -1,5 +1,5 @@
 import { element, requireElement } from "../ui/dom";
-import { availableCount, COURSES, playHref, type Course } from "./catalog";
+import { COURSES, playHref, type Course } from "./catalog";
 import "./portal.css";
 
 /** Nom provisoire du site : une seule constante à changer le jour où la marque est choisie. */
@@ -12,79 +12,69 @@ function link(label: string, href: string, className: string, external = false):
   return element("a", { className, text: label, attributes });
 }
 
-function courseCard(course: Course): HTMLElement {
+/** Une ligne de l'index des parcours : numéro, titre, scénario, notions, accès. */
+function courseRow(course: Course, index: number): HTMLElement {
   const href = playHref(course, import.meta.env.BASE_URL);
-  const card = element("article", { className: `course-card ${course.status}` });
-  // Couleur validée par le catalogue (#rrggbb) : posée en variable CSS, jamais concaténée dans du HTML.
-  card.style.setProperty("--card-accent", course.accent);
-  const action = href
-    ? link("Jouer", href, "btn primary")
-    : element("span", { className: "course-soon", text: "Bientôt disponible" });
-  card.append(
-    element("div", { className: "course-meta" }, [
-      element("span", { className: "course-genre", text: course.genre }),
-      element("span", { className: `course-status ${course.status}`, text: course.status === "available" ? "Jouable" : "En préparation" }),
+  const action = href ? link("Jouer", href, "play-link") : element("span", { className: "soon", text: "Bientôt" });
+  const details = [`Métier : ${course.role}`, course.durationHint].filter((part): part is string => part !== null);
+  return element("li", { className: `course ${course.status}` }, [
+    element("span", { className: "course-index", text: String(index + 1).padStart(2, "0"), attributes: { "aria-hidden": "true" } }),
+    element("div", { className: "course-main" }, [
+      element("h3", { text: course.title }),
+      element("p", { className: "course-genre", text: course.genre }),
     ]),
-    element("h3", { text: course.title }),
-    element("p", { className: "course-role", text: `Métier visé : ${course.role}` }),
-    element("p", { className: "course-scenario", text: course.scenario }),
-    element("ul", { className: "chips", attributes: { "aria-label": "Notions abordées" } }, course.topics.map((topic) => element("li", { text: topic }))),
-    element("div", { className: "course-footer" }, [
-      action,
-      course.durationHint ? element("span", { className: "course-duration", text: course.durationHint }) : null,
-      course.roadmapUrl ? link("Roadmap suivie", course.roadmapUrl, "course-roadmap", true) : null,
+    element("div", { className: "course-body" }, [
+      element("p", { text: course.scenario }),
+      element("p", { className: "course-topics", text: course.topics.join(" · ") }),
+      element("p", { className: "course-details" }, [
+        document.createTextNode(details.join(" — ")),
+        course.roadmapUrl ? document.createTextNode(" — ") : null,
+        course.roadmapUrl ? link("Roadmap suivie", course.roadmapUrl, "text-link", true) : null,
+      ]),
     ]),
-  );
-  return card;
+    element("div", { className: "course-action" }, [action]),
+  ]);
 }
 
-function steps(): HTMLElement {
+function method(): HTMLElement {
   const items = [
-    ["Choisis un parcours", "Chaque parcours cible un métier et suit la roadmap correspondante de roadmap.sh."],
-    ["Joue le scénario", "Une histoire, des défis, de vraies commandes : tu apprends en agissant, pas en lisant."],
-    ["Valide tes compétences", "Examens, bilan par thème et notions à revoir pour savoir où tu en es."],
+    ["Un parcours par métier", "Chaque parcours suit la roadmap correspondante de roadmap.sh, dans l'ordre."],
+    ["Un scénario qui donne un enjeu", "On apprend en résolvant une situation, avec de vraies commandes, pas en lisant un cours."],
+    ["Un bilan honnête", "Examens, notions à revoir et progression par thème : tu sais où tu en es."],
   ];
   return element(
-    "ol",
-    { className: "steps" },
-    items.map(([title, text], index) =>
-      element("li", {}, [element("span", { className: "step-number", text: String(index + 1) }), element("h3", { text: title }), element("p", { text: text })]),
-    ),
+    "div",
+    { className: "method" },
+    items.map(([title, text]) => element("div", {}, [element("h3", { text: title }), element("p", { text: text })])),
   );
 }
 
 function render(root: HTMLElement): void {
-  const playable = availableCount(COURSES);
   root.replaceChildren(
     element("header", { className: "site-header" }, [
-      element("a", { className: "brand", text: SITE_NAME, attributes: { href: import.meta.env.BASE_URL } }),
-      element("nav", { attributes: { "aria-label": "Navigation principale" } }, [
-        link("Parcours", "#parcours", "nav-link"),
-        link("Comment ça marche", "#methode", "nav-link"),
+      element("div", { className: "bar" }, [
+        element("a", { className: "brand", text: SITE_NAME, attributes: { href: import.meta.env.BASE_URL } }),
+        element("nav", { attributes: { "aria-label": "Navigation principale" } }, [link("Parcours", "#parcours", "nav-link"), link("Méthode", "#methode", "nav-link")]),
       ]),
     ]),
-    element("main", {}, [
-      element("section", { className: "hero" }, [
-        element("p", { className: "eyebrow", text: "Apprendre en jouant" }),
-        element("h1", { text: "Apprends un métier de la tech en le jouant." }),
-        element("p", { className: "lead", text: "Des parcours interactifs fidèles aux roadmaps de roadmap.sh : un scénario qui donne du sens, de vraies commandes, aucune connaissance requise." }),
-        element("div", { className: "hero-actions" }, [link("Voir les parcours", "#parcours", "btn primary big")]),
-        element("p", { className: "hero-note", text: `${playable} parcours jouable${playable > 1 ? "s" : ""} · ${COURSES.length - playable} en préparation` }),
+    element("main", { className: "page" }, [
+      element("section", { className: "intro" }, [
+        element("h1", { text: "Apprendre un métier de la tech en y jouant" }),
+        element("p", { text: "Des parcours interactifs fidèles aux roadmaps de roadmap.sh. Chaque parcours raconte une situation à résoudre : tu pratiques de vraies commandes, sans connaissance préalable." }),
       ]),
-      element("section", { className: "section", attributes: { id: "parcours", "aria-labelledby": "parcours-title" } }, [
-        element("h2", { text: "Les parcours", attributes: { id: "parcours-title" } }),
-        element("div", { className: "course-grid" }, COURSES.map(courseCard)),
+      element("section", { attributes: { id: "parcours", "aria-labelledby": "parcours-title" } }, [
+        element("h2", { text: "Parcours", attributes: { id: "parcours-title" } }),
+        element("ol", { className: "courses" }, COURSES.map(courseRow)),
       ]),
-      element("section", { className: "section", attributes: { id: "methode", "aria-labelledby": "methode-title" } }, [
-        element("h2", { text: "Comment ça marche", attributes: { id: "methode-title" } }),
-        steps(),
-      ]),
+      element("section", { attributes: { id: "methode", "aria-labelledby": "methode-title" } }, [element("h2", { text: "Méthode", attributes: { id: "methode-title" } }), method()]),
     ]),
     element("footer", { className: "site-footer" }, [
-      element("p", {}, [
-        document.createTextNode("Les parcours s'appuient sur les roadmaps de "),
-        link("roadmap.sh", "https://roadmap.sh/", "", true),
-        document.createTextNode(". Projet indépendant, non affilié à roadmap.sh."),
+      element("div", { className: "bar" }, [
+        element("p", {}, [
+          document.createTextNode("Les parcours s'appuient sur les roadmaps de "),
+          link("roadmap.sh", "https://roadmap.sh/", "text-link", true),
+          document.createTextNode(". Projet indépendant, non affilié."),
+        ]),
       ]),
     ]),
   );

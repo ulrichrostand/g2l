@@ -21,8 +21,6 @@ export interface Course {
   status: CourseStatus;
   /** Chemin du jeu, relatif à la racine du site, avec « / » final. Obligatoire pour un parcours disponible. */
   playPath: string | null;
-  /** Couleur d'accent de la carte (#rrggbb). */
-  accent: string;
   /** Durée indicative pour un débutant, ou null si le parcours n'existe pas encore. */
   durationHint: string | null;
 }
@@ -38,7 +36,6 @@ export const COURSES: readonly Course[] = [
     roadmapUrl: "https://roadmap.sh/devops",
     status: "available",
     playPath: "jeux/devops/",
-    accent: "#39ff88",
     durationHint: "10 à 15 h",
   },
   {
@@ -51,7 +48,6 @@ export const COURSES: readonly Course[] = [
     roadmapUrl: "https://roadmap.sh/data-analyst",
     status: "soon",
     playPath: null,
-    accent: "#4fc3ff",
     durationHint: null,
   },
   {
@@ -64,7 +60,6 @@ export const COURSES: readonly Course[] = [
     roadmapUrl: null,
     status: "soon",
     playPath: null,
-    accent: "#ffb020",
     durationHint: null,
   },
   {
@@ -77,13 +72,11 @@ export const COURSES: readonly Course[] = [
     roadmapUrl: "https://roadmap.sh/cyber-security",
     status: "soon",
     playPath: null,
-    accent: "#ff3b4e",
     durationHint: null,
   },
 ];
 
 const COURSE_ID = /^[a-z0-9-]{1,40}$/;
-const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const PLAY_PATH = /^jeux\/[a-z0-9-]+\/$/;
 
 /** Anomalies d'un catalogue (liste vide = valide) : appelée par les tests, pour qu'une faute de frappe ne parte jamais en ligne. */
@@ -95,7 +88,6 @@ export function catalogProblems(courses: readonly Course[]): string[] {
     if (!COURSE_ID.test(course.id)) problems.push(`${label} : identifiant invalide`);
     if (seen.has(course.id)) problems.push(`${label} : identifiant en double`);
     seen.add(course.id);
-    if (!HEX_COLOR.test(course.accent)) problems.push(`${label} : couleur d'accent invalide`);
     if (course.title.trim() === "" || course.scenario.trim() === "") problems.push(`${label} : titre ou scénario vide`);
     if (course.topics.length === 0) problems.push(`${label} : aucune notion listée`);
     if (course.roadmapUrl !== null && !course.roadmapUrl.startsWith("https://roadmap.sh/")) problems.push(`${label} : la roadmap doit pointer vers https://roadmap.sh/`);

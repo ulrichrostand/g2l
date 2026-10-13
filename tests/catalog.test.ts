@@ -23,7 +23,6 @@ describe("catalogue des parcours", () => {
   it("repère les erreurs classiques", () => {
     expect(catalogProblems([sample, sample])).toContain("devops : identifiant en double");
     expect(catalogProblems([{ ...sample, id: "Mauvais Id" }])).toContain("Mauvais Id : identifiant invalide");
-    expect(catalogProblems([{ ...sample, accent: "vert" }])).toContain("devops : couleur d'accent invalide");
     expect(catalogProblems([{ ...sample, playPath: null }])).toContain("devops : un parcours disponible a besoin d'un chemin de jeu « jeux/<id>/ »");
     expect(catalogProblems([{ ...sample, status: "soon" }])).toContain("devops : un parcours à venir ne doit pas avoir de chemin de jeu");
     expect(catalogProblems([{ ...sample, roadmapUrl: "https://evil.example/devops" }])).toContain("devops : la roadmap doit pointer vers https://roadmap.sh/");
