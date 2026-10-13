@@ -3,7 +3,7 @@
   "short_name": "Shadow Ops",
   "description": "Jeu d'infiltration 3D pour apprendre le DevOps en suivant la roadmap roadmap.sh/devops.",
   "lang": "fr",
-  "start_url": "./",
+  "start_url": "./jeux/devops/",
   "scope": "./",
   "display": "fullscreen",
   "display_override": ["fullscreen", "standalone"],

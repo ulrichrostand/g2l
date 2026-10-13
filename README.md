@@ -183,6 +183,15 @@ et qu'aucune commande n'est posée deux fois).
 moyenne des examens, et liste des notions à revoir avec leur point clé. Une notion est « à revoir » si son défi a
 été raté au moins une fois lors de la dernière mission du secteur (champ `missed` de la sauvegarde, facultatif).
 
+### Structure du site (portail + jeux)
+
+- `index.html` + `src/portal/` : le **portail**, qui liste les parcours (`src/portal/catalog.ts` : une entrée par parcours,
+  validée par les tests). Les parcours « bientôt » n'ont pas de bouton Jouer.
+- `jeux/devops/index.html` + `src/` : le jeu DevOps, servi sous `/jeux/devops/`. Un nouveau parcours = une entrée du catalogue
+  + un dossier `jeux/<id>/` déclaré dans `vite.config.ts`.
+- Préfixe d'URL : variable `APP_BASE` au build (`/rostand/` sur GitHub Pages, `/` par défaut, donc sur un VPS à domaine propre).
+- La progression reste dans le navigateur (`localStorage`, même origine pour tout le site) : elle survit au changement d'adresse du jeu.
+
 ### Choix techniques
 
 - **Three.js + Vite + TypeScript strict**, aucune dépendance runtime autre que Three.js (le personnage glTF
@@ -190,7 +199,7 @@ moyenne des examens, et liste des notions à revoir avec leur point clé. Une no
 - Niveaux **générés de façon déterministe** (graine = id du module) : les rondes sont identiques d'une partie à l'autre, on peut les apprendre. Chaque niveau généré est validé (tous les terminaux et la sortie accessibles) et testé pour les 16 modules.
 - Cônes de vision **découpés contre les murs** par lancer de rayons sur la grille (DDA, O(distance)).
 - Murs et racks en `InstancedMesh`, éclairage plafonné : fluide sur un portable.
-- Sécurité : tout le texte passe par `textContent` (aucun `innerHTML`), CSP stricte dans `index.html` (`connect-src 'self' blob:` : le `GLTFLoader` décode les textures
+- Sécurité : tout le texte passe par `textContent` (aucun `innerHTML`), CSP stricte dans chaque page HTML (`jeux/devops/index.html`, `index.html`) (`connect-src 'self' blob:` : le `GLTFLoader` décode les textures
   intégrées au `.glb` via des URL `blob:` créées par la page elle-même), sauvegarde locale validée avant usage.
 
 ## Ressources 3D et licences

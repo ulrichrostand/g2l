@@ -27,6 +27,9 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+        env:
+          # Le site vit sous /rostand/ sur GitHub Pages ; sur le VPS, la valeur par défaut « / » convient.
+          APP_BASE: /rostand/
       - uses: actions/upload-pages-artifact@v3
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:

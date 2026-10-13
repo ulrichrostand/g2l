@@ -154,6 +154,8 @@ export class ScreenManager {
           element("div", { className: "title-toolbar" }, [
             button("Personnaliser l'agent", options.onCustomize, "btn ghost small"),
             button("Mes compétences", options.onSkills, "btn ghost small"),
+            // Retour au portail : le jeu n'est qu'un parcours parmi d'autres.
+            button("Tous les parcours", () => window.location.assign(import.meta.env.BASE_URL), "btn ghost small"),
             button("Sauvegarde", options.onSaveManager, "btn ghost small"),
             qualityButton(options.qualityLabel, options.onCycleQuality),
             toggleButton(options.soundLabel, options.onToggleSound, "Ambiance sonore et effets du jeu."),
