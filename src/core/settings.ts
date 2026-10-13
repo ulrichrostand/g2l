@@ -1,3 +1,5 @@
+import { t } from "../i18n/messages/settings";
+
 export type GraphicsQuality = "low" | "medium" | "high";
 
 export interface QualityProfile {
@@ -19,9 +21,9 @@ export interface QualityProfile {
 }
 
 export const QUALITY_PROFILES: Record<GraphicsQuality, QualityProfile> = {
-  high: { label: "Haute", pixelRatioCap: 2, bloom: true, vignette: true, shadows: true, dustParticles: 500, roomLights: 6, detailedAndroids: true },
-  medium: { label: "Moyenne", pixelRatioCap: 1.25, bloom: true, vignette: true, shadows: false, dustParticles: 220, roomLights: 4, detailedAndroids: true },
-  low: { label: "Basse", pixelRatioCap: 1, bloom: false, vignette: false, shadows: false, dustParticles: 0, roomLights: 3, detailedAndroids: false },
+  high: { label: t("qualityHigh"), pixelRatioCap: 2, bloom: true, vignette: true, shadows: true, dustParticles: 500, roomLights: 6, detailedAndroids: true },
+  medium: { label: t("qualityMedium"), pixelRatioCap: 1.25, bloom: true, vignette: true, shadows: false, dustParticles: 220, roomLights: 4, detailedAndroids: true },
+  low: { label: t("qualityLow"), pixelRatioCap: 1, bloom: false, vignette: false, shadows: false, dustParticles: 0, roomLights: 3, detailedAndroids: false },
 };
 
 const QUALITY_ORDER: readonly GraphicsQuality[] = ["high", "medium", "low"];
