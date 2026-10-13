@@ -37,6 +37,7 @@ import { MARKER_EDGE_MARGIN, TutorialGuide } from "./ui/tutorialGuide";
 import { enterLandscapeFullscreen, exitLandscapeFullscreen, fullscreenSupported, isFullscreen, isPortrait, shouldSuggestLandscape } from "./core/orientation";
 import { OrientationHint } from "./ui/orientationHint";
 import { prefersTouchControls, TouchControls } from "./ui/touchControls";
+import { t } from "./i18n/messages/app";
 
 const MAX_FRAME_DELTA_SECONDS = 0.05;
 const MINIMAP_REFRESH_SECONDS = 0.1;
@@ -164,8 +165,8 @@ class ShadowOpsApp {
       resume:
         checkpoint && resumeModule
           ? {
-              label: `Reprendre : ${resumeModule.codename}`,
-              detail: `${checkpoint.hackedTerminals.length}/${resumeModule.challenges.length} terminaux · ${checkpoint.collectedIntel.length}/${resumeModule.lessons.length} dossiers`,
+              label: t("resumeLabel", { codename: resumeModule.codename }),
+              detail: t("resumeDetail", { terminals: checkpoint.hackedTerminals.length, terminalTotal: resumeModule.challenges.length, intel: checkpoint.collectedIntel.length, intelTotal: resumeModule.lessons.length }),
               onResume: () => this.startMission(resumeModule, checkpoint),
             }
           : null,
@@ -225,7 +226,7 @@ class ShadowOpsApp {
 
   private openModuleExam(module: DevOpsModule): void {
     const questions = buildModuleExam({ module, scenario: SCENARIOS[module.id] }, examRandom());
-    this.openExam(module.id, `Examen — ${module.codename}`, module.title, questions, false, () => this.openModuleExam(module));
+    this.openExam(module.id, t("moduleExamTitle", { codename: module.codename }), module.title, questions, false, () => this.openModuleExam(module));
   }
 
   private openGeneralExam(): void {
@@ -236,7 +237,7 @@ class ShadowOpsApp {
       return;
     }
     const questions = buildGeneralExam(modules.map((module) => ({ module, scenario: SCENARIOS[module.id] })), examRandom());
-    this.openExam(GENERAL_EXAM_ID, "Examen général", `${modules.length} secteurs libérés`, questions, true, () => this.openGeneralExam());
+    this.openExam(GENERAL_EXAM_ID, t("generalExamTitle"), t("generalExamSubtitle", { count: modules.length }), questions, true, () => this.openGeneralExam());
   }
 
   private openExam(examId: string, title: string, subtitle: string, questions: ExamQuestion[], showModuleTags: boolean, retry: () => void): void {
@@ -270,9 +271,9 @@ class ShadowOpsApp {
     const checkpoint = this.resumableCheckpoint();
     const replacedModule = checkpoint && checkpoint.moduleId !== module.id ? this.moduleById(checkpoint.moduleId) : undefined;
     const warning = replacedModule
-      ? `Attention : ta mission en cours (${replacedModule.codename}) sera remplacée par celle-ci dès la première sauvegarde.`
+      ? t("warnReplaceMission", { codename: replacedModule.codename })
       : checkpoint?.moduleId === module.id
-        ? "Tu avais une partie en cours sur ce secteur : lancer l'infiltration la recommence depuis le début."
+        ? t("warnRestartSector")
         : null;
     this.screens.showBriefing(module, moduleIndex, warning, () => this.startMission(module), () => this.showCampaignMap(), (container) => {
       // Avant la mission : le joueur lit à son rythme, et le conseil ne gêne ni le tutoriel ni le HUD.
@@ -296,7 +297,9 @@ class ShadowOpsApp {
     this.screens.showSaveManager({
       persistent: this.progress.isPersistent,
       savedAt: snapshot.savedAt,
-      summary: `${completed}/${CURRICULUM.length} secteurs libérés · ${stars} étoiles${checkpoint ? ` · mission en cours : ${this.moduleById(checkpoint.moduleId)?.codename ?? checkpoint.moduleId}` : ""}`,
+      summary: checkpoint
+        ? t("saveSummaryInProgress", { completed, total: CURRICULUM.length, stars, codename: this.moduleById(checkpoint.moduleId)?.codename ?? checkpoint.moduleId })
+        : t("saveSummary", { completed, total: CURRICULUM.length, stars }),
       code: encodeSaveCode(snapshot),
       onImport: (code) => {
         try {
@@ -305,7 +308,7 @@ class ShadowOpsApp {
         } catch (error) {
           if (error instanceof SaveCodeError) return error.message;
           console.error("Import de sauvegarde impossible", error);
-          return "Import impossible : code invalide.";
+          return t("importInvalid");
         }
       },
       onImported: () => this.showSaveManager(),
@@ -351,7 +354,7 @@ class ShadowOpsApp {
       );
     } catch (error) {
       console.error("Échec de la création de la mission", error);
-      window.alert("Impossible de générer ce secteur. Recharge la page ou choisis un autre module.");
+      window.alert(t("missionCreateFailed"));
       this.showCampaignMap();
       return;
     }
@@ -370,10 +373,10 @@ class ShadowOpsApp {
     if (!this.tutorial) {
       this.hud.showNotice(
         resumed
-          ? "Mission reprise depuis ta dernière sauvegarde."
+          ? t("noticeMissionResumed")
           : checkpoint
-            ? "Ta sauvegarde de mission date d'une ancienne version du jeu : le secteur repart de zéro (ta campagne est intacte)."
-            : "Ramasse les dossiers jaunes, pirate les terminaux rouges et résous l'incident sur la console principale bleue.",
+            ? t("noticeOldSave")
+            : t("noticeMissionGoal"),
       );
     }
     this.mission.resume();
@@ -483,9 +486,9 @@ class ShadowOpsApp {
     }
     this.readLessons.add(terminalIndex);
     this.lessonPanel.open(lesson, {
-      eyebrow: "Transmission de la cellule Écho",
-      intro: "Tu n'as pas encore trouvé le dossier lié à ce terminal. Voici l'essentiel avant de pirater :",
-      continueLabel: "Compris, pirater le terminal",
+      eyebrow: t("echoEyebrow"),
+      intro: t("echoIntro"),
+      continueLabel: t("echoContinue"),
       onContinue: () => this.openChallenge(terminalIndex),
     });
   }
@@ -565,8 +568,8 @@ class ShadowOpsApp {
     this.saveCheckpoint();
     this.sound.play("success");
     this.lessonPanel.open(lesson, {
-      eyebrow: `Dossier ${lessonIndex + 1}/${lessons.length}${nextUnread === -1 ? " · révision" : ""}`,
-      continueLabel: "Compris, continuer la mission",
+      eyebrow: t(nextUnread === -1 ? "intelEyebrowReview" : "intelEyebrow", { index: lessonIndex + 1, total: lessons.length }),
+      continueLabel: t("intelContinue"),
       onContinue: () => mission.resume(),
     });
   }
@@ -585,8 +588,8 @@ class ShadowOpsApp {
         this.saveCheckpoint();
         this.hud.showNotice(
           targetRef.kind === "camera"
-            ? `${target.containerName} coupée définitivement par le pare-feu.`
-            : `${target.containerName} arrêtée avec ${weapon.label}.`,
+            ? t("firewallCut", { container: target.containerName })
+            : t("weaponStopped", { container: target.containerName, weapon: weapon.label }),
         );
         mission.resume();
       },
@@ -627,8 +630,8 @@ class ShadowOpsApp {
         this.showCombatHintOnce(
           "alarm",
           this.touchMode
-            ? "ALERTE : tu es repéré ! Les sentinelles tirent. Mets-toi derrière un rack, puis glisse le pad de tir pour viser."
-            : "ALERTE : tu es repéré ! Les sentinelles tirent. Mets-toi derrière un rack, maintiens le clic droit pour viser et riposte.",
+            ? t("alarmTouch")
+            : t("alarmMouse"),
         );
         break;
       case "sentinelWoke":
@@ -638,21 +641,21 @@ class ShadowOpsApp {
         const boss = bossFor(module.id);
         this.sound.play("alarm");
         this.flashAlert();
-        this.hud.showNotice(`${boss.name} — ${boss.title}. Casse son armure au pistolet, puis achève-le avec une commande (${this.touchMode ? "bouton Gadget" : "touche F"}).`);
+        this.hud.showNotice(t("bossAwakened", { name: boss.name, title: boss.title, control: this.gadgetControl() }));
         break;
       }
       case "bossRecovered":
         this.sound.play("wake");
-        this.hud.showNotice("Trop tard : il se relève avec une partie de son armure. Recommence !");
+        this.hud.showNotice(t("bossRecovered"));
         break;
       case "bossPhaseCleared":
         this.sound.play("success");
         // Pas de point de reprise ici : il ne retient que la victoire, la phase reprendrait à 1 malgré le « Sauvegardé ».
-        this.hud.showNotice(`Commande réussie ! Phase ${event.phase + 1}/3 : il se relève, plus dangereux.`);
+        this.hud.showNotice(t("bossPhaseCleared", { phase: event.phase + 1 }));
         break;
       case "bossDefeated":
         this.sound.play("extract");
-        this.hud.showNotice(`${bossFor(module.id).defeat} L'extraction est ouverte !`);
+        this.hud.showNotice(t("bossDefeated", { defeat: bossFor(module.id).defeat }));
         this.saveCheckpoint();
         break;
     }
@@ -692,7 +695,7 @@ class ShadowOpsApp {
     this.hud.showHitMarker(((screen.x + 1) / 2) * window.innerWidth, ((1 - screen.y) / 2) * window.innerHeight, armorHit ? "shield" : "hit");
     if (result === "bossArmor") return;
     if (result === "bossExposed") {
-      this.hud.showNotice(`Armure brisée ! Il est à genoux : ${this.touchMode ? "bouton Gadget" : "touche F"} pour l'achever avec une commande, vite !`);
+      this.hud.showNotice(t("bossArmorBroken", { control: this.gadgetControl() }));
       return;
     }
     const canKill = unlockedWeapons(this.moduleIds, module.id, "sentinel").length > 0;
@@ -701,15 +704,15 @@ class ShadowOpsApp {
       this.showCombatHintOnce(
         "suspended",
         canKill
-          ? "Touché ! La sentinelle est suspendue (signal SIGSTOP) pendant 10 s. Termine-la avec F et une vraie commande avant qu'elle ne se relève."
-          : "Touché ! La sentinelle est suspendue 10 s. Tu n'as pas encore de commande pour la terminer : profites-en pour passer.",
+          ? t("hintSuspendedCanKill")
+          : t("hintSuspendedNoKill"),
       );
     } else if (result === "shield") {
-      this.showCombatHintOnce("shield", "Bouclier ! Dans ce secteur, il faut plusieurs balles rapprochées pour suspendre une sentinelle.");
+      this.showCombatHintOnce("shield", t("hintShield"));
     } else {
       this.showCombatHintOnce(
         "camera",
-        canFirewall ? "Caméra brouillée 12 s. Coupe-la pour de bon avec F (pare-feu) avant qu'elle ne se rallume." : "Caméra brouillée 12 s : passe vite !",
+        canFirewall ? t("hintCameraFirewall") : t("hintCameraJammed"),
       );
     }
   }
@@ -723,7 +726,7 @@ class ShadowOpsApp {
   private handleTakedown(): void {
     this.saveCheckpoint();
     this.sound.play("takedown");
-    this.hud.showNotice("Sentinelle neutralisée en silence.");
+    this.hud.showNotice(t("takedownSilent"));
   }
 
   private handlePlayerDown(livesLeft: number): void {
@@ -803,7 +806,7 @@ class ShadowOpsApp {
   }
 
   private fullscreenLabel(): string {
-    return isFullscreen(document) ? "Quitter le plein écran" : "Plein écran";
+    return isFullscreen(document) ? t("fullscreenExit") : t("fullscreenEnter");
   }
 
   private async toggleFullscreen(): Promise<string> {
@@ -814,7 +817,7 @@ class ShadowOpsApp {
 
   private async exitFullscreen(): Promise<void> {
     const exited = await exitLandscapeFullscreen(document, screen);
-    if (!exited) this.hud.showNotice("Impossible de quitter le plein écran d'ici : utilise le geste ou le bouton Retour de ton téléphone.");
+    if (!exited) this.hud.showNotice(t("fullscreenExitFailed"));
   }
 
   /**
@@ -834,8 +837,13 @@ class ShadowOpsApp {
     return point ? { kind: "point", x: point.x, z: point.z, aiming: this.input.isAimButtonHeld } : null;
   }
 
+  /** Nom du contrôle qui lance la commande-arme : bouton tactile ou touche F. */
+  private gadgetControl(): string {
+    return this.touchMode ? t("gadgetButton") : t("gadgetKey");
+  }
+
   private soundLabel(): string {
-    return this.settings.soundEnabled ? "Son : activé" : "Son : coupé";
+    return this.settings.soundEnabled ? t("soundOn") : t("soundOff");
   }
 
   private toggleSound(): string {
@@ -849,7 +857,7 @@ class ShadowOpsApp {
   }
 
   private qualityLabel(): string {
-    return `Graphismes : ${QUALITY_PROFILES[this.settings.quality].label}`;
+    return t("graphicsLabel", { quality: QUALITY_PROFILES[this.settings.quality].label });
   }
 
   /** Bouton de réglage : bloom, vignette et résolution changent tout de suite ; ombres et poussière au prochain secteur. */
@@ -904,7 +912,7 @@ class ShadowOpsApp {
     this.ambience.update(deltaSeconds, hudState.exposure, mission.isPaused);
     if (this.touchMode) {
       this.touchControls.sync({
-        contextLabel: hudState.contextAction ? (hudState.contextAction.kind === "takedown" ? "Neutraliser" : "Pirater") : null,
+        contextLabel: hudState.contextAction ? (hudState.contextAction.kind === "takedown" ? t("actionTakedownShort") : t("actionHackShort")) : null,
         crouched: hudState.posture === "crouching",
         // Le boss s'achève à la commande même avant d'avoir débloqué un gadget (module d'introduction).
         gadgetVisible: hudState.gadgetAvailable || hudState.commandTarget !== null,
@@ -926,7 +934,7 @@ class ShadowOpsApp {
     const lower = lowerQuality(this.settings.quality);
     if (!lower) return;
     this.applyQuality(lower);
-    this.hud.showNotice(`Qualité graphique réduite à « ${QUALITY_PROFILES[lower].label} » pour garder le jeu fluide (modifiable en pause).`);
+    this.hud.showNotice(t("qualityReduced", { quality: QUALITY_PROFILES[lower].label }));
   }
 
   /**
@@ -969,7 +977,7 @@ class ShadowOpsApp {
       if (this.studio === studio) this.closeCharacterCreator();
       else studio?.dispose();
       if (firstRun && this.progress.avatar === null) this.progress.saveAvatar(DEFAULT_AVATAR);
-      window.alert("Le créateur d'agent n'a pas pu s'ouvrir sur cet appareil : l'agent par défaut est utilisé.");
+      window.alert(t("creatorUnavailable"));
       onDone();
     }
   }
@@ -1120,7 +1128,7 @@ function boot(): void {
     console.error("Initialisation impossible", error);
     const fallback = requireElement<HTMLElement>("#screen");
     fallback.hidden = false;
-    fallback.textContent = "Impossible de démarrer le jeu : WebGL est requis. Essaie un navigateur récent (Chrome, Firefox, Edge, Safari).";
+    fallback.textContent = t("bootFailed");
   }
 }
 

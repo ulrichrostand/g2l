@@ -1,0 +1,43 @@
+import { createTranslator } from "../translator";
+
+/** Notices et libellés d'action de la mission (HUD). */
+export const t = createTranslator("mission", {
+  fr: {
+    allHackedExtract: "Tous les terminaux sont piratés : rejoins le point d'extraction (faisceau vert).",
+    allHackedBoss: "Tous les terminaux sont piratés. {boss} garde la salle d'extraction : entre pour l'affronter.",
+    actionTakedown: "Neutraliser la sentinelle",
+    actionOpenConsole: "Ouvrir la console principale",
+    actionHack: "Pirater {terminal}",
+    bossKneeling: "{boss} est à genoux : rapproche-toi de lui pour l'achever avec une commande.",
+    noGadgetYet: "Aucun gadget pour l'instant : approche les sentinelles par derrière (E) pour les neutraliser.",
+    hitFirstWithCamera: "Touche d'abord ta cible au pistolet : une sentinelle touchée est suspendue, une caméra touchée est brouillée. Ensuite seulement, F pour la commande.",
+    hitFirstSentinel: "Touche d'abord une sentinelle au pistolet : la balle la suspend (SIGSTOP). Ensuite seulement, F pour la terminer avec kill.",
+    outOfAmmoReload: "Plus de munitions : recharge (R) ; face au boss, des munitions de secours arrivent.",
+    outOfAmmoHack: "Plus de munitions : pirate un terminal pour en récupérer, ou neutralise en silence par derrière (E).",
+    sentinelResumed: "{name} reprend du service (SIGCONT) : elle est furieuse !",
+    defaultSentinelName: "Une sentinelle",
+    cameraSpotted: "Une caméra t'a repéré : des sentinelles arrivent !",
+    emergencyAmmo: "Munitions de secours : +{count} balles. Vise son armure !",
+    bossGuardsExit: "{boss} garde la sortie : brise son armure au pistolet, puis achève-le avec une commande.",
+    extractionLocked: "Extraction verrouillée : encore {count} terminal(aux) à pirater.",
+  },
+  en: {
+    allHackedExtract: "All terminals are hacked: head to the extraction point (green beam).",
+    allHackedBoss: "All terminals are hacked. {boss} guards the extraction room: go in and face it.",
+    actionTakedown: "Take down the sentinel",
+    actionOpenConsole: "Open the main console",
+    actionHack: "Hack {terminal}",
+    bossKneeling: "{boss} is down on its knees: get close and finish it with a command.",
+    noGadgetYet: "No gadget yet: sneak up behind sentinels (E) to take them down.",
+    hitFirstWithCamera: "Hit your target with the pistol first: a hit sentinel is suspended, a hit camera is jammed. Only then press F for the command.",
+    hitFirstSentinel: "Hit a sentinel with the pistol first: the bullet suspends it (SIGSTOP). Only then press F to finish it with kill.",
+    outOfAmmoReload: "Out of ammo: reload (R); against the boss, emergency ammo will arrive.",
+    outOfAmmoHack: "Out of ammo: hack a terminal to get some, or take sentinels down silently from behind (E).",
+    sentinelResumed: "{name} is back in action (SIGCONT): it is furious!",
+    defaultSentinelName: "A sentinel",
+    cameraSpotted: "A camera spotted you: sentinels are coming!",
+    emergencyAmmo: "Emergency ammo: +{count} bullets. Aim at its armor!",
+    bossGuardsExit: "{boss} guards the exit: break its armor with the pistol, then finish it with a command.",
+    extractionLocked: "Extraction locked: {count} more terminal(s) to hack.",
+  },
+});

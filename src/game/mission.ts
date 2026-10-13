@@ -27,6 +27,7 @@ import { ExtractionZone, HackTerminal } from "../entities/terminal";
 import { generateLevel, type LevelLayout, type Room } from "../level/generator";
 import { accentForModule, buildLevelScene, cellToWorld, disposeScene, type LevelVisuals } from "../level/levelScene";
 import type { MissionDifficulty } from "./difficulty";
+import { t } from "../i18n/messages/mission";
 
 export type ContextActionKind = "takedown" | "hack";
 
@@ -487,9 +488,9 @@ export class Mission {
     if (!this.allTerminalsHacked) return;
     if (this.bossDefeated) {
       this.refreshExtractionLock();
-      this.callbacks.onNotice("Tous les terminaux sont piratés : rejoins le point d'extraction (faisceau vert).");
+      this.callbacks.onNotice(t("allHackedExtract"));
     } else {
-      this.callbacks.onNotice(`Tous les terminaux sont piratés. ${this.options.boss.name} garde la salle d'extraction : entre pour l'affronter.`);
+      this.callbacks.onNotice(t("allHackedBoss", { boss: this.options.boss.name }));
     }
   }
 
@@ -728,10 +729,10 @@ export class Mission {
 
   /** Neutraliser passe avant pirater : une sentinelle dans le dos est une urgence. */
   private contextAction(): HudState["contextAction"] {
-    if (this.takedownCandidate()) return { kind: "takedown", label: "Neutraliser la sentinelle" };
+    if (this.takedownCandidate()) return { kind: "takedown", label: t("actionTakedown") };
     const terminal = this.nearbyTerminal();
     if (!terminal) return null;
-    return { kind: "hack", label: terminal.kind === "console" ? "Ouvrir la console principale" : `Pirater ${terminal.label}` };
+    return { kind: "hack", label: terminal.kind === "console" ? t("actionOpenConsole") : t("actionHack", { terminal: terminal.label }) };
   }
 
   private performContextAction(): boolean {
@@ -762,19 +763,19 @@ export class Mission {
       return true;
     }
     if (!this.bossDefeated && this.boss.state === "exposed") {
-      this.notice(`${this.options.boss.name} est à genoux : rapproche-toi de lui pour l'achever avec une commande.`);
+      this.notice(t("bossKneeling", { boss: this.options.boss.name }));
       return false;
     }
     if (!this.hasAnyGadget) {
-      this.notice("Aucun gadget pour l'instant : approche les sentinelles par derrière (E) pour les neutraliser.");
+      this.notice(t("noGadgetYet"));
       return false;
     }
     const target = this.commandTarget();
     if (!target) {
       this.notice(
         this.options.gadgetTargets.camera
-          ? "Touche d'abord ta cible au pistolet : une sentinelle touchée est suspendue, une caméra touchée est brouillée. Ensuite seulement, F pour la commande."
-          : "Touche d'abord une sentinelle au pistolet : la balle la suspend (SIGSTOP). Ensuite seulement, F pour la terminer avec kill.",
+          ? t("hitFirstWithCamera")
+          : t("hitFirstSentinel"),
       );
       return false;
     }
@@ -866,8 +867,8 @@ export class Mission {
     if (fire === "empty") {
       this.callbacks.onCombatEvent({ type: "dryFire" });
       if (this.sidearm.isReloading) this.callbacks.onCombatEvent({ type: "reloadStarted" });
-      else if (this.allTerminalsHacked) this.notice("Plus de munitions : recharge (R) ; face au boss, des munitions de secours arrivent.");
-      else this.notice("Plus de munitions : pirate un terminal pour en récupérer, ou neutralise en silence par derrière (E).");
+      else if (this.allTerminalsHacked) this.notice(t("outOfAmmoReload"));
+      else this.notice(t("outOfAmmoHack"));
       return;
     }
     if (fire !== "fired") return;
@@ -959,7 +960,7 @@ export class Mission {
       if (shot && playerSnapshot) this.fireGuardShot(shot);
       if (this.wasSuspended[index] && !guard.isSuspended && !guard.neutralized) {
         this.callbacks.onCombatEvent({ type: "sentinelWoke" });
-        this.notice(`${this.identities[index]?.containerName ?? "Une sentinelle"} reprend du service (SIGCONT) : elle est furieuse !`);
+        this.notice(t("sentinelResumed", { name: this.identities[index]?.containerName ?? t("defaultSentinelName") }));
       }
       this.wasSuspended[index] = guard.isSuspended;
     });
@@ -969,7 +970,7 @@ export class Mission {
       if (camera.alarm >= 0.5 && this.cameraCallCooldown === 0) {
         this.alertGuardsNear(camera.position, CAMERA_CALL_RADIUS, this.playerCell());
         this.cameraCallCooldown = CAMERA_CALL_COOLDOWN_SECONDS;
-        this.notice("Une caméra t'a repéré : des sentinelles arrivent !");
+        this.notice(t("cameraSpotted"));
       }
       if (camera.alarm >= 1 && this.cameraAlarmCooldown === 0) {
         this.raiseAlarm("camera");
@@ -1027,7 +1028,7 @@ export class Mission {
   private ensureBossAmmo(): void {
     if (this.sidearm.total > 0 || this.boss.state === "dormant" || this.boss.state === "defeated") return;
     this.sidearm.addAmmo(BOSS_EMERGENCY_AMMO);
-    this.callbacks.onNotice(`Munitions de secours : +${BOSS_EMERGENCY_AMMO} balles. Vise son armure !`);
+    this.callbacks.onNotice(t("emergencyAmmo", { count: BOSS_EMERGENCY_AMMO }));
   }
 
   private updateEnemyShots(deltaSeconds: number): void {
@@ -1153,8 +1154,8 @@ export class Mission {
     // Le boss endormi, solide, occupe la case de sortie : on prévient dès qu'on bute contre lui.
     if (distance > LOCKED_NOTICE_RADIUS) return;
     const remaining = this.terminals.length - this.hackedCount;
-    if (remaining === 0) this.notice(`${this.options.boss.name} garde la sortie : brise son armure au pistolet, puis achève-le avec une commande.`);
-    else this.notice(`Extraction verrouillée : encore ${remaining} terminal(aux) à pirater.`);
+    if (remaining === 0) this.notice(t("bossGuardsExit", { boss: this.options.boss.name }));
+    else this.notice(t("extractionLocked", { count: remaining }));
   }
 
   private notice(message: string): void {
