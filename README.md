@@ -190,6 +190,7 @@ moyenne des examens, et liste des notions à revoir avec leur point clé. Une no
 - `jeux/devops/index.html` + `src/` : le jeu DevOps, servi sous `/jeux/devops/`. Un nouveau parcours = une entrée du catalogue
   + un dossier `jeux/<id>/` déclaré dans `vite.config.ts`.
 - Préfixe d'URL : variable `APP_BASE` au build (`/rostand/` sur GitHub Pages, `/` par défaut, donc sur un VPS à domaine propre).
+- Le portail utilise la police Newsreader (SIL OFL 1.1, auto-hébergée via `@fontsource-variable/newsreader`, licence dans `public/licenses/`).
 - La progression reste dans le navigateur (`localStorage`, même origine pour tout le site) : elle survit au changement d'adresse du jeu.
 
 ### Choix techniques

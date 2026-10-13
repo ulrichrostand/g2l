@@ -12,17 +12,17 @@ function link(label: string, href: string, className: string, external = false):
   return element("a", { className, text: label, attributes });
 }
 
-/** Une ligne de l'index des parcours : numéro, titre, scénario, notions, accès. */
-function courseRow(course: Course, index: number): HTMLElement {
+/** Une ligne de l'index des parcours : titre, scénario, notions, accès. */
+function courseRow(course: Course): HTMLElement {
   const href = playHref(course, import.meta.env.BASE_URL);
   const action = href ? link("Jouer", href, "play-link") : element("span", { className: "soon", text: "Bientôt" });
   const details = [`Métier : ${course.role}`, course.durationHint].filter((part): part is string => part !== null);
   return element("li", { className: `course ${course.status}` }, [
-    element("span", { className: "course-index", text: String(index + 1).padStart(2, "0"), attributes: { "aria-hidden": "true" } }),
     element("div", { className: "course-main" }, [
       element("h3", { text: course.title }),
       element("p", { className: "course-genre", text: course.genre }),
     ]),
+    element("div", { className: "course-action" }, [action]),
     element("div", { className: "course-body" }, [
       element("p", { text: course.scenario }),
       element("p", { className: "course-topics", text: course.topics.join(" · ") }),
@@ -32,7 +32,6 @@ function courseRow(course: Course, index: number): HTMLElement {
         course.roadmapUrl ? link("Roadmap suivie", course.roadmapUrl, "text-link", true) : null,
       ]),
     ]),
-    element("div", { className: "course-action" }, [action]),
   ]);
 }
 
@@ -43,9 +42,9 @@ function method(): HTMLElement {
     ["Un bilan honnête", "Examens, notions à revoir et progression par thème : tu sais où tu en es."],
   ];
   return element(
-    "div",
+    "dl",
     { className: "method" },
-    items.map(([title, text]) => element("div", {}, [element("h3", { text: title }), element("p", { text: text })])),
+    items.map(([title, text]) => element("div", { className: "method-row" }, [element("dt", { text: title }), element("dd", { text: text })])),
   );
 }
 
