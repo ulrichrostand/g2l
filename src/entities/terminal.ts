@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { TerminalSlot } from "../level/generator";
 import { cellToWorld } from "../level/levelScene";
+import { t } from "../i18n/messages/entities";
 
 const LOCKED_COLOR = 0xff3b4e;
 const CONSOLE_COLOR = 0x4fc3ff;
@@ -121,7 +122,7 @@ export class HackTerminal {
     context.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     context.fillStyle = color;
     context.font = "bold 13px monospace";
-    const status = this.hacked ? "ACCÈS OK" : this.kind === "console" ? "INCIDENT" : "VERROUILLÉ";
+    const status = this.hacked ? t("terminalAccessOk") : this.kind === "console" ? t("terminalIncident") : t("terminalLocked");
     context.fillText(`${this.label} // ${status}`, 6, 15);
     context.fillRect(6, 20, SCREEN_WIDTH - 12, 1);
     context.font = "10px monospace";

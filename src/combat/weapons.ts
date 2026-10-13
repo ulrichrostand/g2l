@@ -1,5 +1,6 @@
 import { normalizeCommand } from "../challenges/evaluate";
 import { SeededRandom } from "../core/rng";
+import { t } from "../i18n/messages/combat";
 
 export type WeaponId = "kill" | "docker" | "kubectl" | "firewall";
 export type TargetKind = "sentinel" | "camera";
@@ -44,9 +45,9 @@ export const WEAPONS: readonly CommandWeapon[] = [
     targetKind: "sentinel",
     unlockModuleId: "kernel",
     listingCommand: "ps aux",
-    objective: "La sentinelle est suspendue : repère le PID de son processus et termine-le avant qu'il ne reprenne.",
-    hint: "kill suivi du PID (le numéro de la colonne PID sur la ligne de la sentinelle, celle en état T).",
-    note: "Ta balle IEM a envoyé le signal SIGSTOP : le processus est suspendu (STAT = T), mais il reprendra tout seul. `kill` le termine pour de bon. Ne te trompe pas de ligne : arrêter sshd couperait ton propre accès !",
+    objective: t("killObjective"),
+    hint: t("killHint"),
+    note: t("killNote"),
     listing: (target) => [
       "USER       PID  STAT  COMMAND",
       "root         1  Ss    /sbin/init",
@@ -63,9 +64,9 @@ export const WEAPONS: readonly CommandWeapon[] = [
     targetKind: "sentinel",
     unlockModuleId: "container",
     listingCommand: "docker ps",
-    objective: "La sentinelle tourne dans un conteneur, gelé par ta balle : arrête-le par son nom.",
-    hint: "docker stop suivi du nom du conteneur (colonne NAMES).",
-    note: "Ta balle a gelé le conteneur comme le ferait `docker pause` (statut Paused). `docker stop` l'arrête pour de bon. On peut viser un conteneur par son nom ou son identifiant.",
+    objective: t("dockerObjective"),
+    hint: t("dockerHint"),
+    note: t("dockerNote"),
     listing: (target) => [
       "CONTAINER ID   IMAGE               STATUS                   NAMES",
       "3f2a1c9e8b7d   nginx:1.27          Up 3 hours               web",
@@ -84,9 +85,9 @@ export const WEAPONS: readonly CommandWeapon[] = [
     targetKind: "sentinel",
     unlockModuleId: "helm",
     listingCommand: "kubectl get pods",
-    objective: "La sentinelle est un pod Kubernetes, sonné par ta balle : supprime-le.",
-    hint: "kubectl delete pod suivi du nom complet du pod (colonne NAME).",
-    note: "Le pod ne répond plus (READY 0/1). Il n'est géré par aucun Deployment : une fois supprimé, Kubernetes ne le recréera pas.",
+    objective: t("kubectlObjective"),
+    hint: t("kubectlHint"),
+    note: t("kubectlNote"),
     listing: (target) => [
       "NAME                               READY   STATUS    AGE",
       "web-7d9f8c6b5-x2k4p                1/1     Running   3h",
@@ -102,17 +103,17 @@ export const WEAPONS: readonly CommandWeapon[] = [
   },
   {
     id: "firewall",
-    label: "pare-feu",
+    label: t("firewallLabel"),
     targetKind: "camera",
     unlockModuleId: "gateway",
     listingCommand: "sudo tcpdump -c 3 port 554",
-    objective: "Ta balle n'a brouillé la caméra que quelques secondes. Coupe son flux pour de bon : bloque son adresse IP dans le pare-feu.",
-    hint: "sudo ufw deny from suivi de l'adresse IP de la caméra (après « IP » dans la sortie).",
-    note: "Tu es sur le serveur de la salle de contrôle : refuser tout ce qui vient de l'IP de la caméra coupe son flux, définitivement.",
+    objective: t("firewallObjective"),
+    hint: t("firewallHint"),
+    note: t("firewallNote"),
     listing: (target) => [
-      `IP ${target.ip}.48122 > 10.0.0.9.554: RTSP flux vidéo ${target.containerName}`,
-      `IP ${target.ip}.48122 > 10.0.0.9.554: RTSP flux vidéo ${target.containerName}`,
-      "IP 10.0.0.12.51734 > 10.0.0.9.554: RTSP flux vidéo cam-hall",
+      `IP ${target.ip}.48122 > 10.0.0.9.554: ${t("rtspStream", { name: target.containerName })}`,
+      `IP ${target.ip}.48122 > 10.0.0.9.554: ${t("rtspStream", { name: target.containerName })}`,
+      `IP 10.0.0.12.51734 > 10.0.0.9.554: ${t("rtspStream", { name: "cam-hall" })}`,
     ],
     acceptedCommands: (target) => [
       `ufw deny from ${target.ip}`,
@@ -154,7 +155,7 @@ export function createSentinelIdentity(seed: number, sentinelNumber: number): Se
   const random = new SeededRandom(seed + sentinelNumber * 104729);
   const randomString = (alphabet: string, length: number): string =>
     Array.from({ length }, () => alphabet[random.int(0, alphabet.length - 1)]).join("");
-  const name = `sentinelle-${sentinelNumber}`;
+  const name = t("sentinelName", { number: sentinelNumber });
   return {
     kind: "sentinel",
     pid: random.int(3000, 9899),

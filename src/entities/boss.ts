@@ -1,3 +1,4 @@
+import { t } from "../i18n/messages/entities";
 import * as THREE from "three";
 import { BossAndroid } from "./bossAndroid";
 import type { SentinelAsset } from "./sentinelAndroid";
@@ -1277,7 +1278,7 @@ class BossNameplate {
     if (exposed) {
       context.fillStyle = "#4fc3ff";
       context.font = "bold 22px system-ui, sans-serif";
-      context.fillText("À GENOUX : TAPE LA COMMANDE", width / 2, 76);
+      context.fillText(t("bossKneelPrompt"), width / 2, 76);
     }
 
     for (let pip = 0; pip < PHASE_COUNT; pip++) {
