@@ -194,6 +194,9 @@ Deux rayons : 8 px pour les images et les vignettes, 12 px pour les cartes et le
 ### Navigation
 - En-tête fixe de 68 px : marque (anneau et cœur citron, nom en capitales) à gauche, trois liens au centre droit, bouton « Jouer » en contour. Sur mobile, les liens disparaissent, le bouton reste.
 
+### Sélecteur de langue
+- Deux liens côte à côte (FR, EN) dans l'en-tête, séparés par un filet de 1 px (#243024) ; Chakra Petch 700 en 0.95rem, texte effacé (#86907f) ; le lien de la langue courante en citron (#c6f135) avec `aria-current`. Cible de 40 px de haut. Sur mobile, il reste visible quand la navigation se replie.
+
 ### Portail (composant signature)
 Un shader WebGL dans un canvas carré (520 px au plus) : vortex animé, anneau citron net, couronne segmentée qui tourne en sens inverse, fine couronne extérieure. Il se met en pause hors écran et onglet caché, montre une image fixe si l'utilisateur préfère moins d'animations, et disparaît sans casser la page si WebGL manque.
 

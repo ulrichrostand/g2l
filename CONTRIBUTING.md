@@ -34,6 +34,12 @@ Les trois doivent passer. Un changement visuel : joins une capture d'écran (ord
 
 Pour une grosse fonctionnalité (nouveau parcours, nouveau mécanisme de jeu), **ouvre d'abord une issue** pour qu'on en discute : ça évite un long travail refusé.
 
+## Traductions
+
+Le site existe en français et en anglais. Une correction de traduction est une contribution précieuse : le contenu est dans
+`src/content/en/` (anglais) et `src/content/fr/` (français), l'interface dans `src/i18n/messages/`. Lis `src/i18n/GLOSSARY.md`
+avant de proposer un changement de vocabulaire. Les deux langues doivent garder la même structure : les tests le vérifient.
+
 ## Règles de code
 
 - TypeScript strict, noms explicites, petites fonctions, erreurs gérées explicitement (jamais de `catch` vide).

@@ -12,7 +12,7 @@ TypeScript, Vite (pages multiples : portail à la racine, un jeu par dossier sou
 
 ## Users
 
-Débutants complets qui veulent apprendre ou changer vers un métier de la tech (DevOps, data, sécurité), souvent sur téléphone en paysage ou sur ordinateur, hors cadre scolaire formel : ils choisissent un parcours, jouent par sessions courtes et reviennent. Public francophone. Aucune connaissance préalable requise. (Précision des profils d'âge et de niveau : non confirmée.)
+Débutants complets qui veulent apprendre ou changer vers un métier de la tech (DevOps, data, sécurité), souvent sur téléphone en paysage ou sur ordinateur, hors cadre scolaire formel : ils choisissent un parcours, jouent par sessions courtes et reviennent. Public francophone et anglophone (site bilingue). Aucune connaissance préalable requise. (Précision des profils d'âge et de niveau : non confirmée.)
 
 ## Product Purpose
 
@@ -31,7 +31,7 @@ Pas des cours à lire ni des quiz isolés : l'apprentissage passe par de vraies 
 
 ## Capabilities and Constraints
 
-- Interface entièrement en français, termes techniques en anglais.
+- Site bilingue français / anglais (anglais américain), une URL par langue ; le français reste la langue source, l'anglais suit la même structure. Termes techniques jamais traduits (commandes, noms d'outils).
 - Aucun emoji nulle part dans l'interface.
 - Crédit visible à roadmap.sh ; projet indépendant, non affilié.
 - Sécurité : aucune injection HTML, CSP stricte, entrées validées, aucun secret dans le code, liens sortants en `rel="noopener noreferrer"`.
@@ -62,4 +62,4 @@ Pas des cours à lire ni des quiz isolés : l'apprentissage passe par de vraies 
 
 ## Accessibility & Inclusion
 
-Contraste d'au moins 4,5:1 pour le texte courant, focus clavier visible, préférences de mouvement réduit respectées, cibles tactiles confortables, mise en page sans défilement horizontal à partir de 360 px de large. Public francophone : contenu et attributs de langue en français.
+Contraste d'au moins 4,5:1 pour le texte courant, focus clavier visible, préférences de mouvement réduit respectées, cibles tactiles confortables, mise en page sans défilement horizontal à partir de 360 px de large. Attribut `lang` de chaque page dans sa langue ; sélecteur de langue accessible (liens, `aria-current`).

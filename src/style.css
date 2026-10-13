@@ -140,6 +140,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--info); outl
 .title-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 1.4em; }
 .resume-detail { font-family: var(--mono); font-size: 0.82rem; color: var(--muted); margin: 0.6em 0 0; }
 .title-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1.6em; padding-top: 1.2em; border-top: 1px solid var(--panel-border); }
+.lang-switch { display: inline-flex; align-items: center; gap: 4px; margin-right: 4px; }
+.lang-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 10px; border: 1px solid var(--panel-border); border-radius: 6px; font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.1em; color: var(--muted); text-decoration: none; }
+.lang-link:hover { color: var(--text); }
+.lang-link.current { color: var(--accent); border-color: var(--accent); background: rgba(57, 255, 136, 0.1); }
 
 .mission-file {
   background: rgba(17, 32, 42, 0.55);

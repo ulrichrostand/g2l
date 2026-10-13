@@ -6,6 +6,10 @@ import { formatGrade, GENERAL_EXAM_MIN_MODULES } from "../game/exam";
 import type { ExamRecord, ModuleRecord } from "../game/progress";
 import { describeSolution } from "./challengePanel";
 import { lessonCard } from "./lessonPanel";
+import { createLanguageSwitch } from "../i18n/switcher";
+import { LANG, LOCALE, isSingular } from "../i18n/lang";
+import { portalPath } from "../i18n/routes";
+import { t } from "../i18n/messages/screens";
 import { button, element, richText } from "./dom";
 
 export interface CampaignEntry {
@@ -89,35 +93,35 @@ export interface DebriefData {
   bossName: string;
 }
 
-const CONTROLS: [string, string][] = [
-  ["ZQSD / WASD / flèches", "Se déplacer"],
-  ["Clic droit (maintenu)", "Viser : laser, tir précis, déplacement lent"],
-  ["Clic gauche / Espace", "Tirer là où pointe la souris — tu peux rater ! Une balle qui touche suspend la sentinelle 10 s"],
-  ["R", "Recharger (chargeur de 8 balles)"],
-  ["F", "Terminer la cible touchée avec une vraie commande (kill, docker, kubectl, pare-feu)"],
-  ["E", "Pirater un terminal, ou neutraliser une sentinelle approchée par derrière"],
-  ["Maj (maintenu)", "Courir — rapide mais bruyant, et le tir devient imprécis"],
-  ["C", "S'accroupir — moins visible, tir plus précis"],
-  ["N", "Vision nocturne"],
-  ["Échap", "Pause"],
+const controls = (): [string, string][] => [
+  [t("keyMove"), t("actionMove")],
+  [t("keyAim"), t("actionAim")],
+  [t("keyShoot"), t("actionShoot")],
+  [t("keyReload"), t("actionReload")],
+  [t("keyGadget"), t("actionGadget")],
+  [t("keyInteract"), t("actionInteract")],
+  [t("keyRun"), t("actionRun")],
+  [t("keyCrouch"), t("actionCrouch")],
+  [t("keyNight"), t("actionNight")],
+  [t("keyPause"), t("actionPause")],
 ];
 
-const TOUCH_CONTROLS: [string, string][] = [
-  ["Joystick (pouce gauche)", "Se déplacer — il apparaît là où tu poses le pouce"],
-  ["Pouce au-delà de l'anneau", "Courir — rapide mais bruyant"],
-  ["Tirer (pouce droit)", "Glisse pour viser (laser), relâche pour tirer. Une simple tape tire droit devant"],
-  ["Gadget", "S'allume quand une cible est touchée : termine-la avec une vraie commande"],
-  ["Pirater / Neutraliser", "S'allume près d'un terminal ou dans le dos d'une sentinelle"],
-  ["Accroupir", "Moins visible, tir plus précis"],
-  ["Vision", "Vision nocturne"],
-  ["❚❚", "Pause"],
+const touchControls = (): [string, string][] => [
+  [t("touchJoystick"), t("touchJoystickAction")],
+  [t("touchRun"), t("touchRunAction")],
+  [t("touchFire"), t("touchFireAction")],
+  [t("touchGadget"), t("touchGadgetAction")],
+  [t("touchHack"), t("touchHackAction")],
+  [t("touchCrouch"), t("touchCrouchAction")],
+  [t("touchVision"), t("touchVisionAction")],
+  [t("touchPause"), t("touchPauseAction")],
 ];
 
 /** Les deux listes sont rendues ; le CSS affiche celle du mode d'entrée actif (classe body.touch). */
 function controlsList(): HTMLElement[] {
   const toList = (entries: [string, string][], className: string): HTMLElement =>
     element("dl", { className: `controls ${className}` }, entries.flatMap(([key, action]) => [element("dt", { text: key }), element("dd", { text: action })]));
-  return [toList(CONTROLS, "keyboard-only"), toList(TOUCH_CONTROLS, "touch-only")];
+  return [toList(controls(), "keyboard-only"), toList(touchControls(), "touch-only")];
 }
 
 export class ScreenManager {
@@ -129,12 +133,13 @@ export class ScreenManager {
   }
 
   showTitle(options: TitleScreenOptions): void {
-    const resetButton = button("Réinitialiser la progression", () => {
-      if (window.confirm("Effacer toute la progression de la campagne ? Pense à copier ton code de sauvegarde avant.")) options.onReset();
+    const resetButton = button(t("resetProgress"), () => {
+      if (window.confirm(t("confirmReset"))) options.onReset();
     }, "btn ghost small");
     resetButton.hidden = !options.hasProgress;
+    const switcher = createLanguageSwitch(window.location.pathname, import.meta.env.BASE_URL);
     const campaignButton = button(
-      options.hasProgress ? "Carte des opérations" : "Commencer la campagne",
+      options.hasProgress ? t("operationsMap") : t("startCampaign"),
       options.onCampaign,
       options.resume ? "btn big" : "btn primary big",
     );
@@ -142,23 +147,24 @@ export class ScreenManager {
     this.show(
       element("div", { className: "panel title-screen" }, [
         element("section", { className: "title-hero" }, [
-          element("p", { className: "eyebrow", text: "Cellule Écho — dossier classifié" }),
+          element("p", { className: "eyebrow", text: t("titleEyebrow") }),
           element("h1", { className: "logo", text: "SHADOW OPS" }),
           element("p", { className: "logo-sub", text: "DevOps Infiltration" }),
           element("p", {
             className: "lead",
-            text: "ENTROPIA a pris le contrôle de l'infrastructure d'Helix Corp. Tu es Spectre, agent de la cellule Écho : traverse 16 secteurs, apprends le DevOps dans les dossiers, prouve-le sur les terminaux et neutralise les sentinelles avec de vraies commandes. Aucune connaissance requise.",
+            text: t("titleLead"),
           }),
           element("div", { className: "title-actions" }, [resumeButton, campaignButton]),
-          options.resume ? element("p", { className: "resume-detail", text: `Partie en cours · ${options.resume.detail}` }) : null,
+          options.resume ? element("p", { className: "resume-detail", text: t("gameInProgress", { detail: options.resume.detail }) }) : null,
           element("div", { className: "title-toolbar" }, [
-            button("Personnaliser l'agent", options.onCustomize, "btn ghost small"),
-            button("Mes compétences", options.onSkills, "btn ghost small"),
+            switcher,
+            button(t("customizeAgent"), options.onCustomize, "btn ghost small"),
+            button(t("mySkills"), options.onSkills, "btn ghost small"),
             // Retour au portail : le jeu n'est qu'un parcours parmi d'autres.
-            button("Tous les parcours", () => window.location.assign(import.meta.env.BASE_URL), "btn ghost small"),
-            button("Sauvegarde", options.onSaveManager, "btn ghost small"),
+            button(t("allGames"), () => window.location.assign(portalPath(LANG, import.meta.env.BASE_URL)), "btn ghost small"),
+            button(t("saveMenu"), options.onSaveManager, "btn ghost small"),
             qualityButton(options.qualityLabel, options.onCycleQuality),
-            toggleButton(options.soundLabel, options.onToggleSound, "Ambiance sonore et effets du jeu."),
+            toggleButton(options.soundLabel, options.onToggleSound, t("soundTitle")),
             resetButton,
           ]),
         ]),
@@ -176,26 +182,26 @@ export class ScreenManager {
     fill.style.width = `${percent}%`;
     const next = campaign.next
       ? element("div", { className: "mission-next" }, [
-          element("span", { className: "mission-label", text: campaign.completed === 0 ? "Premier secteur" : "Prochain secteur" }),
+          element("span", { className: "mission-label", text: campaign.completed === 0 ? t("firstSector") : t("nextSector") }),
           element("strong", { text: campaign.next.codename }),
           element("span", { text: campaign.next.title }),
           element("span", { className: "mission-section", text: campaign.next.section }),
         ])
       : element("div", { className: "mission-next" }, [
-          element("span", { className: "mission-label", text: "Campagne terminée" }),
-          element("strong", { text: "Les 16 secteurs sont libérés" }),
-          element("span", { text: "Rejoue un secteur pour viser trois étoiles, ou passe l'examen général." }),
+          element("span", { className: "mission-label", text: t("campaignDone") }),
+          element("strong", { text: t("allSectorsFreed") }),
+          element("span", { text: t("replayHint") }),
         ]);
     const steps: [string, string, string][] = [
-      ["01", "Apprendre", "Ramasse les dossiers : chaque notion expliquée simplement, avec un exemple."],
-      ["02", "Prouver", "Pirate les terminaux en répondant ou en tapant la vraie commande."],
-      ["03", "Neutraliser", "Touche une sentinelle au pistolet, puis termine-la avec kill, docker ou kubectl."],
+      ["01", t("stepLearn"), t("stepLearnText")],
+      ["02", t("stepProve"), t("stepProveText")],
+      ["03", t("stepTakeDown"), t("stepTakeDownText")],
     ];
-    return element("aside", { className: "mission-file", attributes: { "aria-label": "Dossier de mission" } }, [
-      element("p", { className: "mission-label", text: "Dossier de mission" }),
+    return element("aside", { className: "mission-file", attributes: { "aria-label": t("missionFile") } }, [
+      element("p", { className: "mission-label", text: t("missionFile") }),
       element("div", { className: "mission-progress" }, [
         element("span", { className: "mission-count", text: `${campaign.completed}/${campaign.total}` }),
-        element("span", { className: "mission-label", text: "secteurs libérés" }),
+        element("span", { className: "mission-label", text: t("sectorsFreed") }),
       ]),
       element("div", { className: "progress-track" }, [fill]),
       next,
@@ -212,52 +218,54 @@ export class ScreenManager {
   showSaveManager(options: SaveManagerOptions): void {
     const codeField = element("textarea", {
       className: "save-code",
-      attributes: { readonly: "", rows: "4", spellcheck: "false", "aria-label": "Ton code de sauvegarde" },
+      attributes: { readonly: "", rows: "4", spellcheck: "false", "aria-label": t("saveCodeLabel") },
     });
     codeField.value = options.code;
     const copyStatus = element("p", { className: "save-status", attributes: { role: "status", "aria-live": "polite" } });
-    const copyButton = button("Copier le code", () => {
+    const copyButton = button(t("copyCode"), () => {
       void copyToClipboard(codeField).then((copied) => {
         copyStatus.textContent = copied
-          ? "✔ Code copié. Colle-le dans le jeu sur ton autre appareil (menu Sauvegarde)."
-          : "Copie automatique impossible : le code est sélectionné, copie-le manuellement (appui long ou Ctrl+C).";
+          ? t("codeCopied")
+          : t("copyFailed");
       });
     }, "btn primary");
 
     const importField = element("textarea", {
       className: "save-code",
-      attributes: { rows: "4", spellcheck: "false", placeholder: "Colle ici un code SHADOWOPS1…", "aria-label": "Code de sauvegarde à importer" },
+      attributes: { rows: "4", spellcheck: "false", placeholder: t("importPlaceholder"), "aria-label": t("importCodeLabel") },
     });
     const importStatus = element("p", { className: "save-status", attributes: { role: "status", "aria-live": "polite" } });
-    const importButton = button("Importer ce code", () => {
-      if (!window.confirm("Importer ce code remplacera toute ta progression actuelle sur cet appareil. Continuer ?")) return;
+    const importButton = button(t("importCode"), () => {
+      if (!window.confirm(t("confirmImport"))) return;
       const error = options.onImport(importField.value);
       if (error) {
-        importStatus.textContent = `✖ ${error}`;
+        importStatus.textContent = t("importError", { error });
         importStatus.dataset.state = "error";
         return;
       }
       options.onImported();
     }, "btn");
 
-    const backButton = button("← Menu", options.onBack, "btn ghost");
+    const backButton = button(t("backToMenu"), options.onBack, "btn ghost");
     this.show(
       element("div", { className: "panel save-manager" }, [
-        element("p", { className: "eyebrow", text: "Sauvegarde" }),
-        element("h1", { text: "Ta progression" }),
+        element("p", { className: "eyebrow", text: t("saveEyebrow") }),
+        element("h1", { text: t("yourProgress") }),
         element("p", { className: "lead", text: options.summary }),
         element("p", {
           className: options.persistent ? "save-status" : "save-status warn",
           text: options.persistent
-            ? `Sauvegarde automatique activée${options.savedAt ? ` · dernière sauvegarde : ${formatDate(options.savedAt)}` : ""}. Elle a lieu à chaque terminal piraté, dossier ramassé, sentinelle neutralisée et à chaque pause.`
-            : "Ton navigateur bloque le stockage (navigation privée ?) : la progression sera perdue en fermant la page. Utilise le code ci-dessous pour la garder.",
+            ? options.savedAt
+              ? t("autosaveOnDated", { date: formatDate(options.savedAt) })
+              : t("autosaveOn")
+            : t("storageBlocked"),
         }),
-        element("h2", { text: "Changer d'appareil" }),
-        element("p", { text: "La sauvegarde est enregistrée dans ce navigateur. Pour continuer sur un autre appareil (téléphone ↔ PC), copie ce code puis importe-le là-bas." }),
+        element("h2", { text: t("changeDevice") }),
+        element("p", { text: t("changeDeviceText") }),
         codeField,
         element("div", { className: "row" }, [copyButton]),
         copyStatus,
-        element("h2", { text: "Importer une sauvegarde" }),
+        element("h2", { text: t("importSave") }),
         importField,
         element("div", { className: "row" }, [importButton]),
         importStatus,
@@ -290,18 +298,18 @@ export class ScreenManager {
     this.show(
       element("div", { className: "panel campaign" }, [
         element("div", { className: "campaign-header" }, [
-          element("div", {}, [element("p", { className: "eyebrow", text: "Carte des opérations" }), element("h1", { text: "Parcours DevOps" })]),
-          element("div", { className: "row" }, [button("Mes compétences", actions.onSkills, "btn ghost small"), button("← Menu", actions.onBack, "btn ghost")]),
+          element("div", {}, [element("p", { className: "eyebrow", text: t("operationsMap") }), element("h1", { text: t("pageTitleDevOps") })]),
+          element("div", { className: "row" }, [button(t("mySkills"), actions.onSkills, "btn ghost small"), button(t("backToMenu"), actions.onBack, "btn ghost")]),
         ]),
         element("div", { className: "progress" }, [
           element("div", { className: "progress-track" }, [progressFill]),
-          element("span", { text: `${completedCount}/${entries.length} secteurs libérés · ${progressPercent}%` }),
+          element("span", { text: t("progressSummary", { completed: completedCount, total: entries.length, percent: progressPercent }) }),
         ]),
-        element("ul", { className: "timeline-legend", attributes: { "aria-label": "Légende" } }, [
-          element("li", { className: "legend-completed", text: "Libéré" }),
-          element("li", { className: "legend-available", text: "Disponible" }),
-          element("li", { className: "legend-in-progress", text: "En cours" }),
-          element("li", { className: "legend-locked", text: "Verrouillé" }),
+        element("ul", { className: "timeline-legend", attributes: { "aria-label": t("legend") } }, [
+          element("li", { className: "legend-completed", text: t("legendCompleted") }),
+          element("li", { className: "legend-available", text: t("legendAvailable") }),
+          element("li", { className: "legend-in-progress", text: t("legendInProgress") }),
+          element("li", { className: "legend-locked", text: t("legendLocked") }),
         ]),
         timeline,
         this.roadmapCredit(),
@@ -319,7 +327,7 @@ export class ScreenManager {
 
     const review =
       report.reviewList.length === 0
-        ? element("p", { className: "skills-empty", text: report.completedCount === 0 ? "Termine un secteur : les notions à revoir apparaîtront ici." : "Rien à revoir : aucune faute lors de tes dernières missions." })
+        ? element("p", { className: "skills-empty", text: report.completedCount === 0 ? t("reviewEmptyNoProgress") : t("reviewEmptyAllGood") })
         : element(
             "ul",
             { className: "skills-review" },
@@ -332,7 +340,7 @@ export class ScreenManager {
           );
 
     const rows = report.entries.map((entry) => {
-      const examText = entry.examGrade === null ? null : `Examen ${formatGrade(entry.examGrade)}`;
+      const examText = entry.examGrade === null ? null : t("examGradeText", { grade: formatGrade(entry.examGrade) });
       return element("li", { className: `skills-row level-${entry.level}` }, [
         element("div", { className: "skills-row-head" }, [
           element("div", {}, [element("p", { className: "skills-row-title", text: entry.codename }), element("p", { className: "skills-row-section", text: entry.roadmapSection })]),
@@ -342,25 +350,25 @@ export class ScreenManager {
       ]);
     });
 
-    const backButton = button("← Retour", onBack, "btn ghost");
+    const backButton = button(t("back"), onBack, "btn ghost");
     this.show(
       element("div", { className: "panel skills" }, [
         element("div", { className: "campaign-header" }, [
-          element("div", {}, [element("p", { className: "eyebrow", text: "Bilan" }), element("h1", { text: "Mes compétences" })]),
+          element("div", {}, [element("p", { className: "eyebrow", text: t("skillsEyebrow") }), element("h1", { text: t("mySkills") })]),
           backButton,
         ]),
         element("div", { className: "skills-stats" }, [
-          stat(`${report.completedCount}/${total}`, "secteurs terminés"),
-          stat(`${report.masteredCount}`, "maîtrisés"),
-          stat(grade(report.averageExamGrade), "moyenne aux examens"),
-          stat(grade(report.generalExamGrade), "examen général"),
+          stat(`${report.completedCount}/${total}`, t("statSectorsDone")),
+          stat(`${report.masteredCount}`, t("statMastered")),
+          stat(grade(report.averageExamGrade), t("statAverageExam")),
+          stat(grade(report.generalExamGrade), t("statGeneralExam")),
         ]),
-        element("h2", { text: "À revoir" }),
+        element("h2", { text: t("toReview") }),
         review,
-        element("h2", { text: "Par secteur" }),
-        element("p", { className: "skills-legend", text: "Maîtrisé : sans faute et examen réussi. Acquis : sans faute. À consolider : des défis ratés ou un score minimal." }),
+        element("h2", { text: t("bySector") }),
+        element("p", { className: "skills-legend", text: t("skillsLegend") }),
         element("ul", { className: "skills-list" }, rows),
-        element("div", { className: "row" }, [button("Carte des opérations", onOpenCampaign, "btn primary")]),
+        element("div", { className: "row" }, [button(t("operationsMap"), onOpenCampaign, "btn primary")]),
         this.roadmapCredit(),
       ]),
     );
@@ -369,26 +377,26 @@ export class ScreenManager {
 
   /** `addTip` : l'appelant ajoute un encart au briefing (conseil d'orientation sur mobile) dans le conteneur donné. */
   showBriefing(module: DevOpsModule, moduleNumber: number, warning: string | null, onLaunch: () => void, onBack: () => void, addTip?: (container: HTMLElement) => void): void {
-    const launchButton = button("Lancer l'infiltration", onLaunch, "btn primary big");
+    const launchButton = button(t("launchInfiltration"), onLaunch, "btn primary big");
     const tipContainer = element("div", { className: "briefing-tip" });
     addTip?.(tipContainer);
     this.show(
       element("div", { className: "panel briefing" }, [
-        element("p", { className: "eyebrow", text: `Module ${moduleNumber} · ${module.roadmapSection}` }),
+        element("p", { className: "eyebrow", text: t("briefingEyebrow", { number: moduleNumber, section: module.roadmapSection }) }),
         element("h1", { text: module.codename }),
         element("h2", { className: "subtitle", text: module.title }),
         element("p", { className: "lead", text: module.briefing }),
-        element("h3", { text: "Notions de la roadmap couvertes" }),
+        element("h3", { text: t("roadmapTopicsCovered") }),
         element("ul", { className: "chips" }, module.roadmapTopics.map((topic) => element("li", { text: topic }))),
-        element("h3", { text: "Commandes" }),
+        element("h3", { text: t("commands") }),
         ...controlsList(),
         element("p", {
           className: "tip",
-          text: "Astuce : les dossiers jaunes contiennent les leçons. Les racks bloquent la vue et les balles des sentinelles : observe leurs rondes avant de bouger. Si elles te voient, elles tirent.",
+          text: t("briefingTip"),
         }),
         warning ? element("p", { className: "save-status warn", text: warning }) : null,
         tipContainer,
-        element("div", { className: "row" }, [launchButton, button("Retour", onBack, "btn ghost")]),
+        element("div", { className: "row" }, [launchButton, button(t("backShort"), onBack, "btn ghost")]),
       ]),
     );
     launchButton.focus({ preventScroll: true });
@@ -396,36 +404,36 @@ export class ScreenManager {
 
   showDebrief(data: DebriefData, onNext: () => void, onReplay: () => void, onMap: () => void): void {
     const { module, score } = data;
-    const nextButton = button(data.isLastModule ? "Retour à la carte" : "Mission suivante →", data.isLastModule ? onMap : onNext, "btn primary big");
+    const nextButton = button(data.isLastModule ? t("backToMap") : t("nextMission"), data.isLastModule ? onMap : onNext, "btn primary big");
     this.show(
       element("div", { className: "panel debrief" }, [
-        element("p", { className: "eyebrow", text: "Débriefing de mission" }),
-        element("h1", { text: `${module.codename} — réussie` }),
+        element("p", { className: "eyebrow", text: t("debriefEyebrow") }),
+        element("h1", { text: t("missionComplete", { codename: module.codename }) }),
         data.isLastModule
-          ? element("p", { className: "lead victory", text: "ENTROPIA est neutralisée. Tu as parcouru toute la roadmap DevOps : il est temps de pratiquer sur de vrais projets !" })
+          ? element("p", { className: "lead victory", text: t("victory") })
           : null,
         element("div", { className: "stats" }, [
-          this.stat("Évaluation", "★".repeat(score.stars) + "☆".repeat(3 - score.stars)),
-          this.stat("Score", `${score.score} / ${score.maxScore}`),
-          this.stat("Précision 1er essai", `${Math.round(score.firstTryAccuracy * 100)} %`),
-          this.stat("Dossiers", `${data.intelCollected}/${data.intelTotal}`),
-          this.stat("Détections", score.ghost ? "0 — Fantôme" : String(data.detections)),
-          this.stat("Neutralisations", String(data.neutralizations)),
-          this.stat("Boss vaincu", data.bossName),
-          this.stat("Durée", formatDuration(data.elapsedSeconds)),
+          this.stat(t("statRating"), "★".repeat(score.stars) + "☆".repeat(3 - score.stars)),
+          this.stat(t("statScore"), `${score.score} / ${score.maxScore}`),
+          this.stat(t("statFirstTry"), t("percentValue", { percent: Math.round(score.firstTryAccuracy * 100) })),
+          this.stat(t("statIntel"), `${data.intelCollected}/${data.intelTotal}`),
+          this.stat(t("statDetections"), score.ghost ? t("statGhost") : String(data.detections)),
+          this.stat(t("statTakedowns"), String(data.neutralizations)),
+          this.stat(t("statBoss"), data.bossName),
+          this.stat(t("statDuration"), formatDuration(data.elapsedSeconds)),
         ]),
         ...this.recapSections(module, data.wrongAttemptsPerTerminal, false),
-        element("div", { className: "row" }, [nextButton, button("Rejouer", onReplay, "btn"), button("Carte", onMap, "btn ghost")]),
+        element("div", { className: "row" }, [nextButton, button(t("replay"), onReplay, "btn"), button(t("mapShort"), onMap, "btn ghost")]),
       ]),
     );
     nextButton.focus({ preventScroll: true });
   }
 
   showDossier(module: DevOpsModule, onBack: () => void): void {
-    const backButton = button("← Retour à la carte", onBack, "btn primary");
+    const backButton = button(t("backToMapArrow"), onBack, "btn primary");
     this.show(
       element("div", { className: "panel debrief" }, [
-        element("p", { className: "eyebrow", text: `Dossier · ${module.roadmapSection}` }),
+        element("p", { className: "eyebrow", text: t("dossierEyebrow", { section: module.roadmapSection }) }),
         element("h1", { text: module.title }),
         ...this.recapSections(module, null, true),
         element("div", { className: "row" }, [backButton]),
@@ -436,23 +444,23 @@ export class ScreenManager {
 
   showPause(options: PauseScreenOptions): void {
     const { persistent } = options;
-    const resumeButton = button("Reprendre", options.onResume, "btn primary");
+    const resumeButton = button(t("resume"), options.onResume, "btn primary");
     this.show(
       element("div", { className: "panel small" }, [
-        element("h1", { text: "Pause" }),
+        element("h1", { text: t("pause") }),
         element("p", {
           className: persistent ? "save-status" : "save-status warn",
           text: persistent
-            ? "Progression sauvegardée. Tu peux quitter et reprendre plus tard depuis l'écran titre."
-            : "Stockage bloqué par le navigateur : la progression sera perdue en fermant la page.",
+            ? t("pauseSaved")
+            : t("pauseStorageBlocked"),
         }),
         ...controlsList(),
         element("div", { className: "row" }, [
           resumeButton,
           ...(options.fullscreen ? [fullscreenButton(options.fullscreen)] : []),
           qualityButton(options.qualityLabel, options.onCycleQuality),
-          toggleButton(options.soundLabel, options.onToggleSound, "Ambiance sonore et effets du jeu."),
-          button("Quitter la mission", options.onQuit, "btn ghost"),
+          toggleButton(options.soundLabel, options.onToggleSound, t("soundTitle")),
+          button(t("quitMission"), options.onQuit, "btn ghost"),
         ]),
       ]),
     );
@@ -460,14 +468,14 @@ export class ScreenManager {
   }
 
   showPlayerDown(livesLeft: number, onContinue: () => void): void {
-    const continueButton = button("Reprendre l'infiltration", onContinue, "btn primary");
+    const continueButton = button(t("resumeInfiltration"), onContinue, "btn primary");
     this.show(
       element("div", { className: "panel small alert" }, [
-        element("h1", { text: "À TERRE" }),
-        element("p", { text: `Spectre a été abattu. Retour au point d'insertion. Vies restantes : ${livesLeft}. Les terminaux piratés et les sentinelles terminées restent acquis.` }),
+        element("h1", { text: t("playerDownTitle") }),
+        element("p", { text: t("playerDownText", { lives: livesLeft }) }),
         element("p", {
           className: "tip",
-          text: "Les racks arrêtent les balles : mets-toi à couvert, vise (clic droit ou pad de tir) et touche les sentinelles pour les suspendre. Quelques secondes à l'abri et ta santé remonte.",
+          text: t("playerDownTip"),
         }),
         element("div", { className: "row" }, [continueButton]),
       ]),
@@ -476,13 +484,13 @@ export class ScreenManager {
   }
 
   showFailed(onRetry: () => void, onMap: () => void): void {
-    const retryButton = button("Réessayer", onRetry, "btn primary");
+    const retryButton = button(t("retry"), onRetry, "btn primary");
     this.show(
       element("div", { className: "panel small alert" }, [
-        element("h1", { text: "Mission compromise" }),
-        element("p", { text: "Spectre est tombé trop souvent. La cellule Écho t'exfiltre." }),
-        element("p", { className: "tip", text: "Les rondes sont toujours identiques pour un même secteur : observe-les et planifie ton chemin." }),
-        element("div", { className: "row" }, [retryButton, button("Carte", onMap, "btn ghost")]),
+        element("h1", { text: t("failedTitle") }),
+        element("p", { text: t("failedText") }),
+        element("p", { className: "tip", text: t("failedTip") }),
+        element("div", { className: "row" }, [retryButton, button(t("mapShort"), onMap, "btn ghost")]),
       ]),
     );
     retryButton.focus({ preventScroll: true });
@@ -498,16 +506,16 @@ export class ScreenManager {
   /** Nœud final de la timeline : l'examen général, ouvert après quelques secteurs libérés. */
   private generalExamNode(completedCount: number, record: ExamRecord | undefined, onGeneralExam: () => void): HTMLLIElement {
     const available = completedCount >= GENERAL_EXAM_MIN_MODULES;
-    const examButton = button("Examen général", onGeneralExam, available ? "btn primary" : "btn ghost");
+    const examButton = button(t("generalExam"), onGeneralExam, available ? "btn primary" : "btn ghost");
     examButton.disabled = !available;
     const detail = !available
-      ? `Disponible après ${GENERAL_EXAM_MIN_MODULES} secteurs libérés : des questions mélangées de tous tes modules, chronométrées.`
+      ? t("generalExamLocked", { count: GENERAL_EXAM_MIN_MODULES })
       : record
-        ? `Meilleure note : ${formatGrade(record.bestGrade)} · ${record.attempts} tentative${record.attempts > 1 ? "s" : ""}`
-        : "Des questions mélangées de tous les secteurs libérés, chronométrées et notées sur 20.";
+        ? t(isSingular(record.attempts) ? "bestGradeOne" : "bestGradeOther", { grade: formatGrade(record.bestGrade), attempts: record.attempts })
+        : t("generalExamAvailable");
     const status = record ? "completed" : available ? "available" : "locked";
     return element("li", { className: `timeline-item timeline-final ${status}` }, [
-      element("div", { className: "timeline-node" }, [element("span", { className: "node-section", text: "Validation finale" }), element("strong", { text: "Examen général" })]),
+      element("div", { className: "timeline-node" }, [element("span", { className: "node-section", text: t("finalValidation") }), element("strong", { text: t("generalExam") })]),
       element("div", { className: "campaign-card final-card" }, [element("p", { className: "card-detail", text: detail }), element("div", { className: "card-actions" }, [examButton])]),
     ]);
   }
@@ -517,23 +525,23 @@ export class ScreenManager {
     const { module, unlocked, record, inProgress, examRecord } = entry;
     const status = inProgress ? "in-progress" : record ? "completed" : unlocked ? "available" : "locked";
     const actions = element("div", { className: "card-actions" });
-    if (inProgress) actions.append(button("Reprendre", () => handlers.onResume(module), "btn primary"));
-    if (unlocked) actions.append(button(record ? "Rejouer" : inProgress ? "Recommencer" : "Infiltrer", () => handlers.onPlay(module), inProgress ? "btn ghost" : "btn primary"));
-    if (record) actions.append(button("Dossier", () => handlers.onDossier(module), "btn ghost"));
+    if (inProgress) actions.append(button(t("resume"), () => handlers.onResume(module), "btn primary"));
+    if (unlocked) actions.append(button(record ? t("replay") : inProgress ? t("restart") : t("play"), () => handlers.onPlay(module), inProgress ? "btn ghost" : "btn primary"));
+    if (record) actions.append(button(t("dossier"), () => handlers.onDossier(module), "btn ghost"));
     // L'examen d'un module n'est proposé qu'une fois le module joué : on ne note pas ce qu'on n'a pas appris.
-    if (record) actions.append(button("Examen", () => handlers.onExam(module), "btn ghost"));
-    const statusLabel = inProgress ? "En cours" : record ? "Libéré" : unlocked ? "Disponible" : "Verrouillé";
+    if (record) actions.append(button(t("exam"), () => handlers.onExam(module), "btn ghost"));
+    const statusLabel = inProgress ? t("legendInProgress") : record ? t("legendCompleted") : unlocked ? t("legendAvailable") : t("legendLocked");
     const tags = element("div", { className: "card-tags" }, [
       element("span", { className: "card-status", text: statusLabel }),
       record ? starPips(record.stars) : null,
-      record?.ghost ? element("span", { className: "tag", text: "Fantôme" }) : null,
-      examRecord ? element("span", { className: "card-exam", text: `Examen ${formatGrade(examRecord.bestGrade)}` }) : null,
+      record?.ghost ? element("span", { className: "tag", text: t("ghostTag") }) : null,
+      examRecord ? element("span", { className: "card-exam", text: t("examGradeText", { grade: formatGrade(examRecord.bestGrade) }) }) : null,
     ]);
     const side = index % 2 === 0 ? "left" : "right";
     return element("li", { className: `timeline-item ${status} topics-${side}` }, [
-      element("ul", { className: "timeline-topics", attributes: { "aria-label": "Notions de la roadmap" } }, module.roadmapTopics.map((topic) => element("li", { text: topic }))),
+      element("ul", { className: "timeline-topics", attributes: { "aria-label": t("roadmapTopics") } }, module.roadmapTopics.map((topic) => element("li", { text: topic }))),
       element("div", { className: "timeline-node" }, [
-        element("span", { className: "node-index", text: `Secteur ${String(index).padStart(2, "0")}` }),
+        element("span", { className: "node-index", text: t("sectorIndex", { index: String(index).padStart(2, "0") }) }),
         element("strong", { text: module.title }),
         element("span", { className: "node-section", text: module.roadmapSection }),
       ]),
@@ -549,27 +557,27 @@ export class ScreenManager {
       review.append(
         element("li", { className: hadErrors ? "review-item to-review" : "review-item" }, [
           richText("p", challenge.prompt, "review-prompt"),
-          element("p", { className: "review-answer" }, [element("strong", { text: "Réponse : " }), richText("span", describeSolution(challenge))]),
+          element("p", { className: "review-answer" }, [element("strong", { text: t("answerLabel") }), richText("span", describeSolution(challenge))]),
           richText("p", challenge.explanation, "review-explanation"),
-          hadErrors ? element("span", { className: "tag warn", text: "À revoir" }) : null,
+          hadErrors ? element("span", { className: "tag warn", text: t("toReviewTag") }) : null,
         ]),
       );
     });
     // Chaque dossier est dépliable : on relit le cours sans noyer le récapitulatif.
     const lessons = module.lessons.map((lesson, index) => {
       const details = element("details", { className: "lesson-details" }, [
-        element("summary", { text: `Dossier ${index + 1} — ${lesson.title}` }),
+        element("summary", { text: t("lessonSummary", { number: index + 1, title: lesson.title }) }),
         lessonCard(lesson),
       ]);
       details.open = lessonsOpen && index === 0;
       return details;
     });
     return [
-      element("h2", { text: "Récapitulatif — à retenir" }),
+      element("h2", { text: t("recapTitle") }),
       element("ul", { className: "recap" }, recapOf(module).map((point) => richText("li", point))),
-      element("h2", { text: "Les dossiers du module" }),
+      element("h2", { text: t("moduleLessons") }),
       element("div", { className: "lesson-list" }, lessons),
-      element("h2", { text: "Revue des terminaux" }),
+      element("h2", { text: t("terminalReview") }),
       review,
     ];
   }
@@ -580,7 +588,7 @@ export class ScreenManager {
 
   private roadmapCredit(): HTMLElement {
     return element("p", { className: "credit" }, [
-      document.createTextNode("Parcours basé sur la roadmap "),
+      document.createTextNode(t("roadmapCredit")),
       element("a", { text: "roadmap.sh/devops", attributes: { href: ROADMAP_URL, target: "_blank", rel: "noopener noreferrer" } }),
     ]);
   }
@@ -589,13 +597,13 @@ export class ScreenManager {
 function formatDuration(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = Math.floor(totalSeconds % 60);
-  return `${minutes} min ${String(seconds).padStart(2, "0")} s`;
+  return t("durationValue", { minutes, seconds: String(seconds).padStart(2, "0") });
 }
 
 function formatDate(isoDate: string): string {
   const date = new Date(isoDate);
-  if (Number.isNaN(date.getTime())) return "inconnue";
-  return date.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+  if (Number.isNaN(date.getTime())) return t("unknownDate");
+  return date.toLocaleString(LOCALE, { dateStyle: "short", timeStyle: "short" });
 }
 
 /** API presse-papiers si disponible (contexte sécurisé), sinon sélection du texte pour copie manuelle. */
@@ -615,11 +623,11 @@ async function copyToClipboard(field: HTMLTextAreaElement): Promise<boolean> {
 /** Étoiles du record (0 à 3) en pastilles dessinées en CSS, lisibles par les lecteurs d'écran. */
 function starPips(stars: number): HTMLElement {
   const pips = [0, 1, 2].map((index) => element("span", { className: index < stars ? "pip on" : "pip", attributes: { "aria-hidden": "true" } }));
-  return element("span", { className: "pips", attributes: { role: "img", "aria-label": `${stars} étoile${stars > 1 ? "s" : ""} sur 3` } }, pips);
+  return element("span", { className: "pips", attributes: { role: "img", "aria-label": t(isSingular(stars) ? "starsOne" : "starsOther", { count: stars }) } }, pips);
 }
 
 function qualityButton(label: string, onCycle: () => string): HTMLButtonElement {
-  return toggleButton(label, onCycle, "Haute : ombres et effets lumineux. Basse : le plus fluide sur les appareils modestes.");
+  return toggleButton(label, onCycle, t("qualityTitle"));
 }
 
 /** Le plein écran est asynchrone : le libellé change une fois la réponse du navigateur connue, pas avant. */

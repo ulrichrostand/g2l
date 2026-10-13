@@ -71,6 +71,13 @@ h2.centered { text-align: center; }
 .nav-link { color: var(--text-soft); text-decoration: none; font-weight: 500; padding: var(--space-3) 0; }
 .nav-link:hover { color: var(--text); }
 
+/* Sélecteur de langue : deux liens séparés par un filet, le courant en citron */
+.lang-switch { display: flex; align-items: center; }
+.lang-link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 var(--space-3); font-family: var(--display); font-weight: 700; font-size: var(--text-label); letter-spacing: 0.04em; color: var(--text-faint); text-decoration: none; }
+.lang-link + .lang-link { border-left: 1px solid var(--line); }
+.lang-link:hover { color: var(--text); }
+.lang-link.current { color: var(--lime); }
+
 /* Boutons */
 .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 var(--space-6); font-family: var(--display); font-weight: 700; font-size: var(--text-label); text-transform: uppercase; letter-spacing: 0.04em; text-decoration: none; border: 2px solid transparent; transition: background-color 0.18s ease-out, color 0.18s ease-out, transform 0.18s ease-out, box-shadow 0.18s ease-out; }
 .btn-primary { background: var(--lime); color: var(--lime-ink); box-shadow: 0 8px 28px rgba(198, 241, 53, 0.22); }
@@ -152,7 +159,8 @@ h2.centered { text-align: center; }
 }
 @media (max-width: 640px) {
   .main-nav { display: none; }
-  .header-inner > .btn { margin-left: auto; }
+  .lang-switch { margin-left: auto; }
+  .header-inner { gap: var(--space-3); }
   .game-row { grid-auto-columns: 86%; }
   .game-card { grid-template-columns: minmax(0, 1fr); }
   .game-visual { min-height: 0; aspect-ratio: 16 / 9; }

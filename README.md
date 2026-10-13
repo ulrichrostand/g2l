@@ -188,9 +188,25 @@ moyenne des examens, et liste des notions à revoir avec leur point clé. Une no
 Idées, corrections de contenu et code sont les bienvenus : voir [CONTRIBUTING.md](CONTRIBUTING.md). Tout passe par une issue ou une
 pull request, relue et validée par le mainteneur avant publication. Faille de sécurité : [SECURITY.md](SECURITY.md).
 
+### Langues (français et anglais)
+
+Le site est bilingue, **une URL par langue** : `/` (français) et `/en/` (anglais) pour le portail, `/jeux/devops/` et `/en/games/devops/`
+pour le jeu. La langue d'une page est son attribut `<html lang>`, lu une fois au chargement (`src/i18n/lang.ts`). Un sélecteur FR / EN
+(`src/i18n/switcher.ts`) est dans le portail et sur l'écran titre ; le choix est mémorisé (`localStorage`, clé `site-lang`). À la
+première visite sur l'accueil français, un navigateur anglophone est redirigé vers `/en/` (jamais l'inverse, jamais en boucle).
+
+- **Interface** : textes dans des catalogues typés `src/i18n/messages/<zone>.ts` (`createTranslator`), le catalogue anglais doit avoir
+  exactement les clés et les `{paramètres}` du français (erreur de compilation sinon, et `tests/i18n.test.ts`).
+- **Contenu pédagogique** : `src/content/fr/` (source) et `src/content/en/` (traduction), mêmes identifiants, mêmes nombres de leçons,
+  défis, étapes et phases ; `tests/contentLanguages.test.ts` vérifie la parité, que chaque commande acceptée l'est bien, et l'absence
+  de français dans l'anglais. Guide de traduction : `src/i18n/GLOSSARY.md`.
+- **Ajouter un jeu** : une entrée dans `src/portal/catalog.ts` (texte français et anglais obligatoires, vérifié par les tests),
+  `jeux/<jeu>/index.html` et `en/games/<jeu>/index.html`, déclarés dans `vite.config.ts`.
+- Non fait : balises `hreflang` absolues (il faut le nom de domaine définitif).
+
 ### Structure du site (portail + jeux)
 
-- `index.html` + `src/portal/` : le **portail**, qui liste les parcours (`src/portal/catalog.ts` : une entrée par parcours,
+- `index.html` et `en/index.html` + `src/portal/` : le **portail**, qui liste les parcours (`src/portal/catalog.ts` : une entrée par parcours,
   validée par les tests). Les parcours « bientôt » n'ont pas de bouton Jouer.
 - `jeux/devops/index.html` + `src/` : le jeu DevOps, servi sous `/jeux/devops/`. Un nouveau parcours = une entrée du catalogue
   + un dossier `jeux/<id>/` déclaré dans `vite.config.ts`.
