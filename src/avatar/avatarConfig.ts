@@ -3,6 +3,7 @@
  * La config est sauvegardée côté joueur (donc modifiable à la main) : tout ce qui vient du stockage
  * repasse par parseAvatarConfig avant d'être utilisé.
  */
+import { t } from "../i18n/messages/creator";
 
 export type BodyType = "male" | "female";
 export type BodyBuild = "slim" | "regular" | "strong";
@@ -62,69 +63,69 @@ export const DEFAULT_AVATAR: Readonly<AvatarConfig> = Object.freeze({
 
 /** Beaucoup de teintes foncées et moyennes : chacun doit pouvoir se reconnaître dans son agent. */
 export const SKIN_TONES: readonly ColorPreset[] = [
-  { value: "#3b2219", label: "Ébène" },
-  { value: "#4a2c20", label: "Cacao" },
-  { value: "#5c3a28", label: "Acajou" },
-  { value: "#6b4430", label: "Café" },
-  { value: "#7d5036", label: "Cannelle" },
-  { value: "#8d5a3b", label: "Noisette" },
-  { value: "#a0683f", label: "Caramel" },
-  { value: "#b07a4f", label: "Miel" },
-  { value: "#c68e5e", label: "Sable" },
-  { value: "#d8a77c", label: "Pêche" },
-  { value: "#e8bf98", label: "Beige" },
-  { value: "#f3d5b8", label: "Porcelaine" },
+  { value: "#3b2219", label: t("colorEbony") },
+  { value: "#4a2c20", label: t("colorCocoa") },
+  { value: "#5c3a28", label: t("colorMahogany") },
+  { value: "#6b4430", label: t("colorCoffee") },
+  { value: "#7d5036", label: t("colorCinnamon") },
+  { value: "#8d5a3b", label: t("colorHazel") },
+  { value: "#a0683f", label: t("colorCaramel") },
+  { value: "#b07a4f", label: t("colorHoney") },
+  { value: "#c68e5e", label: t("colorSand") },
+  { value: "#d8a77c", label: t("colorPeach") },
+  { value: "#e8bf98", label: t("colorBeige") },
+  { value: "#f3d5b8", label: t("colorPorcelain") },
 ];
 
 export const HAIR_COLORS: readonly ColorPreset[] = [
-  { value: "#141110", label: "Noir" },
-  { value: "#2e1e15", label: "Brun foncé" },
-  { value: "#5a3a22", label: "Châtain" },
-  { value: "#7a3420", label: "Auburn" },
-  { value: "#c9a25a", label: "Blond" },
-  { value: "#e3dccb", label: "Platine" },
-  { value: "#8e8e8e", label: "Gris" },
-  { value: "#b0302a", label: "Rouge" },
-  { value: "#2a3f8f", label: "Bleu nuit" },
-  { value: "#6b3fa0", label: "Violet" },
-  { value: "#3fbf95", label: "Vert menthe" },
-  { value: "#d9659b", label: "Rose" },
+  { value: "#141110", label: t("colorBlack") },
+  { value: "#2e1e15", label: t("colorDarkBrown") },
+  { value: "#5a3a22", label: t("colorChestnut") },
+  { value: "#7a3420", label: t("colorAuburn") },
+  { value: "#c9a25a", label: t("colorBlond") },
+  { value: "#e3dccb", label: t("colorPlatinum") },
+  { value: "#8e8e8e", label: t("colorGray") },
+  { value: "#b0302a", label: t("colorRed") },
+  { value: "#2a3f8f", label: t("colorMidnightBlue") },
+  { value: "#6b3fa0", label: t("colorPurple") },
+  { value: "#3fbf95", label: t("colorMint") },
+  { value: "#d9659b", label: t("colorPink") },
 ];
 
 /** Les couleurs « naturelles » sont en tête : le tirage aléatoire les privilégie. */
 const NATURAL_HAIR_COUNT = 7;
 
 export const CLOTH_COLORS: readonly ColorPreset[] = [
-  { value: "#1a1f25", label: "Noir tactique" },
-  { value: "#2b333c", label: "Ardoise" },
-  { value: "#5b6670", label: "Gris acier" },
-  { value: "#ecebe6", label: "Blanc cassé" },
-  { value: "#6d6a4c", label: "Kaki" },
-  { value: "#4b5a32", label: "Olive" },
-  { value: "#c2a878", label: "Sable" },
-  { value: "#1f3157", label: "Bleu marine" },
-  { value: "#3b5b8c", label: "Denim" },
-  { value: "#2456c7", label: "Bleu roi" },
-  { value: "#1fa5a0", label: "Turquoise" },
-  { value: "#13865a", label: "Vert émeraude" },
-  { value: "#f2b318", label: "Jaune soleil" },
-  { value: "#e5711d", label: "Orange" },
-  { value: "#c62f2f", label: "Rouge" },
-  { value: "#6e1f2f", label: "Bordeaux" },
-  { value: "#c2337a", label: "Fuchsia" },
-  { value: "#5d3196", label: "Violet" },
-  { value: "#c9a23a", label: "Or" },
-  { value: "#6b4226", label: "Marron" },
+  { value: "#1a1f25", label: t("colorTacticalBlack") },
+  { value: "#2b333c", label: t("colorSlate") },
+  { value: "#5b6670", label: t("colorSteelGray") },
+  { value: "#ecebe6", label: t("colorOffWhite") },
+  { value: "#6d6a4c", label: t("colorKhaki") },
+  { value: "#4b5a32", label: t("colorOlive") },
+  { value: "#c2a878", label: t("colorSand") },
+  { value: "#1f3157", label: t("colorNavy") },
+  { value: "#3b5b8c", label: t("colorDenim") },
+  { value: "#2456c7", label: t("colorRoyalBlue") },
+  { value: "#1fa5a0", label: t("colorTurquoise") },
+  { value: "#13865a", label: t("colorEmerald") },
+  { value: "#f2b318", label: t("colorSunYellow") },
+  { value: "#e5711d", label: t("colorOrange") },
+  { value: "#c62f2f", label: t("colorRed") },
+  { value: "#6e1f2f", label: t("colorBurgundy") },
+  { value: "#c2337a", label: t("colorFuchsia") },
+  { value: "#5d3196", label: t("colorPurple") },
+  { value: "#c9a23a", label: t("colorGold") },
+  { value: "#6b4226", label: t("colorBrown") },
 ];
 
 /** Pas de rouge : c'est la couleur d'ENTROPIA, le joueur doit toujours distinguer son agent des sentinelles. */
 export const VISOR_COLORS: readonly ColorPreset[] = [
-  { value: "#39ff88", label: "Vert Spectre" },
-  { value: "#3fe0ff", label: "Cyan" },
-  { value: "#ffb53f", label: "Ambre" },
-  { value: "#ff4fd8", label: "Magenta" },
-  { value: "#9b6bff", label: "Violet" },
-  { value: "#f2f7ff", label: "Blanc" },
+  { value: "#39ff88", label: t("colorSpectreGreen") },
+  { value: "#3fe0ff", label: t("colorCyan") },
+  { value: "#ffb53f", label: t("colorAmber") },
+  { value: "#ff4fd8", label: t("colorMagenta") },
+  { value: "#9b6bff", label: t("colorPurple") },
+  { value: "#f2f7ff", label: t("colorWhite") },
 ];
 
 export const AVATAR_OPTIONS: {
@@ -133,20 +134,20 @@ export const AVATAR_OPTIONS: {
   readonly hairStyle: readonly AvatarOption<HairStyle>[];
 } = {
   body: [
-    { value: "male", label: "Homme" },
-    { value: "female", label: "Femme" },
+    { value: "male", label: t("bodyMale") },
+    { value: "female", label: t("bodyFemale") },
   ],
   build: [
-    { value: "slim", label: "Mince" },
-    { value: "regular", label: "Moyenne" },
-    { value: "strong", label: "Costaud" },
+    { value: "slim", label: t("buildSlim") },
+    { value: "regular", label: t("buildRegular") },
+    { value: "strong", label: t("buildStrong") },
   ],
   hairStyle: [
-    { value: "buzz", label: "Rasé" },
-    { value: "short", label: "Court" },
-    { value: "long", label: "Longs" },
-    { value: "bun", label: "Chignon" },
-    { value: "bald", label: "Chauve" },
+    { value: "buzz", label: t("hairBuzz") },
+    { value: "short", label: t("hairShort") },
+    { value: "long", label: t("hairLong") },
+    { value: "bun", label: t("hairBun") },
+    { value: "bald", label: t("hairBald") },
   ],
 };
 
