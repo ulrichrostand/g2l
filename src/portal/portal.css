@@ -100,7 +100,6 @@ h2 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; margin: 0; pa
 .site-footer p { margin: 0; }
 
 @media (max-width: 760px) {
-  body { font-size: 1.0625rem; }
   /* Mobile : le titre, puis l'action, puis le détail : le bouton reste visible sans longue lecture. */
   .course { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main" "action" "body"; gap: var(--space-3); padding: var(--space-6) 0; }
   .course-action { text-align: left; }
