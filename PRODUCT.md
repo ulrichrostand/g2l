@@ -42,13 +42,14 @@ Pas des cours à lire ni des quiz isolés : l'apprentissage passe par de vraies 
 
 - Nom provisoire du site : « Cellule Écho » (une seule constante à changer).
 - Ton direct, adulte, sans jargon non expliqué ; tutoiement.
-- Le portail doit rester sobre et épuré, sans les codes visuels génériques de l'IA (halos lumineux, dégradés, cartes interchangeables, emojis), et sans vert ni blanc vif comme couleurs de marque (consigne de l'auteur, formulée sans nommer de couleur : interprétation à confirmer).
+- Le portail présente une collection de jeux au même rang, dans un esprit « site de jeux vidéo » (référence fournie par l'auteur : fond sombre, accent néon, titres de jeu, portail lumineux en haut, cartes de jeux, galerie, bandeau d'appel, pied de page complet).
+- Aucun emoji, aucune illustration inventée : uniquement de vraies captures des jeux, ou une affiche typographique pour un jeu qui n'existe pas encore.
 - Le jeu DevOps garde son propre univers visuel (HUD sombre, ambiance infiltration) : il n'est pas régi par le portail.
 
 ## Evidence on Hand
 
 - Un jeu complet et jouable (parcours DevOps), déployé sur GitHub Pages ; contenu pédagogique rédigé en français (16 modules, leçons, défis, scénarios, examens).
-- Personnages 3D sous licence ouverte (Quaternius CC0) ; police du portail Newsreader (SIL OFL 1.1) ; licences dans `public/licenses/` et `public/models/characters/licenses/`.
+- Personnages 3D sous licence ouverte (Quaternius CC0) ; polices du portail Chakra Petch et Barlow (SIL OFL 1.1) ; captures réelles du jeu DevOps dans `public/portal/` ; licences dans `public/licenses/` et `public/models/characters/licenses/`.
 - Absent, à ne pas inventer : témoignages, nombre de joueurs, partenaires, annonceurs, tarifs, résultats d'apprentissage mesurés.
 
 ## Product Principles

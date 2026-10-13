@@ -1,112 +1,157 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-13T16:16:41Z",
+  "generatedAt": "2026-10-13T17:57:42Z",
   "title": "Design System: Portail Cellule Écho",
   "extensions": {
     "colorMeta": {
-      "graphite": {
+      "void": {
         "role": "neutral",
-        "displayName": "Graphite chaud",
-        "canonical": "oklch(21% 0.008 264)",
+        "displayName": "Vide",
+        "canonical": "oklch(15% 0.006 174)",
         "tonalRamp": [
-          "#090b0f",
-          "#202226",
-          "#383b3f",
-          "#53555a",
-          "#6f7277",
-          "#8c8f94",
-          "#bbbec3",
-          "#eceef4"
+          "#090c0b",
+          "#1f2321",
+          "#383b3a",
+          "#525655",
+          "#6e7371",
+          "#8c908f",
+          "#babfbd",
+          "#ebf0ee"
         ]
       },
-      "cream": {
+      "surface": {
         "role": "neutral",
-        "displayName": "Crème",
-        "canonical": "oklch(93% 0.013 87)",
+        "displayName": "Surface",
+        "canonical": "oklch(19% 0.017 141)",
         "tonalRamp": [
-          "#0d0b06",
-          "#24211b",
-          "#3d3a33",
-          "#58554d",
-          "#757169",
-          "#928f87",
-          "#c1bdb5",
-          "#f2eee5"
+          "#070d07",
+          "#1d241c",
+          "#363d35",
+          "#50584f",
+          "#6c746b",
+          "#8a9288",
+          "#b8c1b7",
+          "#e9f1e7"
         ]
       },
-      "cream-soft": {
+      "surface-raised": {
         "role": "neutral",
-        "displayName": "Crème adoucie",
-        "canonical": "oklch(75% 0.013 87)",
+        "displayName": "Surface relevée",
+        "canonical": "oklch(22% 0.021 142)",
         "tonalRamp": [
-          "#0e0b05",
-          "#24211a",
-          "#3e3a33",
-          "#58554d",
-          "#757169",
-          "#938f86",
-          "#c1bdb4",
-          "#f2eee5"
+          "#060d06",
+          "#1c241b",
+          "#353d33",
+          "#4f584e",
+          "#6b756a",
+          "#889387",
+          "#b7c1b5",
+          "#e7f2e5"
         ]
       },
-      "cream-faint": {
+      "line": {
         "role": "neutral",
-        "displayName": "Crème effacée",
-        "canonical": "oklch(65% 0.012 90)",
+        "displayName": "Filet",
+        "canonical": "oklch(29% 0.027 145)",
         "tonalRamp": [
-          "#0d0b06",
-          "#24211b",
-          "#3d3a33",
-          "#58554e",
-          "#74716a",
-          "#928f87",
-          "#c1bdb5",
-          "#f2eee5"
+          "#050e05",
+          "#1a251a",
+          "#323e32",
+          "#4c594c",
+          "#687668",
+          "#859485",
+          "#b4c3b3",
+          "#e4f4e4"
         ]
       },
-      "rule": {
+      "text": {
         "role": "neutral",
-        "displayName": "Filet discret",
-        "canonical": "oklch(31% 0.012 264)",
+        "displayName": "Texte",
+        "canonical": "oklch(96% 0.011 129)",
         "tonalRamp": [
-          "#090b10",
-          "#1f2227",
-          "#373b41",
-          "#52555c",
-          "#6e7279",
-          "#8c8f96",
-          "#babec5",
-          "#ebeff7"
+          "#0a0c07",
+          "#20231d",
+          "#393c35",
+          "#535750",
+          "#6f736c",
+          "#8d9189",
+          "#bbbfb8",
+          "#ecf0e8"
         ]
       },
-      "rule-strong": {
+      "text-soft": {
         "role": "neutral",
-        "displayName": "Filet appuyé",
-        "canonical": "oklch(42% 0.012 267)",
+        "displayName": "Texte doux",
+        "canonical": "oklch(78% 0.022 137)",
         "tonalRamp": [
-          "#090b10",
-          "#1f2228",
-          "#383a41",
-          "#52555c",
-          "#6e7179",
-          "#8c8f97",
-          "#babec6",
-          "#ebeef7"
+          "#070d05",
+          "#1d241a",
+          "#353d32",
+          "#50584c",
+          "#6c7568",
+          "#899385",
+          "#b7c1b3",
+          "#e8f2e4"
         ]
       },
-      "steel-blue": {
+      "text-faint": {
+        "role": "neutral",
+        "displayName": "Texte effacé",
+        "canonical": "oklch(64% 0.027 132)",
+        "tonalRamp": [
+          "#070e03",
+          "#1d2417",
+          "#353e2f",
+          "#505949",
+          "#6c7565",
+          "#899382",
+          "#b7c2b0",
+          "#e8f3e0"
+        ]
+      },
+      "lime": {
         "role": "primary",
-        "displayName": "Bleu acier",
-        "canonical": "oklch(76% 0.055 258)",
+        "displayName": "Citron néon",
+        "canonical": "oklch(90% 0.204 122)",
         "tonalRamp": [
-          "#000a22",
-          "#10223c",
-          "#283b57",
-          "#425674",
-          "#5e7392",
-          "#7b91b1",
-          "#a8bfe2",
-          "#d8f0ff"
+          "#031000",
+          "#142900",
+          "#2b4500",
+          "#446200",
+          "#5e8100",
+          "#7ba000",
+          "#a8d100",
+          "#d7ff4e"
+        ]
+      },
+      "lime-bright": {
+        "role": "primary",
+        "displayName": "Citron vif",
+        "canonical": "oklch(94% 0.201 122)",
+        "tonalRamp": [
+          "#041000",
+          "#162900",
+          "#2d4500",
+          "#466200",
+          "#608000",
+          "#7d9f00",
+          "#aad000",
+          "#d9ff50"
+        ]
+      },
+      "lime-ink": {
+        "role": "neutral",
+        "displayName": "Encre citron",
+        "canonical": "oklch(16% 0.025 124)",
+        "tonalRamp": [
+          "#090d03",
+          "#1f2416",
+          "#383d2e",
+          "#525849",
+          "#6e7464",
+          "#8c9281",
+          "#bac1af",
+          "#ebf2df"
         ]
       }
     },
@@ -117,111 +162,160 @@
       },
       "headline": {
         "displayName": "Headline",
-        "purpose": "Titres de section et noms de parcours."
+        "purpose": "Titres de section."
+      },
+      "monogram": {
+        "displayName": "Monogram",
+        "purpose": "Affiche typographique des jeux sans capture."
       },
       "title": {
         "displayName": "Title",
-        "purpose": "Titres de la méthode et nom du site."
+        "purpose": "Nom de chaque jeu."
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "Paragraphe d'accroche."
       },
       "body": {
         "displayName": "Body",
-        "purpose": "Texte courant, 62 caractères au plus."
+        "purpose": "Texte courant."
       },
       "label": {
         "displayName": "Label",
-        "purpose": "Genre, notions, métadonnées."
+        "purpose": "Boutons, genres, légendes, notes."
       }
     },
-    "shadows": [],
+    "shadows": [
+      {
+        "name": "lime-lift",
+        "value": "0 8px 28px rgba(198, 241, 53, 0.22)",
+        "purpose": "Lueur portée sous le bouton principal (0 12px 32px rgba(198, 241, 53, 0.3) au survol)."
+      },
+      {
+        "name": "image-stack",
+        "value": "0 18px 48px rgba(0, 0, 0, 0.55)",
+        "purpose": "Sépare l'image avant-plan de l'image arrière dans « Apprendre en agissant »."
+      }
+    ],
     "motion": [
       {
-        "name": "ease-out-quick",
+        "name": "state-quick",
         "value": "0.18s ease-out",
-        "purpose": "Survol du bouton Jouer : remplissage et couleur du texte."
+        "purpose": "Survol des boutons."
+      },
+      {
+        "name": "shot-zoom",
+        "value": "transform 0.4s ease-out, scale(1.03)",
+        "purpose": "Survol des captures de la galerie."
+      },
+      {
+        "name": "portal-shader",
+        "value": "requestAnimationFrame, pause hors écran, image fixe si mouvement réduit",
+        "purpose": "Animation du portail lumineux."
       }
     ],
     "breakpoints": [
       {
+        "name": "tablet",
+        "value": "900px"
+      },
+      {
         "name": "mobile",
-        "value": "760px"
+        "value": "640px"
       }
     ]
   },
   "components": [
     {
-      "name": "Play Button",
+      "name": "Primary Button",
       "kind": "button",
-      "refersTo": "play-link",
-      "description": "Action principale d'un parcours jouable.",
-      "html": "<a class=\"ds-play\" href=\"#\">Jouer</a>",
-      "css": ".ds-play{display:inline-block;padding:12px 24px;border:1px solid #9db4d6;color:#9db4d6;text-decoration:none;font-weight:600;border-radius:2px;font-family:Newsreader,Georgia,serif;font-size:1.125rem;transition:background-color .18s ease-out,color .18s ease-out}.ds-play:hover{background:#9db4d6;color:#17191d}.ds-play:focus-visible{outline:2px solid #9db4d6;outline-offset:3px}"
+      "refersTo": "button-primary",
+      "description": "Action principale (Jouer, Choisir un jeu).",
+      "html": "<a class=\"ds-btn-primary\" href=\"#\">Choisir un jeu</a>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;min-height:48px;padding:0 24px;background:#c6f135;color:#0b0f04;font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:.95rem;text-transform:uppercase;letter-spacing:.04em;text-decoration:none;box-shadow:0 8px 28px rgba(198,241,53,.22);transition:background-color .18s ease-out,transform .18s ease-out}.ds-btn-primary:hover{background:#d6ff4c;transform:translateY(-1px)}.ds-btn-primary:focus-visible{outline:2px solid #c6f135;outline-offset:3px}"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Action secondaire et bouton de l'en-tête.",
+      "html": "<a class=\"ds-btn-outline\" href=\"#\">Comment ça marche</a>",
+      "css": ".ds-btn-outline{display:inline-flex;align-items:center;min-height:48px;padding:0 24px;border:2px solid #c6f135;color:#c6f135;font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:.95rem;text-transform:uppercase;letter-spacing:.04em;text-decoration:none;transition:background-color .18s ease-out,color .18s ease-out}.ds-btn-outline:hover{background:#c6f135;color:#0b0f04}.ds-btn-outline:focus-visible{outline:2px solid #c6f135;outline-offset:3px}"
     },
     {
       "name": "Navigation Link",
       "kind": "nav",
       "refersTo": "nav-link",
       "description": "Lien de l'en-tête fixe.",
-      "html": "<a class=\"ds-nav\" href=\"#\">Parcours</a>",
-      "css": ".ds-nav{color:#b3afa6;text-decoration:none;padding:12px 0;font-family:Newsreader,Georgia,serif;font-size:1.125rem}.ds-nav:hover{color:#ece8df;text-decoration:underline;text-underline-offset:.2em}.ds-nav:focus-visible{outline:2px solid #9db4d6;outline-offset:3px}"
+      "html": "<a class=\"ds-nav\" href=\"#\">Jeux</a>",
+      "css": ".ds-nav{color:#b1bbad;text-decoration:none;font-family:Barlow,sans-serif;font-weight:500;padding:12px 0}.ds-nav:hover{color:#eef2ea}.ds-nav:focus-visible{outline:2px solid #c6f135;outline-offset:3px}"
     },
     {
-      "name": "Course Row",
+      "name": "Game Card",
+      "kind": "card",
+      "refersTo": "game-card",
+      "description": "Un jeu de la collection : visuel, genre, titre, scénario, action.",
+      "html": "<article class=\"ds-card\"><div class=\"ds-poster\"><span>SQL</span></div><div><p class=\"ds-genre\">Enquête policière · Bases de données</p><h3>SQL : L'enquête</h3><p class=\"ds-text\">Un crime, des témoins, des dizaines de tables.</p><span class=\"ds-soon\">Bientôt disponible</span></div></article>",
+      "css": ".ds-card{display:grid;grid-template-columns:140px 1fr;gap:24px;padding:16px;background:#10160f;border:1px solid #243024;border-radius:12px;color:#eef2ea;font-family:Barlow,sans-serif}.ds-card h3{margin:8px 0;font-family:'Chakra Petch',sans-serif;font-size:1.4rem;text-transform:uppercase}.ds-poster{display:flex;align-items:center;justify-content:center;min-height:140px;background:#161e15;border:1px solid #243024;border-radius:8px}.ds-poster span{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:2.4rem;color:transparent;-webkit-text-stroke:1.5px #c6f135}.ds-genre{margin:0;color:#c6f135;font-weight:600;font-size:.95rem}.ds-text{margin:0;color:#b1bbad}.ds-soon{font-family:'Chakra Petch',sans-serif;font-weight:700;text-transform:uppercase;color:#86907f}"
+    },
+    {
+      "name": "Lime Band",
       "kind": "custom",
-      "refersTo": "play-link",
-      "description": "Ligne de l'index des parcours : titre, genre, détail et action séparés par un filet.",
-      "html": "<div class=\"ds-course\"><div><h3>DevOps : Shadow Ops</h3><p class=\"ds-genre\">Infiltration 3D</p></div><div><p>ENTROPIA a pris le contrôle de l'infrastructure d'Helix Corp.</p><p class=\"ds-topics\">Linux · Git · Réseau · Conteneurs</p></div><a class=\"ds-play\" href=\"#\">Jouer</a></div>",
-      "css": ".ds-course{display:grid;grid-template-columns:1fr 1.7fr auto;gap:8px 32px;padding:32px 0;border-bottom:1px solid #2d3036;font-family:Newsreader,Georgia,serif;color:#ece8df}.ds-course h3{margin:0;font-size:1.5rem;font-weight:600;line-height:1.2;letter-spacing:-.01em}.ds-course p{margin:0 0 12px;max-width:62ch}.ds-genre{color:#918e86}.ds-topics{color:#b3afa6}.ds-play{align-self:start;padding:12px 24px;border:1px solid #9db4d6;color:#9db4d6;text-decoration:none;font-weight:600;border-radius:2px}.ds-play:hover{background:#9db4d6;color:#17191d}"
+      "refersTo": "button-dark",
+      "description": "Bandeau d'appel final, texte encre sur citron.",
+      "html": "<section class=\"ds-band\"><h2>D'autres jeux arrivent</h2><a class=\"ds-btn-dark\" href=\"#\">Jouer</a></section>",
+      "css": ".ds-band{background:#c6f135;color:#0b0f04;border-radius:12px;padding:32px;text-align:center}.ds-band h2{margin:0 0 16px;font-family:'Chakra Petch',sans-serif;text-transform:uppercase}.ds-btn-dark{display:inline-flex;align-items:center;min-height:48px;padding:0 24px;background:#0b0f04;color:#c6f135;font-family:'Chakra Petch',sans-serif;font-weight:700;text-transform:uppercase;text-decoration:none}.ds-btn-dark:hover{background:#080b0a}"
     }
   ],
   "narrative": {
-    "northStar": "Le sommaire",
-    "overview": "**Creative North Star: \"Le sommaire\"**\n\nLe portail se lit comme la table des matières d'un livre sérieux : des filets fins, un titre par parcours, du texte posé sur un fond graphite chaud. La hiérarchie vient de la taille, du poids et de l'espace, jamais d'un effet. Rien ne brille, rien ne flotte, aucune surface n'est mise en boîte : un parcours est une ligne, pas une carte.\n\nLa densité est calme : une colonne de lecture de 62 caractères au plus, de larges respirations entre les sections, et le premier parcours jouable avec son bouton visible dès le premier écran. L'accent bleu acier est rare, réservé à l'action (Jouer) et aux liens. Le texte clair sur fond sombre est compensé par un interligne et un léger espacement des lettres un peu plus généreux.\n\nRejets confirmés : emojis, halos lumineux, dégradés, cartes interchangeables, pastilles, étiquettes en majuscules espacées, numéros de section décoratifs, vert et blanc vif comme couleurs de marque.",
+    "northStar": "Le hall d'arcade",
+    "overview": "**Creative North Star: \"Le hall d'arcade\"**\n\nLe portail est l'entrée d'une salle de jeux : il fait noir, une seule couleur brille, et le premier objet qu'on voit est un portail lumineux qui invite à passer. Les titres sont anguleux et en capitales, comme les frontons de bornes d'arcade ; le texte courant reste sobre et très lisible. Chaque jeu a sa place au même rang : le portail présente une collection, pas un produit unique.\n\nL'énergie vient de trois choses seulement : l'accent citron néon, le shader du portail et les vraies captures des jeux. Tout le reste est calme : surfaces vert-noir à peine distinctes, filets fins, grands espaces entre les sections. Aucune image n'est inventée : un jeu sans capture est présenté par une affiche typographique (son monogramme en contour citron), pas par une fausse illustration.\n\nRejets confirmés : emojis, glyphes à la place d'icônes, illustrations générées ou empruntées, texte en dégradé, formulaire factice (pas de champ d'inscription tant que les comptes n'existent pas).",
     "keyCharacteristics": [
-      "Une seule famille typographique (Newsreader, auto-hébergée, axe optique inclus), serif éditorial.",
-      "Fond graphite chaud, texte crème, un seul accent bleu acier.",
-      "Structure par filets horizontaux, pas par cadres ni par ombres.",
-      "Action visible au premier écran, sur ordinateur comme sur mobile."
+      "Fond presque noir teinté vert, un seul accent : le citron néon.",
+      "Titres Chakra Petch en capitales, texte Barlow.",
+      "Portail lumineux en WebGL dans le premier écran.",
+      "Cartes de jeux au même rang, défilement horizontal avec aimantation.",
+      "Uniquement de vraies captures, ou une affiche typographique."
     ],
     "rules": [
       {
-        "name": "The One Voice Rule",
-        "body": "Le bleu acier ne sert qu'à l'action et au lien. S'il apparaît pour décorer, c'est une faute.",
+        "name": "The Single Light Rule",
+        "body": "Le citron est la seule source de lumière de la page. Aucune autre teinte vive, aucun dégradé décoratif.",
         "section": "colors"
       },
       {
-        "name": "The Warm Neutral Rule",
-        "body": "Aucun gris pur : chaque neutre est teinté chaud (crème) ou froid léger (graphite), jamais #000 ni #fff.",
+        "name": "The Ink On Lime Rule",
+        "body": "Sur un fond citron, le texte est toujours l'encre citron (#0b0f04), jamais blanc.",
         "section": "colors"
       },
       {
-        "name": "The One Family Rule",
-        "body": "Une seule famille sur tout le portail. Ajouter une seconde famille exige un rôle qu'elle est seule à remplir.",
+        "name": "The Seven Steps Rule",
+        "body": "Sept tailles, une par rôle. Une nouvelle taille exige un nouveau rôle documenté ici.",
         "section": "typography"
       },
       {
-        "name": "The No Faux Italic Rule",
-        "body": "Seul le romain est chargé : aucun italique, aucun gras synthétisé par le navigateur.",
+        "name": "The Capitals For Display Rule",
+        "body": "Les capitales sont réservées à Chakra Petch (titres, boutons). Le texte Barlow reste en casse normale.",
         "section": "typography"
       },
       {
-        "name": "The Flat Rule",
-        "body": "Aucune ombre, aucun halo, aucun flou. Un filet sépare, la taille hiérarchise.",
+        "name": "The Earned Shadow Rule",
+        "body": "Une ombre n'existe que sous l'action principale ou pour séparer deux images superposées. Jamais de halo sans décalage.",
         "section": "elevation"
       }
     ],
     "dos": [
-      "**Do** montrer l'action principale (Jouer) dans le premier écran, sur ordinateur et sur mobile.",
-      "**Do** séparer par des filets de 1 px (#2d3036) et de l'espace, pas par des cadres.",
-      "**Do** garder le texte courant à 62 caractères de mesure au plus et à 4,5:1 de contraste au moins.",
-      "**Do** utiliser l'échelle d'espacement de base 4 et poser plus d'espace au-dessus d'un titre qu'en dessous."
+      "**Do** présenter chaque jeu au même rang : même carte, même taille, même place dans le défilement.",
+      "**Do** n'utiliser que de vraies captures des jeux, recadrées avec un point de cadrage explicite.",
+      "**Do** réserver le citron (#c6f135) à l'action, à la marque et à la lumière.",
+      "**Do** garder le portail lumineux dans le premier écran, sur ordinateur comme sur mobile."
     ],
     "donts": [
-      "**Don't** employer d'emoji, de dégradé, d'ombre ou de halo lumineux.",
-      "**Don't** mettre les parcours dans des cartes, ni des pastilles ou capsules sur les notions.",
-      "**Don't** numéroter les sections ou les parcours (ils ne forment pas une séquence).",
-      "**Don't** utiliser de vert ni de blanc vif comme couleur de marque, ni de #000 ni #fff.",
-      "**Don't** ajouter une seconde famille de caractères ni d'italique synthétique.",
-      "**Don't** appliquer ce système au jeu : le jeu DevOps garde son univers visuel propre (HUD sombre à accent vert) tant qu'il n'est pas documenté séparément."
+      "**Don't** utiliser d'emoji, de glyphe en guise d'icône, d'illustration générée ou empruntée.",
+      "**Don't** afficher de formulaire d'inscription ou de lettre d'information tant que le serveur n'existe pas.",
+      "**Don't** ajouter une seconde couleur vive ni de texte en dégradé.",
+      "**Don't** mettre de capitales dans le texte Barlow ni de nouvelle taille hors des sept rôles.",
+      "**Don't** appliquer ce système à l'intérieur des jeux : chaque jeu garde son propre univers."
     ]
   }
 }

@@ -1,45 +1,59 @@
 ---
 name: Portail Cellule Écho
-description: Un catalogue sobre qui se lit comme un sommaire : graphite chaud, texte crème, une seule famille serif, un seul accent bleu acier.
+description: Le hall d'entrée d'une salle d'arcade : fond presque noir, accent citron néon, titres anguleux, un portail lumineux et de vraies captures des jeux.
 colors:
-  graphite: "#17191d"
-  cream: "#ece8df"
-  cream-soft: "#b3afa6"
-  cream-faint: "#918e86"
-  rule: "#2d3036"
-  rule-strong: "#4a4d54"
-  steel-blue: "#9db4d6"
+  void: "#080b0a"
+  surface: "#10160f"
+  surface-raised: "#161e15"
+  line: "#243024"
+  text: "#eef2ea"
+  text-soft: "#b1bbad"
+  text-faint: "#86907f"
+  lime: "#c6f135"
+  lime-bright: "#d6ff4c"
+  lime-ink: "#0b0f04"
 typography:
   display:
-    fontFamily: "Newsreader, Georgia, 'Times New Roman', serif"
-    fontSize: "clamp(2.25rem, 5.4vw, 3.5rem)"
-    fontWeight: 560
-    lineHeight: 1.08
-    letterSpacing: "-0.02em"
+    fontFamily: "'Chakra Petch', 'Arial Narrow', sans-serif"
+    fontSize: "clamp(2.6rem, 6.5vw, 4.75rem)"
+    fontWeight: 700
+    lineHeight: 0.98
+    letterSpacing: "0.01em"
   headline:
-    fontFamily: "Newsreader, Georgia, 'Times New Roman', serif"
-    fontSize: "1.5rem"
-    fontWeight: 600
-    lineHeight: 1.2
-    letterSpacing: "-0.01em"
+    fontFamily: "'Chakra Petch', 'Arial Narrow', sans-serif"
+    fontSize: "clamp(1.75rem, 4vw, 2.5rem)"
+    fontWeight: 700
+    lineHeight: 1.1
+    letterSpacing: "0.01em"
+  monogram:
+    fontFamily: "'Chakra Petch', 'Arial Narrow', sans-serif"
+    fontSize: "3.4rem"
+    fontWeight: 700
+    lineHeight: 1
+    letterSpacing: "0.06em"
   title:
-    fontFamily: "Newsreader, Georgia, 'Times New Roman', serif"
-    fontSize: "1.25rem"
-    fontWeight: 600
-    lineHeight: 1.3
-  body:
-    fontFamily: "Newsreader, Georgia, 'Times New Roman', serif"
-    fontSize: "1.125rem"
-    fontWeight: 400
-    lineHeight: 1.65
-    letterSpacing: "0.005em"
-  label:
-    fontFamily: "Newsreader, Georgia, 'Times New Roman', serif"
-    fontSize: "1rem"
+    fontFamily: "'Chakra Petch', 'Arial Narrow', sans-serif"
+    fontSize: "1.4rem"
+    fontWeight: 700
+    lineHeight: 1.15
+  lead:
+    fontFamily: "Barlow, 'Segoe UI', Roboto, sans-serif"
+    fontSize: "1.15rem"
     fontWeight: 400
     lineHeight: 1.6
+  body:
+    fontFamily: "Barlow, 'Segoe UI', Roboto, sans-serif"
+    fontSize: "1.0625rem"
+    fontWeight: 400
+    lineHeight: 1.6
+  label:
+    fontFamily: "Barlow, 'Segoe UI', Roboto, sans-serif"
+    fontSize: "0.95rem"
+    fontWeight: 600
+    lineHeight: 1.4
 rounded:
-  sm: "2px"
+  sm: "8px"
+  md: "12px"
 spacing:
   xs: "8px"
   sm: "12px"
@@ -50,122 +64,153 @@ spacing:
   3xl: "64px"
   4xl: "96px"
 components:
-  play-link:
+  button-primary:
+    backgroundColor: "{colors.lime}"
+    textColor: "{colors.lime-ink}"
+    typography: "{typography.label}"
+    padding: "0 24px"
+    height: "48px"
+  button-primary-hover:
+    backgroundColor: "{colors.lime-bright}"
+    textColor: "{colors.lime-ink}"
+  button-outline:
     backgroundColor: "transparent"
-    textColor: "{colors.steel-blue}"
-    typography: "{typography.body}"
-    rounded: "{rounded.sm}"
-    padding: "12px 24px"
-  play-link-hover:
-    backgroundColor: "{colors.steel-blue}"
-    textColor: "{colors.graphite}"
+    textColor: "{colors.lime}"
+    typography: "{typography.label}"
+    padding: "0 24px"
+    height: "48px"
+  button-outline-hover:
+    backgroundColor: "{colors.lime}"
+    textColor: "{colors.lime-ink}"
+  button-dark:
+    backgroundColor: "{colors.lime-ink}"
+    textColor: "{colors.lime}"
+    typography: "{typography.label}"
+    padding: "0 24px"
+    height: "48px"
+  game-card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text}"
+    rounded: "{rounded.md}"
+    padding: "16px"
   nav-link:
-    textColor: "{colors.cream-soft}"
+    textColor: "{colors.text-soft}"
     typography: "{typography.body}"
-    padding: "12px 0"
-  nav-link-hover:
-    textColor: "{colors.cream}"
 ---
 
 # Design System: Portail Cellule Écho
 
 ## Overview
 
-**Creative North Star: "Le sommaire"**
+**Creative North Star: "Le hall d'arcade"**
 
-Le portail se lit comme la table des matières d'un livre sérieux : des filets fins, un titre par parcours, du texte posé sur un fond graphite chaud. La hiérarchie vient de la taille, du poids et de l'espace, jamais d'un effet. Rien ne brille, rien ne flotte, aucune surface n'est mise en boîte : un parcours est une ligne, pas une carte.
+Le portail est l'entrée d'une salle de jeux : il fait noir, une seule couleur brille, et le premier objet qu'on voit est un portail lumineux qui invite à passer. Les titres sont anguleux et en capitales, comme les frontons de bornes d'arcade ; le texte courant reste sobre et très lisible. Chaque jeu a sa place au même rang : le portail présente une collection, pas un produit unique.
 
-La densité est calme : une colonne de lecture de 62 caractères au plus, de larges respirations entre les sections, et le premier parcours jouable avec son bouton visible dès le premier écran. L'accent bleu acier est rare, réservé à l'action (Jouer) et aux liens. Le texte clair sur fond sombre est compensé par un interligne et un léger espacement des lettres un peu plus généreux.
+L'énergie vient de trois choses seulement : l'accent citron néon, le shader du portail et les vraies captures des jeux. Tout le reste est calme : surfaces vert-noir à peine distinctes, filets fins, grands espaces entre les sections. Aucune image n'est inventée : un jeu sans capture est présenté par une affiche typographique (son monogramme en contour citron), pas par une fausse illustration.
 
-Rejets confirmés : emojis, halos lumineux, dégradés, cartes interchangeables, pastilles, étiquettes en majuscules espacées, numéros de section décoratifs, vert et blanc vif comme couleurs de marque.
+Rejets confirmés : emojis, glyphes à la place d'icônes, illustrations générées ou empruntées, texte en dégradé, formulaire factice (pas de champ d'inscription tant que les comptes n'existent pas).
 
 **Key Characteristics:**
-- Une seule famille typographique (Newsreader, auto-hébergée, axe optique inclus), serif éditorial.
-- Fond graphite chaud, texte crème, un seul accent bleu acier.
-- Structure par filets horizontaux, pas par cadres ni par ombres.
-- Action visible au premier écran, sur ordinateur comme sur mobile.
+- Fond presque noir teinté vert, un seul accent : le citron néon.
+- Titres Chakra Petch en capitales, texte Barlow.
+- Portail lumineux en WebGL dans le premier écran.
+- Cartes de jeux au même rang, défilement horizontal avec aimantation.
+- Uniquement de vraies captures, ou une affiche typographique.
 
 ## Colors
 
-Une palette quasi monochrome de neutres chauds, avec un unique accent froid pour l'action.
+Une base vert-noir très sombre et un unique accent citron, utilisé pour l'action et la lumière.
 
 ### Primary
-- **Bleu acier** (#9db4d6 / oklch(77% 0.05 255)) : bouton Jouer, liens de texte, sélection de texte, anneau de focus. Jamais en fond large.
+- **Citron néon** (#c6f135) : boutons principaux, contours des boutons secondaires, marque, genre des jeux, intertitres de la méthode, anneau du portail, bandeau d'appel final.
+- **Citron vif** (#d6ff4c) : survol du bouton principal uniquement.
 
 ### Neutral
-- **Graphite chaud** (#17191d) : fond de page et de l'en-tête.
-- **Crème** (#ece8df) : texte principal, titres, texte survolé.
-- **Crème adoucie** (#b3afa6) : texte secondaire (introduction, notions, navigation au repos).
-- **Crème effacée** (#918e86) : métadonnées, genre du parcours, mention « Bientôt », pied de page. Reste au-dessus de 4,5:1 sur le fond.
-- **Filet discret** (#2d3036) : séparation entre les lignes de parcours et dans le pied de page.
-- **Filet appuyé** (#4a4d54) : sous les titres de section.
+- **Vide** (#080b0a) : fond de page.
+- **Surface** (#10160f) : cartes de jeux, fond des vignettes.
+- **Surface relevée** (#161e15) : fond des visuels en attente de chargement.
+- **Filet** (#243024) : bordures de cartes, séparateurs, pied de page.
+- **Texte** (#eef2ea) : titres et texte principal.
+- **Texte doux** (#b1bbad) : texte secondaire, navigation.
+- **Texte effacé** (#86907f) : métadonnées, notes, mentions « bientôt ». Au-dessus de 4,5:1 sur le fond.
+- **Encre citron** (#0b0f04) : texte posé sur le citron.
 
 ### Named Rules
-**The One Voice Rule.** Le bleu acier ne sert qu'à l'action et au lien. S'il apparaît pour décorer, c'est une faute.
+**The Single Light Rule.** Le citron est la seule source de lumière de la page. Aucune autre teinte vive, aucun dégradé décoratif.
 
-**The Warm Neutral Rule.** Aucun gris pur : chaque neutre est teinté chaud (crème) ou froid léger (graphite), jamais #000 ni #fff.
+**The Ink On Lime Rule.** Sur un fond citron, le texte est toujours l'encre citron (#0b0f04), jamais blanc.
 
 ## Typography
 
-**Display Font:** Newsreader (variable, avec axe optique), repli Georgia puis Times New Roman
-**Body Font:** la même famille
-**Label/Mono Font:** aucune
+**Display Font:** Chakra Petch 700 (repli Arial Narrow)
+**Body Font:** Barlow 400, 500, 600 (repli Segoe UI, Roboto)
 
-**Character:** une serif éditoriale, posée et lisible, qui donne au catalogue un ton de publication plutôt que d'application. Une seule famille : le contraste vient de la taille et du poids.
+**Character:** Chakra Petch apporte l'angle et la tension des interfaces de jeu ; Barlow, légèrement étroite, garde le texte lisible et sobre à côté.
 
 ### Hierarchy
-- **Display** (560, clamp(2.25rem, 5.4vw, 3.5rem), 1.08) : le titre d'accroche, une fois par page, jusqu'à 18 caractères par ligne.
-- **Headline** (600, 1.5rem, 1.2) : titres de section et noms de parcours.
-- **Title** (600, 1.25rem, 1.3) : titres de la méthode, nom du site.
-- **Body** (400, 1.125rem, 1.65) : texte courant, mesure maximale 62 caractères.
-- **Label** (400, 1rem, 1.6) : genre, notions, métadonnées, liens secondaires.
+- **Display** (700, clamp(2.6rem, 6.5vw, 4.75rem), 0.98, capitales) : le titre d'accroche, une fois par page.
+- **Headline** (700, clamp(1.75rem, 4vw, 2.5rem), 1.1, capitales) : titres de section.
+- **Monogram** (700, 3.4rem, contour citron) : affiche des jeux sans capture.
+- **Title** (700, 1.4rem, 1.15, capitales) : nom de chaque jeu.
+- **Lead** (400, 1.15rem, 1.6) : paragraphe d'accroche, mesure 46 caractères.
+- **Body** (400, 1.0625rem, 1.6) : texte courant et intertitres de la méthode.
+- **Label** (600, 0.95rem, 1.4) : boutons, genres, légendes, notions, notes.
 
 ### Named Rules
-**The One Family Rule.** Une seule famille sur tout le portail. Ajouter une seconde famille exige un rôle qu'elle est seule à remplir.
+**The Seven Steps Rule.** Sept tailles, une par rôle. Une nouvelle taille exige un nouveau rôle documenté ici.
 
-**The No Faux Italic Rule.** Seul le romain est chargé : aucun italique, aucun gras synthétisé par le navigateur.
+**The Capitals For Display Rule.** Les capitales sont réservées à Chakra Petch (titres, boutons). Le texte Barlow reste en casse normale.
 
 ## Layout
 
-Un conteneur de 1040 px au plus, centré, avec 24 px de marge de chaque côté. Les sections sont séparées par 48 à 96 px selon la largeur ; au sein d'une section, 8 à 32 px. Un parcours est une grille de trois zones (titre et genre, détail, action) avec l'action à droite ; la méthode reprend la même grammaire (titre à gauche, texte à droite). En dessous de 760 px, tout passe sur une colonne et l'ordre devient titre, action, détail : le bouton reste visible sans longue lecture. Échelle d'espacement de base 4 : 8, 12, 16, 24, 32, 48, 64, 96.
+Un conteneur de 1180 px au plus, centré, avec 24 px de marge. Le premier écran est en deux colonnes (accroche à gauche, portail à droite) ; sous 900 px, le portail passe au-dessus du texte. Les jeux défilent horizontalement avec aimantation, une carte de 560 px au plus par position, 86 % de la largeur sur mobile. La galerie suit une grille de 12 colonnes à rangées de hauteur fixe (7 + 5, puis 5 + 7), une seule colonne sur mobile. Échelle d'espacement de base 4 : 8, 12, 16, 24, 32, 48, 64, 96.
 
 ## Elevation & Depth
 
-Aucune ombre, aucune superposition. La profondeur est nulle : tout est à plat sur le fond, séparé par des filets (1 px). Seul l'en-tête est fixe en haut, détaché par un filet.
+La page est surtout plate : les cartes se détachent du fond par la surface et le filet, pas par l'ombre. Deux ombres seulement, toujours décalées et floues : la lueur portée sous le bouton principal, et l'ombre de l'image avant-plan dans la section « Apprendre en agissant ». L'en-tête fixe est légèrement translucide avec un flou d'arrière-plan.
 
 ### Named Rules
-**The Flat Rule.** Aucune ombre, aucun halo, aucun flou. Un filet sépare, la taille hiérarchise.
+**The Earned Shadow Rule.** Une ombre n'existe que sous l'action principale ou pour séparer deux images superposées. Jamais de halo sans décalage.
 
 ## Shapes
 
-Presque rectiligne : un seul rayon de 2 px sur le bouton Jouer et l'anneau de focus. Aucune pastille, aucun cercle, aucune capsule. Les filets sont horizontaux, jamais verticaux.
+Deux rayons : 8 px pour les images et les vignettes, 12 px pour les cartes et le bandeau final. Les boutons sont rectangulaires, sans arrondi, comme des touches de borne. Le portail et la marque sont des cercles exacts.
 
 ## Components
 
 ### Buttons
-- **Shape:** rectangle à coins quasi vifs (2 px).
-- **Primary (Jouer):** contour bleu acier de 1 px, fond transparent, texte bleu acier en 600, padding 12 px 24 px.
-- **Hover / Focus:** le fond se remplit en bleu acier et le texte passe en graphite (transition 0,18 s, ease-out) ; au clavier, un anneau de 2 px bleu acier à 3 px de distance.
-- **Indisponible:** pas de bouton ; le mot « Bientôt » en crème effacée.
+- **Shape:** rectangle sans arrondi, hauteur 48 px (40 px pour la version compacte de l'en-tête).
+- **Primary:** fond citron, texte encre citron, Chakra Petch 700 en capitales, padding horizontal 24 px, lueur portée décalée.
+- **Hover / Focus:** citron vif et léger soulèvement (1 px) ; au clavier, anneau citron de 2 px.
+- **Outline:** contour citron de 2 px, texte citron ; au survol, se remplit en citron.
+- **Dark:** fond encre citron, texte citron, réservé au bandeau citron.
+
+### Cards / Containers
+- **Corner Style:** 12 px.
+- **Background:** surface (#10160f), filet de 1 px.
+- **Shadow Strategy:** aucune.
+- **Internal Padding:** 16 px ; visuel de 220 px à gauche, texte à droite ; empilés sur mobile.
 
 ### Navigation
-- **Style:** en-tête fixe de 60 px, nom du site en 600 à gauche, deux liens à droite en crème adoucie ; survol : crème et souligné. Aucun menu replié (deux liens tiennent sur mobile).
+- En-tête fixe de 68 px : marque (anneau et cœur citron, nom en capitales) à gauche, trois liens au centre droit, bouton « Jouer » en contour. Sur mobile, les liens disparaissent, le bouton reste.
 
-### Course row (composant signature)
-Une ligne de l'index des parcours : titre en Headline avec le genre en Label dessous, scénario, notions séparées par des points médians, métier et durée, puis l'action. Séparée de la suivante par un filet discret. Les parcours indisponibles passent en crème adoucie.
+### Portail (composant signature)
+Un shader WebGL dans un canvas carré (520 px au plus) : vortex animé, anneau citron net, couronne segmentée qui tourne en sens inverse, fine couronne extérieure. Il se met en pause hors écran et onglet caché, montre une image fixe si l'utilisateur préfère moins d'animations, et disparaît sans casser la page si WebGL manque.
+
+### Affiche typographique
+Pour un jeu sans capture : la surface relevée, un filet, et le monogramme du jeu (2 à 4 lettres) en contour citron.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** montrer l'action principale (Jouer) dans le premier écran, sur ordinateur et sur mobile.
-- **Do** séparer par des filets de 1 px (#2d3036) et de l'espace, pas par des cadres.
-- **Do** garder le texte courant à 62 caractères de mesure au plus et à 4,5:1 de contraste au moins.
-- **Do** utiliser l'échelle d'espacement de base 4 et poser plus d'espace au-dessus d'un titre qu'en dessous.
+- **Do** présenter chaque jeu au même rang : même carte, même taille, même place dans le défilement.
+- **Do** n'utiliser que de vraies captures des jeux, recadrées avec un point de cadrage explicite.
+- **Do** réserver le citron (#c6f135) à l'action, à la marque et à la lumière.
+- **Do** garder le portail lumineux dans le premier écran, sur ordinateur comme sur mobile.
 
 ### Don't:
-- **Don't** employer d'emoji, de dégradé, d'ombre ou de halo lumineux.
-- **Don't** mettre les parcours dans des cartes, ni des pastilles ou capsules sur les notions.
-- **Don't** numéroter les sections ou les parcours (ils ne forment pas une séquence).
-- **Don't** utiliser de vert ni de blanc vif comme couleur de marque, ni de #000 ni #fff.
-- **Don't** ajouter une seconde famille de caractères ni d'italique synthétique.
-- **Don't** appliquer ce système au jeu : le jeu DevOps garde son univers visuel propre (HUD sombre à accent vert) tant qu'il n'est pas documenté séparément.
+- **Don't** utiliser d'emoji, de glyphe en guise d'icône, d'illustration générée ou empruntée.
+- **Don't** afficher de formulaire d'inscription ou de lettre d'information tant que le serveur n'existe pas.
+- **Don't** ajouter une seconde couleur vive ni de texte en dégradé.
+- **Don't** mettre de capitales dans le texte Barlow ni de nouvelle taille hors des sept rôles.
+- **Don't** appliquer ce système à l'intérieur des jeux : chaque jeu garde son propre univers.
