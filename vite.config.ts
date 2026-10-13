@@ -1,6 +1,6 @@
 import { defineConfig } from "vitest/config";
 import { LANGS } from "./src/i18n/lang";
-import { gameHtmlFile } from "./src/i18n/routes";
+import { gameHtmlFile, legalHtmlFile } from "./src/i18n/routes";
 
 /**
  * Préfixe d'URL du site : « /rostand/ » sur GitHub Pages, « / » sur un serveur à domaine propre (VPS) et en local.
@@ -13,12 +13,13 @@ function siteBase(): string {
   return raw;
 }
 
-/** Une page par langue et par produit : le portail et chaque jeu, en français et en anglais. */
+/** Une page par langue et par produit : le portail, chaque jeu et les mentions légales, en français et en anglais. */
 function htmlEntries(): Record<string, string> {
   const entries: Record<string, string> = {};
   for (const lang of LANGS) {
     entries[`portal-${lang}`] = lang === "en" ? "en/index.html" : "index.html";
     entries[`devops-${lang}`] = gameHtmlFile("devops", lang);
+    entries[`legal-${lang}`] = legalHtmlFile(lang);
   }
   return entries;
 }

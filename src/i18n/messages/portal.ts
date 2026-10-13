@@ -39,6 +39,7 @@ export const t = createTranslator("portal", {
     footerCredits: "Crédits",
     footerCreditCharacters: "Personnages 3D : Quaternius (CC0)",
     footerCreditFonts: "Polices : Chakra Petch et Barlow (SIL OFL)",
+    footerLegal: "Mentions légales et confidentialité",
     noScript: "Ce site nécessite JavaScript.",
   },
   en: {
@@ -79,6 +80,7 @@ export const t = createTranslator("portal", {
     footerCredits: "Credits",
     footerCreditCharacters: "3D characters: Quaternius (CC0)",
     footerCreditFonts: "Fonts: Chakra Petch and Barlow (SIL OFL)",
+    footerLegal: "Legal notice and privacy",
     noScript: "This site requires JavaScript.",
   },
 });

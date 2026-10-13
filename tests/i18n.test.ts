@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isSingular, localeFor, parseLang, readPageLang } from "../src/i18n/lang";
 import { browserLang, preferredLang, readStoredLang, storeLang } from "../src/i18n/preference";
-import { alternatePath, gameHtmlFile, gamePath, portalPath } from "../src/i18n/routes";
+import { alternatePath, gameHtmlFile, gamePath, legalHtmlFile, legalPath, portalPath } from "../src/i18n/routes";
 import { createTranslator, formatMessage, placeholdersOf, registeredCatalogs, translateIn } from "../src/i18n/translator";
 
 // Charge tous les catalogues de l'interface : chacun s'enregistre en se créant.
@@ -80,6 +80,10 @@ describe("adresses par langue", () => {
     expect(alternatePath("/rostand/en/index.html", "fr", "/rostand/")).toBe("/rostand/");
     expect(alternatePath("/rostand/jeux/devops/", "en", "/rostand/")).toBe("/rostand/en/games/devops/");
     expect(alternatePath("/rostand/en/games/devops/", "fr", "/rostand/")).toBe("/rostand/jeux/devops/");
+    expect(alternatePath("/rostand/mentions-legales/", "en", "/rostand/")).toBe("/rostand/en/legal/");
+    expect(alternatePath("/rostand/en/legal/", "fr", "/rostand/")).toBe("/rostand/mentions-legales/");
+    expect(legalPath("fr", "/")).toBe("/mentions-legales/");
+    expect(legalHtmlFile("en")).toBe("en/legal/index.html");
     expect(alternatePath("/rostand/autre/", "en", "/rostand/")).toBeNull();
     expect(alternatePath("/ailleurs/", "en", "/rostand/")).toBeNull();
   });

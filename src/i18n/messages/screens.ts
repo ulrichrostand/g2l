@@ -175,6 +175,7 @@ export const t = createTranslator("screens", {
     moduleLessons: "Les dossiers du module",
     terminalReview: "Revue des terminaux",
     roadmapCredit: "Parcours basé sur la roadmap ",
+    legalLink: "Mentions légales",
     // Étoiles
     starsOne: "{count} étoile sur 3",
     starsOther: "{count} étoiles sur 3",
@@ -337,6 +338,7 @@ export const t = createTranslator("screens", {
     moduleLessons: "The module's intel files",
     terminalReview: "Terminal review",
     roadmapCredit: "Path based on the roadmap ",
+    legalLink: "Legal notice",
     starsOne: "{count} star out of 3",
     starsOther: "{count} stars out of 3",
   },

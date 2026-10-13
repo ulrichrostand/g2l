@@ -10,7 +10,7 @@ import { createLanguageSwitch } from "../i18n/switcher";
 import { icon, type IconName } from "./icons";
 import { createSettingsMenu, languageRow } from "./settingsMenu";
 import { LANG, LOCALE, isSingular } from "../i18n/lang";
-import { portalPath } from "../i18n/routes";
+import { legalPath, portalPath } from "../i18n/routes";
 import { t } from "../i18n/messages/screens";
 import { button, element, richText } from "./dom";
 
@@ -617,6 +617,8 @@ export class ScreenManager {
     return element("p", { className: "credit" }, [
       document.createTextNode(t("roadmapCredit")),
       element("a", { text: "roadmap.sh/devops", attributes: { href: ROADMAP_URL, target: "_blank", rel: "noopener noreferrer" } }),
+      document.createTextNode(" · "),
+      element("a", { text: t("legalLink"), attributes: { href: legalPath(LANG, import.meta.env.BASE_URL) } }),
     ]);
   }
 }

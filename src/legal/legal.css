@@ -1,0 +1,33 @@
+/* Pages juridiques : texte statique, sans script. Mêmes couleurs que le jeu. */
+:root {
+  --bg: #05080c;
+  --text: #d6e6ea;
+  --muted: #8aa0a7;
+  --accent: #39ff88;
+  --border: #1d3a40;
+  --link: #4fc3ff;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 1rem/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.legal { width: min(760px, 100%); margin: 0 auto; padding: 24px 16px 64px; }
+.legal-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+.legal-top a { color: var(--link); }
+.legal-top .brand { font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: 0.12em; color: var(--accent); text-decoration: none; }
+h1 { font-size: clamp(1.6rem, 5vw, 2.2rem); margin: 1.4em 0 0.2em; line-height: 1.2; }
+h2 { font-size: 1.25rem; margin: 2em 0 0.4em; color: var(--accent); }
+h3 { font-size: 1.02rem; margin: 1.4em 0 0.2em; }
+p, li { max-width: 68ch; }
+a { color: var(--link); }
+a:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.updated { color: var(--muted); font-size: 0.9rem; margin-top: 0; }
+.toc { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 0; list-style: none; margin: 1em 0 0; }
+dl { display: grid; grid-template-columns: minmax(130px, 200px) 1fr; gap: 6px 16px; margin: 0.6em 0; }
+dt { color: var(--muted); }
+dd { margin: 0; }
+table { border-collapse: collapse; width: 100%; margin: 0.8em 0; font-size: 0.95rem; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.9em; background: rgba(255, 255, 255, 0.06); padding: 0.1em 0.35em; border-radius: 4px; }
+.note { border-left: 3px solid var(--accent); padding: 8px 14px; background: rgba(57, 255, 136, 0.06); margin: 1em 0; }
+@media (max-width: 560px) { dl { grid-template-columns: 1fr; } dt { margin-top: 8px; } }

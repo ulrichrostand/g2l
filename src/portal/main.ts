@@ -1,7 +1,7 @@
 import { LANG } from "../i18n/lang";
 import { t } from "../i18n/messages/portal";
 import { autoRedirectTarget, readStoredLang } from "../i18n/preference";
-import { portalPath } from "../i18n/routes";
+import { legalPath, portalPath } from "../i18n/routes";
 import { isSingular } from "../i18n/lang";
 import { createLanguageSwitch } from "../i18n/switcher";
 import { element, requireElement } from "../ui/dom";
@@ -148,6 +148,7 @@ function footer(): HTMLElement {
           element("li", { className: "footer-muted", text: t("footerCreditCharacters") }),
           element("li", { className: "footer-muted", text: t("footerCreditFonts") }),
           element("li", {}, [link("roadmap.sh", "https://roadmap.sh/", "footer-link", true)]),
+          element("li", {}, [link(t("footerLegal"), legalPath(LANG, BASE), "footer-link")]),
         ]),
       ]),
     ]),

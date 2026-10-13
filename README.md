@@ -237,6 +237,12 @@ première visite sur l'accueil français, un navigateur anglophone est redirigé
 
 **Réglages joueur** : le menu « Paramètres » (hamburger) de l'écran titre et de la pause regroupe la langue, les graphismes, la **luminosité** (Normale / Claire / Sombre, via l'exposition de l'image) et le son. Les réglages sont mémorisés sur l'appareil.
 
+## Mentions légales et confidentialité
+
+Pages statiques bilingues : `mentions-legales/index.html` (`/mentions-legales/`) et `en/legal/index.html` (`/en/legal/`), liées depuis le pied du portail et l'accueil du jeu. Version **provisoire, non professionnelle** : éditeur anonyme (identité communiquée à l'hébergeur, LCEN art. 6 III 2°), contact par GitHub Issues, hébergeur GitHub Pages, aucune donnée collectée, stockage local détaillé clé par clé (un test vérifie que chaque clé réellement utilisée y figure).
+
+**À revoir dès que le site devient professionnel** (micro-entreprise, annonceurs payants, mesure d'audience, comptes) : identité complète de l'éditeur, SIRET, contact direct, mentions sur la publicité, consentement aux traceurs. Cette page n'est pas un avis juridique.
+
 ## Ressources 3D et licences
 
 | Ressource | Auteur | Licence | Fichier |
