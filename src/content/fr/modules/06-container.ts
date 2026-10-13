@@ -1,4 +1,4 @@
-import type { DevOpsModule } from "../types";
+import type { DevOpsModule } from "../../types";
 
 export const containerModule: DevOpsModule = {
   id: "container",

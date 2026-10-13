@@ -91,3 +91,28 @@ export interface DevOpsModule {
 export function recapOf(module: DevOpsModule): string[] {
   return module.lessons.map((lesson) => lesson.keyPoint);
 }
+
+/**
+ * Une phase de boss = une épreuve pratique sous pression : une seule vraie commande,
+ * à déduire de la sortie de terminal affichée quand le boss est exposé.
+ */
+export interface BossPhase extends ScenarioStep {
+  /** Sortie de terminal affichée quand le boss est exposé (ex. ps aux avec son PID) : il faut la lire pour trouver la bonne commande. */
+  context: string[];
+  /** Indice affiché après la première erreur. */
+  hint: string;
+}
+
+export interface BossDefinition {
+  moduleId: string;
+  name: string;
+  /** Sous-titre court (ex. « Le processus qui refuse de mourir »). */
+  title: string;
+  /** 2 phrases : ce que le boss représente en DevOps, raconté simplement. */
+  intro: string;
+  /** Couleur du boss (0xRRGGBB). */
+  color: number;
+  phases: [BossPhase, BossPhase, BossPhase];
+  /** Ce qu'il faut retenir, affiché à la victoire. */
+  defeat: string;
+}
