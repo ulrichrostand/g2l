@@ -1,5 +1,6 @@
 import { canonicalCommand, isStepCommandCorrect, simulateWrongCommand } from "../challenges/scenario";
 import type { BossDefinition, BossPhase } from "../content/bosses";
+import { t } from "../i18n/messages/bosspanel";
 import { button, element, richText } from "./dom";
 import "./bossPanel.css";
 
@@ -16,8 +17,6 @@ const ATTEMPTS_BEFORE_SOLUTION = 2;
 const PROMPT = "spectre@helix:~$";
 const TITLE_ID = "boss-panel-title";
 const CONTEXT_LABEL_ID = "boss-context-label";
-/** Une commande qui réussit sans rien afficher déroute un débutant : on explique ce silence. */
-const SILENT_SUCCESS_NOTE = "(aucune sortie : sous Linux, une commande qui réussit reste souvent silencieuse)";
 
 /**
  * Console de combat contre un boss : le temps de jeu est figé pendant qu'elle est ouverte,
@@ -35,13 +34,13 @@ export class BossPanel {
   private readonly goalBox = element("div", { className: "boss-goal" });
   private readonly scrollback = element("div", {
     className: "shell-scrollback boss-scrollback",
-    attributes: { role: "log", "aria-live": "polite", "aria-label": "Terminal" },
+    attributes: { role: "log", "aria-live": "polite", "aria-label": t("terminal") },
   });
   private readonly feedback = element("div", { className: "boss-feedback", attributes: { "aria-live": "polite" } });
   private readonly actions = element("div", { className: "challenge-actions" });
   private readonly input = element("input", {
     className: "command-input",
-    attributes: { type: "text", autocomplete: "off", autocapitalize: "off", spellcheck: "false", maxlength: "200", "aria-label": "Commande" },
+    attributes: { type: "text", autocomplete: "off", autocapitalize: "off", spellcheck: "false", maxlength: "200", "aria-label": t("command") },
   });
 
   constructor(
@@ -75,15 +74,15 @@ export class BossPanel {
             element("span", { className: "blink", text: "●", attributes: { "aria-hidden": "true" } }),
             element("span", {
               className: "boss-heading",
-              text: `BOSS — ${this.boss.name} · Phase ${this.phaseIndex + 1}/${this.boss.phases.length}`,
+              text: t("heading", { name: this.boss.name, phase: this.phaseIndex + 1, total: this.boss.phases.length }),
               attributes: { id: TITLE_ID },
             }),
-            element("span", { className: "tag boss-tag", text: "Exposé" }),
+            element("span", { className: "tag boss-tag", text: t("exposed") }),
           ]),
           element("p", { className: "boss-subtitle", text: this.boss.title }),
           this.phaseTrack(),
           this.freezeNotice,
-          element("p", { className: "boss-label boss-context-label", text: "Sortie du terminal — lis-la", attributes: { id: CONTEXT_LABEL_ID } }),
+          element("p", { className: "boss-label boss-context-label", text: t("terminalOutputLabel"), attributes: { id: CONTEXT_LABEL_ID } }),
           element("pre", {
             className: "terminal-output boss-context",
             text: this.phase.context.join("\n"),
@@ -137,14 +136,14 @@ export class BossPanel {
 
   /** La pénalité est annoncée d'emblée : le joueur doit savoir qu'essayer au hasard lui coûte du temps. */
   private renderFreezeNotice(): void {
-    this.freezeNotice.textContent = `Le temps est figé : il reste ${this.formattedSecondsLeft()} s d'exposition quand tu reprendras (chaque erreur en retire).`;
+    this.freezeNotice.textContent = t("freezeNotice", { seconds: this.formattedSecondsLeft() });
   }
 
   private renderFighting(): void {
-    this.goalBox.replaceChildren(element("span", { className: "boss-label", text: "Objectif" }), richText("p", this.phase.goal));
+    this.goalBox.replaceChildren(element("span", { className: "boss-label", text: t("goal") }), richText("p", this.phase.goal));
     this.actions.replaceChildren(
-      button("Exécuter ⏎", () => this.execute(this.input.value), "btn primary"),
-      button("Se replier", () => this.callbacks.onCancel(), "btn ghost"),
+      button(t("run"), () => this.execute(this.input.value), "btn primary"),
+      button(t("retreat"), () => this.callbacks.onCancel(), "btn ghost"),
     );
     this.input.disabled = false;
     // Sans défilement : sur un écran bas (téléphone couché), l'overlay sauterait jusqu'au champ et cacherait
@@ -154,13 +153,13 @@ export class BossPanel {
 
   private renderFeedback(): void {
     const hints: HTMLElement[] = [];
-    if (this.wrongAttempts >= ATTEMPTS_BEFORE_HINT) hints.push(richText("p", `Indice : ${this.phase.hint}`, "hint"));
+    if (this.wrongAttempts >= ATTEMPTS_BEFORE_HINT) hints.push(richText("p", t("hintLine", { hint: this.phase.hint }), "hint"));
     if (this.wrongAttempts >= ATTEMPTS_BEFORE_SOLUTION) {
       hints.push(
         element("div", { className: "solution" }, [
-          element("strong", { text: "Commande attendue : " }),
+          element("strong", { text: t("expectedCommand") }),
           element("code", { text: canonicalCommand(this.phase) }),
-          element("span", { text: " — tape-la pour porter le coup." }),
+          element("span", { text: t("typeToStrike") }),
         ]),
       );
     }
@@ -195,7 +194,7 @@ export class BossPanel {
     }
 
     this.solved = true;
-    if (this.phase.output.length === 0) this.appendLine(SILENT_SUCCESS_NOTE, "muted");
+    if (this.phase.output.length === 0) this.appendLine(t("silentSuccess"), "muted");
     for (const line of this.phase.output) this.appendLine(line, "output");
     this.renderStrike();
   }
@@ -214,13 +213,13 @@ export class BossPanel {
     this.feedback.replaceChildren();
     this.goalBox.replaceChildren(
       ...(this.isFinalPhase
-        ? [element("p", { className: "granted boss-granted", text: "BOSS VAINCU ✔" }), richText("p", this.boss.defeat, "explanation")]
+        ? [element("p", { className: "granted boss-granted", text: t("defeated") }), richText("p", this.boss.defeat, "explanation")]
         : [
-            element("p", { className: "granted boss-granted", text: `COUP PORTÉ ✔ — phase ${this.phaseIndex + 1}/${this.boss.phases.length}` }),
-            element("p", { className: "boss-next", text: "Le boss va se relever : casse à nouveau son armure, puis reviens l'achever." }),
+            element("p", { className: "granted boss-granted", text: t("strikeLanded", { phase: this.phaseIndex + 1, total: this.boss.phases.length }) }),
+            element("p", { className: "boss-next", text: t("bossNext") }),
           ]),
     );
-    const strike = button(this.isFinalPhase ? "Achever le boss" : "Continuer le combat", () => this.finish(strike), "btn primary");
+    const strike = button(this.isFinalPhase ? t("finishBoss") : t("continueFight"), () => this.finish(strike), "btn primary");
     this.actions.replaceChildren(strike);
     strike.focus();
   }

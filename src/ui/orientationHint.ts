@@ -1,11 +1,17 @@
 import { enterLandscapeFullscreen, fullscreenSupported, type FullscreenHost, type LandscapeOutcome, type OrientationHost } from "../core/orientation";
+import { t } from "../i18n/messages/orientation";
 import { button, element } from "./dom";
 
-const OUTCOME_MESSAGES: Record<LandscapeOutcome, string> = {
-  locked: "Paysage activé.",
-  "fullscreen-only": "Plein écran activé : tourne ton téléphone en paysage.",
-  unavailable: "Ton navigateur ne permet pas le plein écran : tourne simplement ton téléphone en paysage.",
-};
+function outcomeMessage(outcome: LandscapeOutcome): string {
+  switch (outcome) {
+    case "locked":
+      return t("locked");
+    case "fullscreen-only":
+      return t("fullscreenOnly");
+    case "unavailable":
+      return t("unavailable");
+  }
+}
 /** Le conseil s'efface seul : il ne doit pas rester sur l'écran pendant toute la mission. */
 const AUTO_HIDE_MS = 14_000;
 const OUTCOME_VISIBLE_MS = 4_000;
@@ -40,8 +46,8 @@ export class OrientationHint {
     private readonly callbacks: OrientationHintCallbacks,
     private readonly options: OrientationHintOptions = {},
   ) {
-    this.fullscreenButton = button("Plein écran", () => void this.goFullscreen(), "btn primary small");
-    const dismissButton = button("Plus tard", () => this.dismiss(), "btn ghost small");
+    this.fullscreenButton = button(t("fullscreen"), () => void this.goFullscreen(), "btn primary small");
+    const dismissButton = button(t("later"), () => this.dismiss(), "btn ghost small");
     this.root = element("aside", { className: this.options.inline ? "orientation-hint inline" : "orientation-hint", attributes: { role: "status", "aria-live": "polite" } }, [
       this.message,
       element("div", { className: "orientation-hint-actions" }, [this.fullscreenButton, dismissButton]),
@@ -58,8 +64,8 @@ export class OrientationHint {
     if (!this.root.hidden) return;
     const canFullscreen = fullscreenSupported(this.fullscreenHost);
     this.message.textContent = canFullscreen
-      ? "Le paysage est plus confortable pour jouer : vue plus large, commandes plus espacées."
-      : "Le paysage est plus confortable pour jouer : tourne ton téléphone sur le côté.";
+      ? t("hintFullscreen")
+      : t("hintRotate");
     this.fullscreenButton.hidden = !canFullscreen;
     this.root.hidden = false;
     window.clearTimeout(this.hideTimer);
@@ -84,7 +90,7 @@ export class OrientationHint {
     const outcome = await enterLandscapeFullscreen(this.fullscreenHost, this.orientationHost);
     // Le joueur a agi sur le conseil : inutile de le lui remontrer en mission, quel qu'ait été le résultat.
     this.callbacks.onDismiss();
-    this.message.textContent = OUTCOME_MESSAGES[outcome];
+    this.message.textContent = outcomeMessage(outcome);
     this.fullscreenButton.hidden = true;
     window.clearTimeout(this.hideTimer);
     this.hideTimer = window.setTimeout(() => this.hide(), OUTCOME_VISIBLE_MS);

@@ -1,4 +1,5 @@
 import type { ChoiceChallenge } from "../content/types";
+import { t } from "../i18n/messages/panels";
 import { button, element, richText } from "./dom";
 
 /**
@@ -34,8 +35,8 @@ export function orderInput(correctSteps: readonly string[]): OrderInput {
         const moveDown = button("▼", () => swap(index, index + 1), "icon-btn");
         moveUp.disabled = index === 0;
         moveDown.disabled = index === currentOrder.length - 1;
-        moveUp.setAttribute("aria-label", `Monter « ${step} »`);
-        moveDown.setAttribute("aria-label", `Descendre « ${step} »`);
+        moveUp.setAttribute("aria-label", t("moveUp", { step }));
+        moveDown.setAttribute("aria-label", t("moveDown", { step }));
         return element("li", { className: "order-item" }, [richText("span", step), element("span", { className: "order-controls" }, [moveUp, moveDown])]);
       }),
     );
@@ -62,7 +63,7 @@ export interface CommandInput {
 export function commandInput(promptLabel: string, onSubmit: (typedCommand: string) => void): CommandInput {
   const input = element("input", {
     className: "command-input",
-    attributes: { type: "text", autocomplete: "off", autocapitalize: "off", spellcheck: "false", maxlength: "300", "aria-label": "Commande à saisir" },
+    attributes: { type: "text", autocomplete: "off", autocapitalize: "off", spellcheck: "false", maxlength: "300", "aria-label": t("commandToType") },
   });
   const form = element("form", { className: "command-form" }, [element("span", { className: "prompt-symbol", text: promptLabel }), input]);
   form.addEventListener("submit", (event) => {
