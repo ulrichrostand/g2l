@@ -1,0 +1,227 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-13T16:16:41Z",
+  "title": "Design System: Portail Cellule Écho",
+  "extensions": {
+    "colorMeta": {
+      "graphite": {
+        "role": "neutral",
+        "displayName": "Graphite chaud",
+        "canonical": "oklch(21% 0.008 264)",
+        "tonalRamp": [
+          "#090b0f",
+          "#202226",
+          "#383b3f",
+          "#53555a",
+          "#6f7277",
+          "#8c8f94",
+          "#bbbec3",
+          "#eceef4"
+        ]
+      },
+      "cream": {
+        "role": "neutral",
+        "displayName": "Crème",
+        "canonical": "oklch(93% 0.013 87)",
+        "tonalRamp": [
+          "#0d0b06",
+          "#24211b",
+          "#3d3a33",
+          "#58554d",
+          "#757169",
+          "#928f87",
+          "#c1bdb5",
+          "#f2eee5"
+        ]
+      },
+      "cream-soft": {
+        "role": "neutral",
+        "displayName": "Crème adoucie",
+        "canonical": "oklch(75% 0.013 87)",
+        "tonalRamp": [
+          "#0e0b05",
+          "#24211a",
+          "#3e3a33",
+          "#58554d",
+          "#757169",
+          "#938f86",
+          "#c1bdb4",
+          "#f2eee5"
+        ]
+      },
+      "cream-faint": {
+        "role": "neutral",
+        "displayName": "Crème effacée",
+        "canonical": "oklch(65% 0.012 90)",
+        "tonalRamp": [
+          "#0d0b06",
+          "#24211b",
+          "#3d3a33",
+          "#58554e",
+          "#74716a",
+          "#928f87",
+          "#c1bdb5",
+          "#f2eee5"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Filet discret",
+        "canonical": "oklch(31% 0.012 264)",
+        "tonalRamp": [
+          "#090b10",
+          "#1f2227",
+          "#373b41",
+          "#52555c",
+          "#6e7279",
+          "#8c8f96",
+          "#babec5",
+          "#ebeff7"
+        ]
+      },
+      "rule-strong": {
+        "role": "neutral",
+        "displayName": "Filet appuyé",
+        "canonical": "oklch(42% 0.012 267)",
+        "tonalRamp": [
+          "#090b10",
+          "#1f2228",
+          "#383a41",
+          "#52555c",
+          "#6e7179",
+          "#8c8f97",
+          "#babec6",
+          "#ebeef7"
+        ]
+      },
+      "steel-blue": {
+        "role": "primary",
+        "displayName": "Bleu acier",
+        "canonical": "oklch(76% 0.055 258)",
+        "tonalRamp": [
+          "#000a22",
+          "#10223c",
+          "#283b57",
+          "#425674",
+          "#5e7392",
+          "#7b91b1",
+          "#a8bfe2",
+          "#d8f0ff"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Titre d'accroche, une fois par page."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Titres de section et noms de parcours."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Titres de la méthode et nom du site."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Texte courant, 62 caractères au plus."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Genre, notions, métadonnées."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "ease-out-quick",
+        "value": "0.18s ease-out",
+        "purpose": "Survol du bouton Jouer : remplissage et couleur du texte."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile",
+        "value": "760px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Play Button",
+      "kind": "button",
+      "refersTo": "play-link",
+      "description": "Action principale d'un parcours jouable.",
+      "html": "<a class=\"ds-play\" href=\"#\">Jouer</a>",
+      "css": ".ds-play{display:inline-block;padding:12px 24px;border:1px solid #9db4d6;color:#9db4d6;text-decoration:none;font-weight:600;border-radius:2px;font-family:Newsreader,Georgia,serif;font-size:1.125rem;transition:background-color .18s ease-out,color .18s ease-out}.ds-play:hover{background:#9db4d6;color:#17191d}.ds-play:focus-visible{outline:2px solid #9db4d6;outline-offset:3px}"
+    },
+    {
+      "name": "Navigation Link",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Lien de l'en-tête fixe.",
+      "html": "<a class=\"ds-nav\" href=\"#\">Parcours</a>",
+      "css": ".ds-nav{color:#b3afa6;text-decoration:none;padding:12px 0;font-family:Newsreader,Georgia,serif;font-size:1.125rem}.ds-nav:hover{color:#ece8df;text-decoration:underline;text-underline-offset:.2em}.ds-nav:focus-visible{outline:2px solid #9db4d6;outline-offset:3px}"
+    },
+    {
+      "name": "Course Row",
+      "kind": "custom",
+      "refersTo": "play-link",
+      "description": "Ligne de l'index des parcours : titre, genre, détail et action séparés par un filet.",
+      "html": "<div class=\"ds-course\"><div><h3>DevOps : Shadow Ops</h3><p class=\"ds-genre\">Infiltration 3D</p></div><div><p>ENTROPIA a pris le contrôle de l'infrastructure d'Helix Corp.</p><p class=\"ds-topics\">Linux · Git · Réseau · Conteneurs</p></div><a class=\"ds-play\" href=\"#\">Jouer</a></div>",
+      "css": ".ds-course{display:grid;grid-template-columns:1fr 1.7fr auto;gap:8px 32px;padding:32px 0;border-bottom:1px solid #2d3036;font-family:Newsreader,Georgia,serif;color:#ece8df}.ds-course h3{margin:0;font-size:1.5rem;font-weight:600;line-height:1.2;letter-spacing:-.01em}.ds-course p{margin:0 0 12px;max-width:62ch}.ds-genre{color:#918e86}.ds-topics{color:#b3afa6}.ds-play{align-self:start;padding:12px 24px;border:1px solid #9db4d6;color:#9db4d6;text-decoration:none;font-weight:600;border-radius:2px}.ds-play:hover{background:#9db4d6;color:#17191d}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Le sommaire",
+    "overview": "**Creative North Star: \"Le sommaire\"**\n\nLe portail se lit comme la table des matières d'un livre sérieux : des filets fins, un titre par parcours, du texte posé sur un fond graphite chaud. La hiérarchie vient de la taille, du poids et de l'espace, jamais d'un effet. Rien ne brille, rien ne flotte, aucune surface n'est mise en boîte : un parcours est une ligne, pas une carte.\n\nLa densité est calme : une colonne de lecture de 62 caractères au plus, de larges respirations entre les sections, et le premier parcours jouable avec son bouton visible dès le premier écran. L'accent bleu acier est rare, réservé à l'action (Jouer) et aux liens. Le texte clair sur fond sombre est compensé par un interligne et un léger espacement des lettres un peu plus généreux.\n\nRejets confirmés : emojis, halos lumineux, dégradés, cartes interchangeables, pastilles, étiquettes en majuscules espacées, numéros de section décoratifs, vert et blanc vif comme couleurs de marque.",
+    "keyCharacteristics": [
+      "Une seule famille typographique (Newsreader, auto-hébergée, axe optique inclus), serif éditorial.",
+      "Fond graphite chaud, texte crème, un seul accent bleu acier.",
+      "Structure par filets horizontaux, pas par cadres ni par ombres.",
+      "Action visible au premier écran, sur ordinateur comme sur mobile."
+    ],
+    "rules": [
+      {
+        "name": "The One Voice Rule",
+        "body": "Le bleu acier ne sert qu'à l'action et au lien. S'il apparaît pour décorer, c'est une faute.",
+        "section": "colors"
+      },
+      {
+        "name": "The Warm Neutral Rule",
+        "body": "Aucun gris pur : chaque neutre est teinté chaud (crème) ou froid léger (graphite), jamais #000 ni #fff.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Family Rule",
+        "body": "Une seule famille sur tout le portail. Ajouter une seconde famille exige un rôle qu'elle est seule à remplir.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Faux Italic Rule",
+        "body": "Seul le romain est chargé : aucun italique, aucun gras synthétisé par le navigateur.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Rule",
+        "body": "Aucune ombre, aucun halo, aucun flou. Un filet sépare, la taille hiérarchise.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** montrer l'action principale (Jouer) dans le premier écran, sur ordinateur et sur mobile.",
+      "**Do** séparer par des filets de 1 px (#2d3036) et de l'espace, pas par des cadres.",
+      "**Do** garder le texte courant à 62 caractères de mesure au plus et à 4,5:1 de contraste au moins.",
+      "**Do** utiliser l'échelle d'espacement de base 4 et poser plus d'espace au-dessus d'un titre qu'en dessous."
+    ],
+    "donts": [
+      "**Don't** employer d'emoji, de dégradé, d'ombre ou de halo lumineux.",
+      "**Don't** mettre les parcours dans des cartes, ni des pastilles ou capsules sur les notions.",
+      "**Don't** numéroter les sections ou les parcours (ils ne forment pas une séquence).",
+      "**Don't** utiliser de vert ni de blanc vif comme couleur de marque, ni de #000 ni #fff.",
+      "**Don't** ajouter une seconde famille de caractères ni d'italique synthétique.",
+      "**Don't** appliquer ce système au jeu : le jeu DevOps garde son univers visuel propre (HUD sombre à accent vert) tant qu'il n'est pas documenté séparément."
+    ]
+  }
+}
