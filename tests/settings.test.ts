@@ -97,32 +97,65 @@ describe("luminosité choisie par le joueur", () => {
 });
 
 describe("qualité appliquée (QualityController)", () => {
-  it("une baisse automatique n'est jamais mémorisée : la visite suivante repart du choix du joueur", () => {
-    const storage = new MemoryStorage();
-    const controller = new QualityController(new SettingsStore(storage, false));
+  const controllerOn = (storage: MemoryStorage) => new QualityController(new SettingsStore(storage, false));
+
+  it("baisse d'abord la résolution du rendu, puis seulement le profil d'effets, et repart à 100 % après", () => {
+    const controller = controllerOn(new MemoryStorage());
+    expect(controller.renderScale).toBe(1);
+    expect(controller.reduceAutomatically()).toEqual({ kind: "scale", scale: 0.85 });
+    expect(controller.reduceAutomatically()).toEqual({ kind: "scale", scale: 0.7 });
     expect(controller.current).toBe("high");
-    expect(controller.reduceAutomatically()).toBe("medium");
-    expect(controller.reduceAutomatically()).toBe("low");
+    expect(controller.reduceAutomatically()).toEqual({ kind: "quality", quality: "medium" });
+    expect(controller.renderScale).toBe(1);
+    expect(controller.reduceAutomatically()).toEqual({ kind: "scale", scale: 0.85 });
+    expect(controller.reduceAutomatically()).toEqual({ kind: "scale", scale: 0.7 });
+    expect(controller.reduceAutomatically()).toEqual({ kind: "quality", quality: "low" });
+    controller.reduceAutomatically();
+    controller.reduceAutomatically();
     expect(controller.reduceAutomatically()).toBeNull();
     expect(controller.current).toBe("low");
-    expect(new QualityController(new SettingsStore(storage, false)).current).toBe("high");
+    expect(controller.renderScale).toBe(0.7);
   });
 
-  it("un choix du joueur est mémorisé, y compris le retour en Haute après une baisse automatique", () => {
+  it("une baisse automatique n'est jamais mémorisée : la visite suivante repart du choix du joueur", () => {
     const storage = new MemoryStorage();
-    const controller = new QualityController(new SettingsStore(storage, false));
-    controller.reduceAutomatically();
-    controller.reduceAutomatically();
+    const controller = controllerOn(storage);
+    for (let step = 0; step < 9; step++) controller.reduceAutomatically();
+    expect(controller.current).toBe("low");
+    expect(controllerOn(storage).current).toBe("high");
+    expect(controllerOn(storage).renderScale).toBe(1);
+  });
+
+  it("un choix du joueur est mémorisé et remet la résolution à 100 %", () => {
+    const storage = new MemoryStorage();
+    const controller = controllerOn(storage);
+    for (let step = 0; step < 9; step++) controller.reduceAutomatically();
     expect(controller.cycle()).toBe("high");
-    expect(new QualityController(new SettingsStore(storage, false)).current).toBe("high");
+    expect(controller.renderScale).toBe(1);
+    expect(controllerOn(storage).current).toBe("high");
     controller.choose("low");
-    expect(new QualityController(new SettingsStore(storage, false)).current).toBe("low");
+    expect(controllerOn(storage).current).toBe("low");
   });
 
   it("la baisse automatique part du choix du joueur, pas de la valeur par défaut", () => {
     const storage = new MemoryStorage();
     new SettingsStore(storage, false).setQuality("medium");
-    const controller = new QualityController(new SettingsStore(storage, false));
-    expect(controller.reduceAutomatically()).toBe("low");
+    const controller = controllerOn(storage);
+    controller.reduceAutomatically();
+    controller.reduceAutomatically();
+    expect(controller.reduceAutomatically()).toEqual({ kind: "quality", quality: "low" });
+  });
+});
+
+describe("mesure de fluidité", () => {
+  it("garde la dernière moyenne mesurée, après le démarrage seulement", () => {
+    const monitor = new FrameRateMonitor();
+    expect(monitor.averageFps).toBeNull();
+    for (let frame = 0; frame < 3 * 60; frame++) monitor.sample(1 / 60);
+    expect(monitor.averageFps).toBeNull();
+    let slow = false;
+    for (let frame = 0; frame < 4 * 20 + 2; frame++) slow = monitor.sample(1 / 20) || slow;
+    expect(slow).toBe(true);
+    expect(monitor.averageFps).toBeCloseTo(20, 0);
   });
 });

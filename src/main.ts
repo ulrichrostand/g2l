@@ -38,9 +38,13 @@ import { enterLandscapeFullscreen, exitLandscapeFullscreen, fullscreenSupported,
 import { OrientationHint } from "./ui/orientationHint";
 import { prefersTouchControls, TouchControls } from "./ui/touchControls";
 import { t } from "./i18n/messages/app";
+import { t as diagnosticsText } from "./i18n/messages/diagnostics";
+import { classifyRenderer, describeRenderer } from "./core/diagnostics";
 import { trackEvent, trackPageview } from "./analytics/track";
 
 const MAX_FRAME_DELTA_SECONDS = 0.05;
+/** Pour mesurer la fluidité, on garde la vraie durée de l'image (la simulation, elle, est plafonnée) : sinon une machine lente paraîtrait plus rapide qu'elle n'est. Plafonnée tout de même pour ignorer un blocage isolé. */
+const MAX_MEASURED_FRAME_SECONDS = 0.25;
 /** Part basse de l'écran couverte par l'interface de l'accueil en portrait (raccourcis, dossier, bouton de lancement). */
 const LOBBY_PORTRAIT_COVERAGE = 0.4;
 const MINIMAP_REFRESH_SECONDS = 0.1;
@@ -188,6 +192,7 @@ class ShadowOpsApp {
       onCycleQuality: () => this.cycleQuality(),
       brightnessLabel: this.brightnessLabel(),
       onCycleBrightness: () => this.cycleBrightness(),
+      diagnostics: this.renderDiagnostics(),
       soundLabel: this.soundLabel(),
       onToggleSound: () => this.toggleSound(),
       onReset: () => {
@@ -805,6 +810,7 @@ class ShadowOpsApp {
       onCycleQuality: () => this.cycleQuality(),
       brightnessLabel: this.brightnessLabel(),
       onCycleBrightness: () => this.cycleBrightness(),
+      diagnostics: this.renderDiagnostics(),
       soundLabel: this.soundLabel(),
       onToggleSound: () => this.toggleSound(),
       onResume: () => {
@@ -870,6 +876,26 @@ class ShadowOpsApp {
     return this.soundLabel();
   }
 
+  /**
+   * Texte du menu Paramètres : carte graphique détectée, fluidité mesurée, résolution du rendu, et conseil si le navigateur
+   * n'utilise pas la bonne puce. Sert au joueur comme à moi pour comprendre un jeu qui saccade.
+   */
+  private renderDiagnostics(): string {
+    const raw = this.pipeline.gpuName;
+    const fps = this.frameRateMonitor.averageFps;
+    const scale = this.pipeline.effectiveScale;
+    const kind = classifyRenderer(raw);
+    const lines = [
+      diagnosticsText("gpuLine", { gpu: describeRenderer(raw) }) +
+        (fps !== null ? diagnosticsText("fpsPart", { fps: Math.round(fps) }) : "") +
+        (scale < 1 ? diagnosticsText("scalePart", { percent: Math.round(scale * 100) }) : ""),
+    ];
+    // Le conseil n'a de sens que sur ordinateur : un téléphone n'a pas de carte dédiée à choisir.
+    if (!this.touchMode && kind === "software") lines.push(diagnosticsText("hintSoftware"));
+    else if (!this.touchMode && kind === "integrated") lines.push(diagnosticsText("hintIntegrated"));
+    return lines.join("\n");
+  }
+
   private brightnessLabel(): string {
     return t("brightnessLabel", { level: BRIGHTNESS_LABELS[this.settings.brightness] });
   }
@@ -891,7 +917,7 @@ class ShadowOpsApp {
   }
 
   private applyQuality(quality: GraphicsQuality): void {
-    this.pipeline.applyProfile(QUALITY_PROFILES[quality]);
+    this.pipeline.applyProfile(QUALITY_PROFILES[quality], this.quality.renderScale);
     // En pleine mission, passer en « Basse » allège aussi les personnages tout de suite (le retour en arrière attend le secteur suivant).
     if (!QUALITY_PROFILES[quality].detailedAndroids) this.mission?.useSimpleAndroids();
     this.frameRateMonitor.reset();
@@ -913,7 +939,8 @@ class ShadowOpsApp {
   }
 
   private frame(): void {
-    const deltaSeconds = Math.min(this.clock.getDelta(), MAX_FRAME_DELTA_SECONDS);
+    const realDeltaSeconds = this.clock.getDelta();
+    const deltaSeconds = Math.min(realDeltaSeconds, MAX_FRAME_DELTA_SECONDS);
     const elapsedSeconds = this.clock.elapsedTime;
     const mission = this.mission;
     if (!mission) {
@@ -927,7 +954,7 @@ class ShadowOpsApp {
     mission.tick(deltaSeconds, elapsedSeconds);
     // La mission a pu être terminée par un callback pendant tick() (échec, extraction...).
     if (this.mission !== mission) return;
-    if (!mission.isPaused) this.watchFrameRate(deltaSeconds);
+    if (!mission.isPaused) this.watchFrameRate(Math.min(realDeltaSeconds, MAX_MEASURED_FRAME_SECONDS));
 
     this.canvas.classList.toggle("night-vision", mission.isNightVisionOn);
     this.pipeline.exposure = (mission.isNightVisionOn ? 2.4 : 1) * BRIGHTNESS_EXPOSURE[this.settings.brightness];
@@ -956,10 +983,14 @@ class ShadowOpsApp {
   /** Si l'appareil ne suit pas, on baisse la qualité d'un cran plutôt que de laisser le jeu saccader. */
   private watchFrameRate(deltaSeconds: number): void {
     if (!this.frameRateMonitor.sample(deltaSeconds)) return;
-    const lower = this.quality.reduceAutomatically();
-    if (!lower) return;
-    this.applyQuality(lower);
-    this.hud.showNotice(t("qualityReduced", { quality: QUALITY_PROFILES[lower].label }));
+    const reduction = this.quality.reduceAutomatically();
+    if (!reduction) return;
+    this.applyQuality(this.quality.current);
+    this.hud.showNotice(
+      reduction.kind === "scale"
+        ? diagnosticsText("resolutionReduced", { percent: Math.round(reduction.scale * 100) })
+        : t("qualityReduced", { quality: QUALITY_PROFILES[reduction.quality].label }),
+    );
   }
 
   /**

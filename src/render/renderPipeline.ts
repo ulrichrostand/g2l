@@ -49,6 +49,7 @@ export class RenderPipeline {
   private readonly bloomPass: UnrealBloomPass;
   private readonly vignettePass: ShaderPass;
   private profile: QualityProfile;
+  private renderScale = 1;
   private width = 1;
   private height = 1;
 
@@ -81,13 +82,31 @@ export class RenderPipeline {
     this.renderer.toneMappingExposure = value;
   }
 
-  applyProfile(profile: QualityProfile): void {
+  /** Nom du processeur graphique déclaré par le navigateur (pour le diagnostic), ou « inconnu » s'il le masque. */
+  get gpuName(): string {
+    const gl = this.renderer.getContext();
+    const info = gl.getExtension("WEBGL_debug_renderer_info");
+    const raw = info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+    return typeof raw === "string" ? raw : "";
+  }
+
+  /** Résolution effective du rendu 3D par rapport à l'écran (1 = pleine résolution, plafond du profil compris). */
+  get effectiveScale(): number {
+    return this.renderScale;
+  }
+
+  /**
+   * `renderScale` réduit la résolution du rendu 3D sans toucher aux effets (bloom, ombres) : l'interface, en HTML,
+   * reste nette, et la scène est simplement un peu plus douce. C'est la première réponse à un jeu qui ralentit.
+   */
+  applyProfile(profile: QualityProfile, renderScale = 1): void {
     const shadowsChanged = this.profile.shadows !== profile.shadows;
     this.profile = profile;
+    this.renderScale = renderScale;
     this.renderer.shadowMap.enabled = profile.shadows;
     this.bloomPass.enabled = profile.bloom;
     this.vignettePass.enabled = profile.vignette;
-    const pixelRatio = Math.min(window.devicePixelRatio, profile.pixelRatioCap);
+    const pixelRatio = Math.min(window.devicePixelRatio, profile.pixelRatioCap) * renderScale;
     this.renderer.setPixelRatio(pixelRatio);
     this.composer.setPixelRatio(pixelRatio);
     this.setSize(this.width, this.height);

@@ -83,6 +83,12 @@ export class FrameRateMonitor {
   private elapsed = 0;
   private windowTime = 0;
   private windowFrames = 0;
+  private latestAverageFps: number | null = null;
+
+  /** Dernière moyenne mesurée (images par seconde), ou null tant qu'aucune fenêtre n'est terminée. */
+  get averageFps(): number | null {
+    return this.latestAverageFps;
+  }
 
   /** Renvoie true quand la moyenne sur la fenêtre est trop basse (une fois par fenêtre). */
   sample(deltaSeconds: number): boolean {
@@ -92,6 +98,7 @@ export class FrameRateMonitor {
     this.windowFrames++;
     if (this.windowTime < WINDOW_SECONDS) return false;
     const averageFps = this.windowFrames / this.windowTime;
+    this.latestAverageFps = averageFps;
     this.windowTime = 0;
     this.windowFrames = 0;
     return averageFps < MIN_AVERAGE_FPS;
@@ -186,14 +193,24 @@ export class SettingsStore {
   }
 }
 
+/** Échelles de résolution du rendu 3D, de la plus nette à la plus légère. L'interface (HTML) reste toujours nette. */
+export const RENDER_SCALES: readonly number[] = [1, 0.85, 0.7];
+
+/** Ce qu'a fait la baisse automatique : réduire la résolution du rendu, ou passer à un profil d'effets plus léger. */
+export type AutoReduction = { kind: "scale"; scale: number } | { kind: "quality"; quality: GraphicsQuality };
+
 /**
  * Qualité réellement appliquée. Elle part du choix enregistré du joueur (ou de la valeur par défaut de l'appareil)
  * et peut baisser toute seule si le jeu ralentit. Cette baisse automatique n'est JAMAIS enregistrée : un
  * ralentissement passager (onglet resté en arrière-plan, chargement, mauvaise carte graphique sélectionnée) ne doit
  * pas figer « Basse » pour toujours. Seul un choix explicite du joueur est mémorisé.
+ *
+ * Ordre de la baisse : d'abord la résolution du rendu (peu visible, et garde bloom, ombres et détails), puis seulement
+ * le profil d'effets. Après un changement de profil, la résolution repart à 100 % : le profil plus léger donne de l'air.
  */
 export class QualityController {
   private active: GraphicsQuality;
+  private scaleIndex = 0;
 
   constructor(private readonly settings: SettingsStore) {
     this.active = settings.quality;
@@ -203,9 +220,15 @@ export class QualityController {
     return this.active;
   }
 
-  /** Choix du joueur : appliqué et mémorisé. */
+  /** Échelle de résolution du rendu, entre 0 et 1. */
+  get renderScale(): number {
+    return RENDER_SCALES[this.scaleIndex] as number;
+  }
+
+  /** Choix du joueur : appliqué, mémorisé, et résolution remise à 100 %. */
   choose(quality: GraphicsQuality): void {
     this.active = quality;
+    this.scaleIndex = 0;
     this.settings.setQuality(quality);
   }
 
@@ -215,10 +238,16 @@ export class QualityController {
     return this.active;
   }
 
-  /** Baisse d'un cran, pour la session seulement. Renvoie la nouvelle qualité, ou null si déjà au plus bas. */
-  reduceAutomatically(): GraphicsQuality | null {
+  /** Baisse d'un cran, pour la session seulement. Renvoie ce qui a changé, ou null si l'appareil est déjà au plus bas. */
+  reduceAutomatically(): AutoReduction | null {
+    if (this.scaleIndex < RENDER_SCALES.length - 1) {
+      this.scaleIndex++;
+      return { kind: "scale", scale: this.renderScale };
+    }
     const lower = lowerQuality(this.active);
-    if (lower) this.active = lower;
-    return lower;
+    if (!lower) return null;
+    this.active = lower;
+    this.scaleIndex = 0;
+    return { kind: "quality", quality: lower };
   }
 }

@@ -55,6 +55,8 @@ export interface TitleScreenOptions {
   /** Passe à la qualité suivante et renvoie le nouveau libellé du bouton. */
   onCycleQuality(): string;
   brightnessLabel: string;
+  /** Carte graphique détectée, fluidité et conseils éventuels (plusieurs lignes séparées par « \n »). */
+  diagnostics: string;
   /** Passe à la luminosité suivante et renvoie le nouveau libellé du bouton. */
   onCycleBrightness(): string;
   soundLabel: string;
@@ -67,6 +69,8 @@ export interface PauseScreenOptions {
   qualityLabel: string;
   onCycleQuality(): string;
   brightnessLabel: string;
+  /** Carte graphique détectée, fluidité et conseils éventuels (plusieurs lignes séparées par « \n »). */
+  diagnostics: string;
   /** Passe à la luminosité suivante et renvoie le nouveau libellé du bouton. */
   onCycleBrightness(): string;
   soundLabel: string;
@@ -184,6 +188,7 @@ export class ScreenManager {
               brightnessButton(options.brightnessLabel, options.onCycleBrightness),
               toggleButton(options.soundLabel, options.onToggleSound, t("soundTitle")),
               resetButton,
+              diagnosticsNote(options.diagnostics),
             ],
             "corner",
           ),
@@ -485,6 +490,7 @@ export class ScreenManager {
             qualityButton(options.qualityLabel, options.onCycleQuality),
             brightnessButton(options.brightnessLabel, options.onCycleBrightness),
             toggleButton(options.soundLabel, options.onToggleSound, t("soundTitle")),
+            diagnosticsNote(options.diagnostics),
           ]),
         ]),
       ]),
@@ -657,6 +663,10 @@ function starPips(stars: number): HTMLElement {
 
 function qualityButton(label: string, onCycle: () => string): HTMLButtonElement {
   return toggleButton(label, onCycle, t("qualityTitle"));
+}
+
+function diagnosticsNote(text: string): HTMLElement {
+  return element("div", { className: "settings-note" }, text.split("\n").map((line) => element("p", { text: line })));
 }
 
 function brightnessButton(label: string, onCycle: () => string): HTMLButtonElement {
