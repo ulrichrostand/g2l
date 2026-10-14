@@ -117,6 +117,18 @@ describe("qualité appliquée (QualityController)", () => {
     expect(controller.renderScale).toBe(0.7);
   });
 
+  it("avec un plancher « Moyenne », la baisse automatique ne remplace jamais les androïdes par les robots simples", () => {
+    const controller = controllerOn(new MemoryStorage());
+    controller.setAutomaticFloor("medium");
+    for (let step = 0; step < 10; step++) controller.reduceAutomatically();
+    expect(controller.current).toBe("medium");
+    expect(QUALITY_PROFILES[controller.current].detailedAndroids).toBe(true);
+    expect(controller.reduceAutomatically()).toBeNull();
+    // Le joueur, lui, peut toujours choisir « Basse ».
+    controller.choose("low");
+    expect(controller.current).toBe("low");
+  });
+
   it("une baisse automatique n'est jamais mémorisée : la visite suivante repart du choix du joueur", () => {
     const storage = new MemoryStorage();
     const controller = controllerOn(storage);

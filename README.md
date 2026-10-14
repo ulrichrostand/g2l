@@ -258,7 +258,7 @@ Chaque page a ses balises Open Graph et Twitter (aperçu quand on partage le lie
 
 ## Qualité graphique
 
-Le jeu démarre en « Haute » sur ordinateur et « Moyenne » sur téléphone. Si l'image saccade en mission (moins de 40 images/s sur 4 s), la baisse est **progressive et pour la session seulement** (`QualityController`) : d'abord la résolution du rendu 3D (100 % → 85 % → 70 %, bloom et ombres conservés, interface toujours nette), puis seulement le profil d'effets. Seul un choix du joueur dans le menu Paramètres est mémorisé.
+Le jeu démarre en « Haute » sur ordinateur et « Moyenne » sur téléphone. Si l'image saccade en mission (moins de 40 images/s sur 4 s), la baisse est **progressive et pour la session seulement** (`QualityController`) : d'abord la résolution du rendu 3D (100 % → 85 % → 70 %, bloom et ombres conservés, interface toujours nette), puis seulement le profil d'effets. Le profil « Basse » remplace aussi les androïdes animés par de simples robots : la baisse automatique ne l'atteint donc jamais sur un ordinateur doté d'une carte graphique dédiée (plancher « Moyenne »). Seul un choix du joueur dans le menu Paramètres est mémorisé.
 
 Le menu Paramètres affiche une ligne de diagnostic : carte graphique détectée, images/s mesurées, résolution, et un conseil si le navigateur calcule en logiciel ou sur la puce intégrée (`src/core/diagnostics.ts`).
 

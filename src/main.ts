@@ -102,6 +102,8 @@ class ShadowOpsApp {
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.pipeline = new RenderPipeline(canvas, QUALITY_PROFILES[this.quality.current]);
+    // Une vraie carte graphique ne doit pas se retrouver avec les robots simples du profil « Basse » sans l'avoir choisi.
+    if (classifyRenderer(this.pipeline.gpuName) === "dedicated") this.quality.setAutomaticFloor("medium");
     window.addEventListener("resize", () => this.resize());
     this.input.attachPointerAim(canvas);
     if (prefersTouchControls()) this.enableTouchMode();

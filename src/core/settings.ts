@@ -211,9 +211,19 @@ export type AutoReduction = { kind: "scale"; scale: number } | { kind: "quality"
 export class QualityController {
   private active: GraphicsQuality;
   private scaleIndex = 0;
+  /** Profil le plus bas que la baisse AUTOMATIQUE a le droit d'atteindre (le joueur peut toujours choisir plus bas). */
+  private floor: GraphicsQuality = "low";
 
   constructor(private readonly settings: SettingsStore) {
     this.active = settings.quality;
+  }
+
+  /**
+   * « Basse » remplace les androïdes animés par de simples robots : la baisse automatique ne doit pas y aller sur une
+   * machine qui a une vraie carte graphique. On lui impose alors « Moyenne » comme plancher.
+   */
+  setAutomaticFloor(floor: GraphicsQuality): void {
+    this.floor = floor;
   }
 
   get current(): GraphicsQuality {
@@ -245,7 +255,7 @@ export class QualityController {
       return { kind: "scale", scale: this.renderScale };
     }
     const lower = lowerQuality(this.active);
-    if (!lower) return null;
+    if (!lower || QUALITY_ORDER.indexOf(lower) > QUALITY_ORDER.indexOf(this.floor)) return null;
     this.active = lower;
     this.scaleIndex = 0;
     return { kind: "quality", quality: lower };
