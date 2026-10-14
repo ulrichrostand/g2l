@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-TypeScript, Vite (pages multiples : portail à la racine, un jeu par dossier sous `jeux/`), sans framework d'interface. Jeu 3D : Three.js. Texte toujours posé via `textContent` (aucun `innerHTML`), CSP stricte dans chaque page HTML. Déploiement actuel : GitHub Pages (`APP_BASE=/rostand/`) ; déploiement prévu : un VPS à domaine propre (`APP_BASE=/`).
+TypeScript, Vite (pages multiples : portail à la racine, un jeu par dossier sous `jeux/`), sans framework d'interface. Jeu 3D : Three.js. Texte toujours posé via `textContent` (aucun `innerHTML`), CSP stricte dans chaque page HTML. Déploiement actuel : GitHub Pages (`APP_BASE=/g2l/`) ; déploiement prévu : un VPS à domaine propre (`APP_BASE=/`).
 
 ## Users
 

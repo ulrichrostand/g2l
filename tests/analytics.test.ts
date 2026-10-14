@@ -19,15 +19,15 @@ describe("quand mesurer", () => {
 
 describe("données envoyées", () => {
   it("retire le préfixe de déploiement et index.html du chemin", () => {
-    expect(pagePath("/rostand/", "/rostand/")).toBe("/");
-    expect(pagePath("/rostand/en/games/devops/", "/rostand/")).toBe("/en/games/devops/");
-    expect(pagePath("/rostand/mentions-legales/index.html", "/rostand/")).toBe("/mentions-legales/");
+    expect(pagePath("/g2l/", "/g2l/")).toBe("/");
+    expect(pagePath("/g2l/en/games/devops/", "/g2l/")).toBe("/en/games/devops/");
+    expect(pagePath("/g2l/mentions-legales/index.html", "/g2l/")).toBe("/mentions-legales/");
     expect(pagePath("/jeux/devops/", "/")).toBe("/jeux/devops/");
   });
 
   it("ne garde du référent que le nom de domaine, et rien pour une navigation interne ou invalide", () => {
     expect(referrerHost("https://www.google.com/search?q=secret&x=1", "ulrichrostand.github.io")).toBe("www.google.com");
-    expect(referrerHost("https://ulrichrostand.github.io/rostand/", "ulrichrostand.github.io")).toBe("");
+    expect(referrerHost("https://ulrichrostand.github.io/g2l/", "ulrichrostand.github.io")).toBe("");
     expect(referrerHost("", "ulrichrostand.github.io")).toBe("");
     expect(referrerHost("pas une adresse", "ulrichrostand.github.io")).toBe("");
   });

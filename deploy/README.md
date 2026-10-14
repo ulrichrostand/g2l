@@ -23,7 +23,7 @@ Conseils : désactive la connexion SSH par mot de passe (clé uniquement) et act
 ## 2. Récupérer le code et configurer
 
 ```sh
-git clone https://github.com/ulrichrostand/rostand.git g2l && cd g2l/deploy
+git clone https://github.com/ulrichrostand/g2l.git g2l && cd g2l/deploy
 cp .env.example .env
 nano .env        # SITE_DOMAIN=g2l.example ; POSTGRES_PASSWORD=$(openssl rand -hex 24)
 chmod 600 .env

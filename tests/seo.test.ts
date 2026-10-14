@@ -9,23 +9,23 @@ const read = (file: string): string => readFileSync(file, "utf8");
 
 describe("adresses publiques", () => {
   it("assemble l'origine et le préfixe de déploiement, et refuse une origine invalide", () => {
-    expect(siteUrl(ORIGIN, "/rostand/")).toBe("https://ulrichrostand.github.io/rostand");
+    expect(siteUrl(ORIGIN, "/g2l/")).toBe("https://ulrichrostand.github.io/g2l");
     expect(siteUrl("https://exemple.fr", "/")).toBe("https://exemple.fr");
     expect(() => siteUrl("http://exemple.fr", "/")).toThrow(RangeError);
     expect(() => siteUrl("https://exemple.fr/chemin", "/")).toThrow(RangeError);
   });
 
   it("remplace le marqueur partout dans une page", () => {
-    expect(injectSiteUrl('<a href="__SITE_URL__/en/"> <b content="__SITE_URL__/x">', ORIGIN, "/rostand/")).toBe(
-      '<a href="https://ulrichrostand.github.io/rostand/en/"> <b content="https://ulrichrostand.github.io/rostand/x">',
+    expect(injectSiteUrl('<a href="__SITE_URL__/en/"> <b content="__SITE_URL__/x">', ORIGIN, "/g2l/")).toBe(
+      '<a href="https://ulrichrostand.github.io/g2l/en/"> <b content="https://ulrichrostand.github.io/g2l/x">',
     );
   });
 
   it("liste les six pages publiques dans le sitemap et pointe robots.txt vers lui", () => {
-    expect(publicPaths("/rostand/")).toHaveLength(6);
-    const xml = sitemapXml(ORIGIN, "/rostand/");
-    for (const path of publicPaths("/rostand/")) expect(xml).toContain(`<loc>${ORIGIN}${path}</loc>`);
-    expect(robotsTxt(ORIGIN, "/rostand/")).toContain(`Sitemap: ${ORIGIN}/rostand/sitemap.xml`);
+    expect(publicPaths("/g2l/")).toHaveLength(6);
+    const xml = sitemapXml(ORIGIN, "/g2l/");
+    for (const path of publicPaths("/g2l/")) expect(xml).toContain(`<loc>${ORIGIN}${path}</loc>`);
+    expect(robotsTxt(ORIGIN, "/g2l/")).toContain(`Sitemap: ${ORIGIN}/g2l/sitemap.xml`);
   });
 });
 

@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Signaler une faille de sécurité
-    url: https://github.com/ulrichrostand/rostand/security/advisories/new
+    url: https://github.com/ulrichrostand/g2l/security/advisories/new
     about: Ne publie jamais une faille dans une issue publique : utilise ce signalement privé.

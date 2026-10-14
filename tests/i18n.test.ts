@@ -67,25 +67,25 @@ describe("préférence de langue", () => {
 describe("adresses par langue", () => {
   it("construit les adresses du portail et des jeux sous le préfixe de déploiement", () => {
     expect(portalPath("fr", "/")).toBe("/");
-    expect(portalPath("en", "/rostand/")).toBe("/rostand/en/");
-    expect(gamePath("devops", "fr", "/rostand/")).toBe("/rostand/jeux/devops/");
-    expect(gamePath("devops", "en", "/rostand/")).toBe("/rostand/en/games/devops/");
+    expect(portalPath("en", "/g2l/")).toBe("/g2l/en/");
+    expect(gamePath("devops", "fr", "/g2l/")).toBe("/g2l/jeux/devops/");
+    expect(gamePath("devops", "en", "/g2l/")).toBe("/g2l/en/games/devops/");
     expect(gameHtmlFile("devops", "en")).toBe("en/games/devops/index.html");
     expect(() => gamePath("../etc", "fr", "/")).toThrow(RangeError);
   });
 
   it("trouve la même page dans l'autre langue, ou rien pour une adresse inconnue", () => {
-    expect(alternatePath("/rostand/", "en", "/rostand/")).toBe("/rostand/en/");
-    expect(alternatePath("/rostand/en/", "fr", "/rostand/")).toBe("/rostand/");
-    expect(alternatePath("/rostand/en/index.html", "fr", "/rostand/")).toBe("/rostand/");
-    expect(alternatePath("/rostand/jeux/devops/", "en", "/rostand/")).toBe("/rostand/en/games/devops/");
-    expect(alternatePath("/rostand/en/games/devops/", "fr", "/rostand/")).toBe("/rostand/jeux/devops/");
-    expect(alternatePath("/rostand/mentions-legales/", "en", "/rostand/")).toBe("/rostand/en/legal/");
-    expect(alternatePath("/rostand/en/legal/", "fr", "/rostand/")).toBe("/rostand/mentions-legales/");
+    expect(alternatePath("/g2l/", "en", "/g2l/")).toBe("/g2l/en/");
+    expect(alternatePath("/g2l/en/", "fr", "/g2l/")).toBe("/g2l/");
+    expect(alternatePath("/g2l/en/index.html", "fr", "/g2l/")).toBe("/g2l/");
+    expect(alternatePath("/g2l/jeux/devops/", "en", "/g2l/")).toBe("/g2l/en/games/devops/");
+    expect(alternatePath("/g2l/en/games/devops/", "fr", "/g2l/")).toBe("/g2l/jeux/devops/");
+    expect(alternatePath("/g2l/mentions-legales/", "en", "/g2l/")).toBe("/g2l/en/legal/");
+    expect(alternatePath("/g2l/en/legal/", "fr", "/g2l/")).toBe("/g2l/mentions-legales/");
     expect(legalPath("fr", "/")).toBe("/mentions-legales/");
     expect(legalHtmlFile("en")).toBe("en/legal/index.html");
-    expect(alternatePath("/rostand/autre/", "en", "/rostand/")).toBeNull();
-    expect(alternatePath("/ailleurs/", "en", "/rostand/")).toBeNull();
+    expect(alternatePath("/g2l/autre/", "en", "/g2l/")).toBeNull();
+    expect(alternatePath("/ailleurs/", "en", "/g2l/")).toBeNull();
   });
 });
 

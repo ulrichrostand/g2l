@@ -50,7 +50,7 @@ export const HOUSE_POSTER: Sponsor = {
   kind: "recruitment",
   headline: { fr: "À venir", en: "Coming soon" },
   detail: { fr: "Un partenaire apparaîtra bientôt sur cet emplacement", en: "A partner will soon appear on this spot" },
-  url: "https://ulrichrostand.github.io/rostand/",
+  url: "https://ulrichrostand.github.io/g2l/",
   accent: "#c6f135",
   placeholder: true,
 };

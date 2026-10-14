@@ -4,7 +4,7 @@ import { LANGS } from "./src/i18n/lang";
 import { gameHtmlFile, legalHtmlFile } from "./src/i18n/routes";
 
 /**
- * Préfixe d'URL du site : « /rostand/ » sur GitHub Pages, « / » sur un serveur à domaine propre (VPS) et en local.
+ * Préfixe d'URL du site : « /g2l/ » sur GitHub Pages, « / » sur un serveur à domaine propre (VPS) et en local.
  * Un préfixe absolu (plutôt que « ./ ») garde les chargements de modèles 3D corrects depuis les pages imbriquées
  * (le portail est à la racine, les jeux sous /jeux/<jeu>/ et /en/games/<jeu>/).
  */

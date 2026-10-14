@@ -1,7 +1,7 @@
 import { LANGS } from "../i18n/lang";
 import { gamePath, legalPath, portalPath } from "../i18n/routes";
 
-/** Adresse publique du site, sans barre finale (ex. « https://ulrichrostand.github.io/rostand »). */
+/** Adresse publique du site, sans barre finale (ex. « https://ulrichrostand.github.io/g2l »). */
 export function siteUrl(origin: string, base: string): string {
   if (!/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(origin)) throw new RangeError(`Origine invalide (https requis, sans chemin) : ${origin}`);
   return `${origin}${base.replace(/\/$/, "")}`;

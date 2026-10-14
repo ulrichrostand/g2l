@@ -1,7 +1,7 @@
 import type { Lang } from "./lang";
 
 /**
- * Adresses du site par langue, sous le préfixe de déploiement (« / » ou « /rostand/ ») :
+ * Adresses du site par langue, sous le préfixe de déploiement (« / » ou « /g2l/ ») :
  *   portail        /            ·  /en/
  *   jeu <slug>     /jeux/<slug>/  ·  /en/games/<slug>/
  *   mentions       /mentions-legales/  ·  /en/legal/

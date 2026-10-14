@@ -26,7 +26,7 @@ export function shouldTrack(environment: TrackEnvironment): boolean {
   return !LOCAL_HOSTS.has(environment.hostname) && !environment.doNotTrack && !environment.automated && !environment.optedOut;
 }
 
-/** Chemin vu par la mesure : sans préfixe de déploiement (« /rostand/ ») ni `index.html`, toujours avec une barre initiale. */
+/** Chemin vu par la mesure : sans préfixe de déploiement (« /g2l/ ») ni `index.html`, toujours avec une barre initiale. */
 export function pagePath(pathname: string, base: string): string {
   const relative = pathname.startsWith(base) ? pathname.slice(base.length) : pathname.replace(/^\/+/, "");
   return `/${relative.replace(/index\.html$/, "")}`;

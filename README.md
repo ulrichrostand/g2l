@@ -210,7 +210,7 @@ première visite sur l'accueil français, un navigateur anglophone est redirigé
   validée par les tests). Les parcours « bientôt » n'ont pas de bouton Jouer.
 - `jeux/devops/index.html` + `src/` : le jeu DevOps, servi sous `/jeux/devops/`. Un nouveau parcours = une entrée du catalogue
   + un dossier `jeux/<id>/` déclaré dans `vite.config.ts`.
-- Préfixe d'URL : variable `APP_BASE` au build (`/rostand/` sur GitHub Pages, `/` par défaut, donc sur un VPS à domaine propre).
+- Préfixe d'URL : variable `APP_BASE` au build (`/g2l/` sur GitHub Pages, `/` par défaut, donc sur un VPS à domaine propre).
 - Le portail utilise les polices Chakra Petch et Barlow (SIL OFL 1.1, auto-hébergées via `@fontsource`, licences dans `public/licenses/`), un portail lumineux en WebGL (`src/portal/portalGate.ts`) et de vraies captures du jeu (`public/portal/`).
 - La progression reste dans le navigateur (`localStorage`, même origine pour tout le site) : elle survit au changement d'adresse du jeu.
 

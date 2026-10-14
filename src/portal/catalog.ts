@@ -277,7 +277,7 @@ export function screenshotProblems(screenshots: readonly Screenshot[], courses: 
   });
 }
 
-/** Adresse du jeu dans la langue demandée, sous le préfixe du site (« / » ou « /rostand/ »), ou null s'il n'est pas disponible. */
+/** Adresse du jeu dans la langue demandée, sous le préfixe du site (« / » ou « /g2l/ »), ou null s'il n'est pas disponible. */
 export function playHref(course: Course, lang: Lang, base: string): string | null {
   if (course.status !== "available" || course.gameSlug === null) return null;
   return gamePath(course.gameSlug, lang, base);

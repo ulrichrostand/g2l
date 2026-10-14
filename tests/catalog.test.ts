@@ -24,7 +24,7 @@ describe("catalogue des jeux", () => {
   it("construit l'adresse du jeu dans chaque langue, ou rien si le jeu n'est pas prêt", () => {
     expect(playHref(sample, "fr", "/")).toBe("/jeux/devops/");
     expect(playHref(sample, "en", "/")).toBe("/en/games/devops/");
-    expect(playHref(sample, "en", "/rostand/")).toBe("/rostand/en/games/devops/");
+    expect(playHref(sample, "en", "/g2l/")).toBe("/g2l/en/games/devops/");
     const soon = COURSES.find((course) => course.status === "soon");
     expect(soon && playHref(soon, "fr", "/")).toBeNull();
   });
