@@ -1,0 +1,58 @@
+# Pile complète sur un VPS : base PostgreSQL, API, et Caddy (HTTPS automatique + site statique).
+# Seul Caddy est exposé sur Internet (ports 80 et 443) : la base et l'API ne sont joignables que depuis ce réseau interne.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?À définir dans .env}
+      POSTGRES_USER: ${POSTGRES_USER:?À définir dans .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?À définir dans .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  api:
+    build: ../server
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      ALLOWED_ORIGINS: https://${SITE_DOMAIN:?À définir dans .env}
+      # Derrière Caddy : la vraie adresse IP du visiteur est lue dans l'en-tête qu'il ajoute.
+      TRUST_PROXY: "true"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+  web:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?À définir dans .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../dist:/srv/site:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

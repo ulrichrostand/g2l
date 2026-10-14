@@ -1,0 +1,27 @@
+# Caddy obtient et renouvelle tout seul le certificat HTTPS du domaine (Let's Encrypt).
+{$SITE_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	# L'API : même domaine que le site, donc cookies de session sans réglage particulier.
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# Le site statique (dossier dist/ construit avec APP_BASE=/).
+	handle {
+		root * /srv/site
+		# Fichiers à nom haché : cache d'un an. Pages HTML : toujours revalidées.
+		@hashed path /assets/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		header /index.html Cache-Control "no-cache"
+		try_files {path} {path}/index.html
+		file_server
+	}
+}
