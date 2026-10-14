@@ -54,12 +54,14 @@
         <dt>Publication director</dt>
         <dd>The site publisher</dd>
         <dt>Contact</dt>
-        <dd><a href="https://github.com/ulrichrostand/rostand/issues" rel="noopener noreferrer">Report a problem or ask a question (GitHub Issues)</a>. This space is public: do not post any personal data there.</dd>
+        <!--g2l:accounts-off--><dd><a href="https://github.com/ulrichrostand/rostand/issues" rel="noopener noreferrer">Report a problem or ask a question (GitHub Issues)</a>. This space is public: do not post any personal data there.</dd><!--/g2l:accounts-off-->
+<!--g2l:accounts-on--><dd><a href="mailto:__LEGAL_CONTACT__">__LEGAL_CONTACT__</a> (questions, exercising your rights over your data). Technical problems can also be reported on <a href="https://github.com/ulrichrostand/rostand/issues" rel="noopener noreferrer">GitHub Issues</a>, a public space where no personal data should be posted.</dd><!--/g2l:accounts-on-->
         <dt>Source code</dt>
         <dd><a href="https://github.com/ulrichrostand/rostand" rel="noopener noreferrer">github.com/ulrichrostand/rostand</a> (open to read; see “Intellectual property”)</dd>
       </dl>
 
       <h2 id="hebergeur">Host</h2>
+<!--g2l:accounts-off-->
       <dl>
         <dt>Company</dt>
         <dd>GitHub, Inc. (GitHub Pages service)</dd>
@@ -68,6 +70,15 @@
         <dt>Website</dt>
         <dd><a href="https://github.com" rel="noopener noreferrer">github.com</a></dd>
       </dl>
+      <!--/g2l:accounts-off-->
+      <!--g2l:accounts-on-->
+      <dl>
+        <dt>Company</dt>
+        <dd>__LEGAL_HOST_NAME__</dd>
+        <dt>Address</dt>
+        <dd>__LEGAL_HOST_ADDRESS__</dd>
+      </dl>
+      <!--/g2l:accounts-on-->
 
       <h2 id="propriete">Intellectual property and credits</h2>
       <p>Unless stated otherwise, the code, texts, scenarios and graphics of this site are protected and all rights are reserved to their author. Any reproduction requires prior permission. The source code is publicly viewable on GitHub, but being able to read it does not grant the right to copy, reuse or redistribute it.</p>
@@ -83,17 +94,38 @@
       <p>Advertising posters may appear in the game's rooms. For now there is no advertiser: they read “Coming soon”. They are always labeled “ADVERTISEMENT” and show the advertiser's name. They contain no script, load no external content and collect no data.</p>
 
       <h2 id="confidentialite">Privacy policy</h2>
-      <p>In short: <strong>this site does not collect any personal data</strong>. There is no account, no form, no cookie and no targeted advertising. Only an anonymous audience measurement is active (see below), which you can refuse.</p>
-      <h3>What the publisher does</h3>
-      <p>The publisher does not receive, process or keep any data about you. Your progress, avatar and settings stay on your device (see below) and are never transmitted.</p>
-      <h3>What the host does</h3>
-      <p>Like any web server, the host (GitHub) may log technical information when you visit (IP address, date, requested page) and process it outside the European Union. This processing is GitHub's own: see its <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" rel="noopener noreferrer">privacy statement</a>.</p>
+      <!--g2l:accounts-off--><p>In short: <strong>this site does not collect any personal data</strong>. There is no account, no form, no cookie and no targeted advertising. Only an anonymous audience measurement is active (see below), which you can refuse.</p><!--/g2l:accounts-off-->
+<!--g2l:accounts-on--><p>In short: <strong>an account is optional</strong>. If you create one, the site keeps your email address, a fingerprint of your password (never the password itself), your course enrollments and your progress. There is no targeted advertising and no tracking cookie. An anonymous audience measurement is active (see below), which you can refuse.</p><!--/g2l:accounts-on-->
+      <!--g2l:accounts-off--><h3>What the publisher does</h3>
+      <p>The publisher does not receive, process or keep any data about you. Your progress, avatar and settings stay on your device (see below) and are never transmitted.</p><!--/g2l:accounts-off-->
+<!--g2l:accounts-on--><h3>Your account (optional)</h3>
+      <ul>
+        <li><strong>Data controller</strong>: the site publisher (contact above).</li>
+        <li><strong>Data</strong>: email address; password fingerprint (Argon2, cannot be reversed); account creation and last sign-in dates; courses you are enrolled in; game progress (save data); session token.</li>
+        <li><strong>Purposes</strong>: creating and managing your account, saving your progress and giving it back on your devices, counting enrollments per course (a total, never a list of people).</li>
+        <li><strong>Legal basis</strong>: the service you ask for (the account is needed to provide it). It stays optional: the game works without an account, with your browser's save data.</li>
+        <li><strong>Retention</strong>: as long as your account exists. Deletion is immediate on request (see “Your rights”); technical database backups are purged within 14 days.</li>
+        <li><strong>Recipients</strong>: no third party. Data is stored with the host named above, which does not use it for its own purposes.</li>
+        <li><strong>Security</strong>: encrypted connection (HTTPS), hashed password, secure cookie session.</li>
+      </ul>
+      <p>None of this data is sold or used for advertising.</p><!--/g2l:accounts-on-->
+      <!--g2l:accounts-off--><h3>What the host does</h3>
+      <p>Like any web server, the host (GitHub) may log technical information when you visit (IP address, date, requested page) and process it outside the European Union. This processing is GitHub's own: see its <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" rel="noopener noreferrer">privacy statement</a>.</p><!--/g2l:accounts-off-->
+<!--g2l:accounts-on--><h3>Technical logs</h3>
+      <p>Like any web server, the site's server keeps technical information in its logs (IP address, date, requested page) to ensure security and proper operation. Logs are size-limited and rotated automatically.</p><!--/g2l:accounts-on-->
       <h3>External content</h3>
       <p>Fonts, images and 3D models are served by the site itself: no third-party service is contacted automatically. Links to other sites (for example roadmap.sh) are only followed if you click them; those sites have their own policies.</p>
       <h3>Your rights</h3>
-      <p>Since the publisher holds no personal data, there is nothing to access, correct or delete on their side. For any question, use the contact above. You may also lodge a complaint with the <a href="https://www.cnil.fr/en/home" rel="noopener noreferrer">CNIL</a> (French data protection authority).</p>
+      <!--g2l:accounts-off--><p>Since the publisher holds no personal data, there is nothing to access, correct or delete on their side. For any question, use the contact above. You may also lodge a complaint with the <a href="https://www.cnil.fr/en/home" rel="noopener noreferrer">CNIL</a> (French data protection authority).</p><!--/g2l:accounts-off-->
+<!--g2l:accounts-on--><ul>
+        <li><strong>Access and portability</strong>: in the game, Settings, “Export my data”: you get all your data as JSON.</li>
+        <li><strong>Erasure</strong>: in the game, Settings, “Delete my account”: the account, enrollments and online progress are erased.</li>
+        <li><strong>Rectification, restriction, objection</strong>: write to the contact above.</li>
+        <li><strong>Complaint</strong>: to the <a href="https://www.cnil.fr/en/home" rel="noopener noreferrer">CNIL</a> (French data protection authority).</li>
+      </ul><!--/g2l:accounts-on-->
       <h3>Changes</h3>
-      <p>If the site later adds accounts or other processing, this page will be updated before it goes live, and your consent will be requested where the law requires it.</p>
+      <!--g2l:accounts-off--><p>If the site later adds accounts or other processing, this page will be updated before it goes live, and your consent will be requested where the law requires it.</p><!--/g2l:accounts-off-->
+<!--g2l:accounts-on--><p>If the site later adds other processing, this page will be updated before it goes live, and your consent will be requested where the law requires it.</p><!--/g2l:accounts-on-->
 
       <h2 id="audience">Audience measurement</h2>
       <p>To learn how many people use the site and which pages interest them, an <strong>anonymous, cookie-free</strong> audience measurement is active. It uses the <a href="https://www.goatcounter.com" rel="noopener noreferrer">GoatCounter</a> service, with no third-party script: the site simply sends an image request to <code>g2l.goatcounter.com</code>.</p>
@@ -123,7 +155,8 @@
           <tr><td>Settings (graphics, brightness, sound)</td><td>Keep your preferences</td><td><code>shadow-ops-devops/settings</code></td></tr>
           <tr><td>Screen-orientation tip dismissed (session only)</td><td>Not repeat it</td><td><code>shadow-ops-devops/orientation-hint-dismissed</code></td></tr>
           <tr><td>Audience-measurement opt-out (set only if you opt out)</td><td>Respect your choice</td><td><code>site-no-analytics</code></td></tr>
-          <tr><td>Chosen language</td><td>Offer you the right version of the site</td><td><code>site-lang</code></td></tr>
+          <!--g2l:accounts-on--><tr><td>Sign-in session (cookie, 30 days, only while you are signed in)</td><td>Recognize you without asking for your password again: strictly necessary, unreachable by scripts</td><td><code>__Host-g2l_session</code></td></tr>
+          <!--/g2l:accounts-on--><tr><td>Chosen language</td><td>Offer you the right version of the site</td><td><code>site-lang</code></td></tr>
         </tbody>
       </table>
       <p>This data is only used to run the game: it does not require consent. You can erase it at any time with “Reset progress” in the game, or by clearing the site's data in your browser.</p>

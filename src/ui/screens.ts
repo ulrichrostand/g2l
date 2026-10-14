@@ -57,6 +57,8 @@ export interface TitleScreenOptions {
   brightnessLabel: string;
   /** Carte graphique détectée, fluidité et conseils éventuels (plusieurs lignes séparées par « \n »). */
   diagnostics: string;
+  /** Bloc « Compte » du menu Paramètres ; null quand les comptes ne sont pas activés. */
+  accountSection: HTMLElement | null;
   /** Passe à la luminosité suivante et renvoie le nouveau libellé du bouton. */
   onCycleBrightness(): string;
   soundLabel: string;
@@ -71,6 +73,8 @@ export interface PauseScreenOptions {
   brightnessLabel: string;
   /** Carte graphique détectée, fluidité et conseils éventuels (plusieurs lignes séparées par « \n »). */
   diagnostics: string;
+  /** Bloc « Compte » du menu Paramètres ; null quand les comptes ne sont pas activés. */
+  accountSection: HTMLElement | null;
   /** Passe à la luminosité suivante et renvoie le nouveau libellé du bouton. */
   onCycleBrightness(): string;
   soundLabel: string;
@@ -188,6 +192,7 @@ export class ScreenManager {
               brightnessButton(options.brightnessLabel, options.onCycleBrightness),
               toggleButton(options.soundLabel, options.onToggleSound, t("soundTitle")),
               resetButton,
+              ...(options.accountSection ? [options.accountSection] : []),
               diagnosticsNote(options.diagnostics),
             ],
             "corner",
@@ -490,6 +495,7 @@ export class ScreenManager {
             qualityButton(options.qualityLabel, options.onCycleQuality),
             brightnessButton(options.brightnessLabel, options.onCycleBrightness),
             toggleButton(options.soundLabel, options.onToggleSound, t("soundTitle")),
+            ...(options.accountSection ? [options.accountSection] : []),
             diagnosticsNote(options.diagnostics),
           ]),
         ]),

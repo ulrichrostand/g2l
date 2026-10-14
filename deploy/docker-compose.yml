@@ -1,9 +1,15 @@
 # Pile complète sur un VPS : base PostgreSQL, API, et Caddy (HTTPS automatique + site statique).
+# Journaux limités à 3 fichiers de 10 Mo par service (ils contiennent des adresses IP : on ne les garde pas indéfiniment).
 # Seul Caddy est exposé sur Internet (ports 80 et 443) : la base et l'API ne sont joignables que depuis ce réseau interne.
 services:
   db:
     image: postgres:16
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?À définir dans .env}
       POSTGRES_USER: ${POSTGRES_USER:?À définir dans .env}
@@ -19,6 +25,11 @@ services:
   api:
     build: ../server
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       db:
         condition: service_healthy
@@ -38,6 +49,11 @@ services:
   web:
     image: caddy:2
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       - api
     ports:

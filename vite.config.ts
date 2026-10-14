@@ -1,5 +1,5 @@
 import { defineConfig, type Plugin } from "vitest/config";
-import { injectSiteUrl, robotsTxt, sitemapXml } from "./src/seo/site";
+import { applyAccountsBlocks, injectLegalValues, injectSiteUrl, legalValuesFromEnv, robotsTxt, sitemapXml } from "./src/seo/site";
 import { LANGS } from "./src/i18n/lang";
 import { gameHtmlFile, legalHtmlFile } from "./src/i18n/routes";
 
@@ -20,12 +20,25 @@ function siteOrigin(): string {
 }
 
 /** Adresses absolues des balises de partage, sitemap et robots.txt, calculés au build avec le bon domaine et le bon préfixe. */
-function seoPlugin(): Plugin {
+function seoPlugin(command: "build" | "serve"): Plugin {
   const origin = siteOrigin();
   const base = siteBase();
+  const accounts = process.env.VITE_ACCOUNTS === "1";
+  // Avec les comptes, le build refuse de produire des mentions légales incomplètes ; en développement, des valeurs d'exemple suffisent.
+  const legal = accounts
+    ? command === "build"
+      ? legalValuesFromEnv(process.env)
+      : { contact: "contact@exemple.invalid", hostName: "(hébergeur à renseigner)", hostAddress: "(adresse à renseigner)" }
+    : null;
   return {
     name: "g2l-seo",
-    transformIndexHtml: { order: "pre", handler: (html) => injectSiteUrl(html, origin, base) },
+    transformIndexHtml: {
+      order: "pre",
+      handler: (html) => {
+        const withBlocks = applyAccountsBlocks(injectSiteUrl(html, origin, base), accounts);
+        return legal ? injectLegalValues(withBlocks, legal) : withBlocks;
+      },
+    },
     generateBundle() {
       this.emitFile({ type: "asset", fileName: "sitemap.xml", source: sitemapXml(origin, base) });
       this.emitFile({ type: "asset", fileName: "robots.txt", source: robotsTxt(origin, base) });
@@ -44,9 +57,11 @@ function htmlEntries(): Record<string, string> {
   return entries;
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   base: siteBase(),
-  plugins: [seoPlugin()],
+  plugins: [seoPlugin(command)],
+  // En développement, l'API (npm start dans server/) est servie sous le même nom d'hôte que le site, comme avec le reverse proxy.
+  server: { proxy: { "/api": "http://127.0.0.1:3000" } },
   build: {
     target: "es2022",
     chunkSizeWarningLimit: 900,
@@ -56,4 +71,4 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.ts"],
   },
-});
+}));

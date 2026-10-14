@@ -31,13 +31,16 @@ chmod 600 .env
 
 ## 3. Construire le site (dossier `dist/`)
 
-Le site doit être construit pour la racine du domaine (`APP_BASE=/`) avec l'adresse publique pour les aperçus de partage :
+Le site doit être construit pour la racine du domaine (`APP_BASE=/`), avec l'adresse publique (aperçus de partage) et les comptes activés (`VITE_ACCOUNTS=1`). Les trois variables `LEGAL_*` du fichier `deploy/.env` sont publiées dans les mentions légales ; **le build s'arrête avec un message clair si l'une d'elles manque** :
 
 ```sh
 cd ..                               # racine du dépôt
 npm ci
-SITE_ORIGIN=https://g2l.example APP_BASE=/ npm run build
+set -a; . deploy/.env; set +a       # charge LEGAL_CONTACT_EMAIL, LEGAL_HOST_NAME, LEGAL_HOST_ADDRESS
+VITE_ACCOUNTS=1 SITE_ORIGIN=https://$SITE_DOMAIN APP_BASE=/ npm run build
 ```
+
+Sans `VITE_ACCOUNTS=1`, le site reste sans comptes (comme sur GitHub Pages) et les mentions légales disent qu'aucune donnée personnelle n'est collectée.
 
 (Tu peux aussi construire sur ton ordinateur et envoyer `dist/` avec `rsync`.)
 
@@ -56,7 +59,7 @@ Ouvre `https://g2l.example` : Caddy obtient le certificat tout seul au premier a
 
 ```sh
 cd g2l && git pull
-npm ci && SITE_ORIGIN=https://g2l.example APP_BASE=/ npm run build     # si le site a changé
+npm ci && (set -a; . deploy/.env; set +a; VITE_ACCOUNTS=1 SITE_ORIGIN=https://$SITE_DOMAIN APP_BASE=/ npm run build)   # si le site a changé
 cd deploy && docker compose up -d --build                               # si l'API a changé
 ```
 
@@ -80,7 +83,8 @@ gunzip -c backups/g2l-2026-10-14.sql.gz | docker compose exec -T db sh -c 'psql 
 
 ## 7. Avant d'ouvrir les comptes au public
 
-- **Mentions légales et confidentialité** : les pages actuelles disent « aucune donnée personnelle ». Dès que les comptes sont ouverts, elles doivent décrire le traitement (e-mail, mot de passe haché, progression, durée de conservation, droits d'accès, d'export et de suppression via l'API) et indiquer **un contact** pour exercer ces droits. Voir `PRODUCT.md`.
+- **Mentions légales et confidentialité** : avec `VITE_ACCOUNTS=1`, les pages décrivent déjà le traitement (e-mail, mot de passe haché, progression, durée, droits d'export et de suppression exercés dans le jeu) et publient les coordonnées de `LEGAL_*`. **Fais relire ce texte** (je ne suis pas juriste) et vérifie qu'il correspond à ce que tu fais réellement.
+- **Contact** : `LEGAL_CONTACT_EMAIL` sera publié. Utilise une adresse dédiée au site plutôt que ton adresse personnelle.
 - **Statut de l'éditeur** : l'anonymat vis-à-vis du public n'est possible qu'à titre non professionnel (identité confiée à l'hébergeur). Avec des affiches payantes ou une micro-entreprise, il faudra ton identité complète.
 - **Mot de passe oublié** : non géré en v1 (voir `server/README.md`).
 

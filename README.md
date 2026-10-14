@@ -243,6 +243,16 @@ Pages statiques bilingues : `mentions-legales/index.html` (`/mentions-legales/`)
 
 **À revoir dès que le site devient professionnel** (micro-entreprise, annonceurs payants, mesure d'audience, comptes) : identité complète de l'éditeur, SIRET, contact direct, mentions sur la publicité, consentement aux traceurs. Cette page n'est pas un avis juridique.
 
+## Comptes et API (optionnels)
+
+Le dossier `server/` contient l'API (Node, Fastify, PostgreSQL) : comptes e-mail + mot de passe, inscription au cours quand on clique sur « Jouer », compteur public d'inscrits, **sauvegarde de la progression dans le cloud**, export et suppression du compte. Voir `server/README.md` (routes, sécurité, limites) et `deploy/README.md` (mise en ligne sur un VPS avec HTTPS automatique).
+
+Côté site, tout est **désactivé par défaut** (GitHub Pages n'a pas d'API) : un build avec `VITE_ACCOUNTS=1` active la fenêtre d'inscription (« Jouer » propose « Jouer sans compte »), le bouton de connexion de l'en-tête, le bloc « Compte » du menu Paramètres du jeu et le compteur d'inscrits. Le compte reste facultatif (`REQUIRE_ACCOUNT_TO_PLAY` dans `src/account/config.ts`).
+
+**Synchronisation sans conflit** : la progression est faite de « meilleurs résultats », donc `mergeProgress` fusionne l'appareil et le compte en gardant le meilleur de chaque côté (secteur par secteur, jamais de recul, résultat identique dans les deux sens). Aucune question n'est posée au joueur ; une panne réseau ne gêne pas le jeu (nouvel essai plus tard). Les mentions légales ont deux variantes (avec et sans comptes) choisies au build.
+
+En développement : lancer l'API (`server/`, port 3000) puis `VITE_ACCOUNTS=1 npm run dev` ; Vite relaie `/api` vers l'API.
+
 ## Mesure d'audience
 
 Anonyme et sans cookie, via [GoatCounter](https://www.goatcounter.com) (compte `g2l`, voir `ANALYTICS_SITE_CODE` dans `src/analytics/track.ts`). Aucun script tiers : le site envoie un pixel (requête d'image) vers `g2l.goatcounter.com`, ce qui est autorisé dans la CSP des pages (`img-src`, vérifié par un test).

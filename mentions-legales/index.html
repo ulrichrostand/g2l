@@ -54,12 +54,14 @@
         <dt>Directeur de la publication</dt>
         <dd>L'éditeur du site</dd>
         <dt>Contact</dt>
-        <dd><a href="https://github.com/ulrichrostand/rostand/issues" rel="noopener noreferrer">Signaler un problème ou poser une question (GitHub Issues)</a>. Cet espace est public : n'y publiez aucune donnée personnelle.</dd>
+        <!--g2l:accounts-off--><dd><a href="https://github.com/ulrichrostand/rostand/issues" rel="noopener noreferrer">Signaler un problème ou poser une question (GitHub Issues)</a>. Cet espace est public : n'y publiez aucune donnée personnelle.</dd><!--/g2l:accounts-off-->
+<!--g2l:accounts-on--><dd><a href="mailto:__LEGAL_CONTACT__">__LEGAL_CONTACT__</a> (questions, exercice de vos droits sur vos données). Les problèmes techniques peuvent aussi être signalés sur <a href="https://github.com/ulrichrostand/rostand/issues" rel="noopener noreferrer">GitHub Issues</a>, un espace public où il ne faut publier aucune donnée personnelle.</dd><!--/g2l:accounts-on-->
         <dt>Code source</dt>
         <dd><a href="https://github.com/ulrichrostand/rostand" rel="noopener noreferrer">github.com/ulrichrostand/rostand</a> (consultation libre ; voir « Propriété intellectuelle »)</dd>
       </dl>
 
       <h2 id="hebergeur">Hébergeur</h2>
+<!--g2l:accounts-off-->
       <dl>
         <dt>Société</dt>
         <dd>GitHub, Inc. (service GitHub Pages)</dd>
@@ -68,6 +70,15 @@
         <dt>Site</dt>
         <dd><a href="https://github.com" rel="noopener noreferrer">github.com</a></dd>
       </dl>
+      <!--/g2l:accounts-off-->
+      <!--g2l:accounts-on-->
+      <dl>
+        <dt>Société</dt>
+        <dd>__LEGAL_HOST_NAME__</dd>
+        <dt>Adresse</dt>
+        <dd>__LEGAL_HOST_ADDRESS__</dd>
+      </dl>
+      <!--/g2l:accounts-on-->
 
       <h2 id="propriete">Propriété intellectuelle et crédits</h2>
       <p>Sauf mention contraire, le code, les textes, les scénarios et les éléments graphiques du site sont protégés et tous droits sont réservés à leur auteur. Toute reproduction doit faire l'objet d'une autorisation préalable. Le code source est consultable publiquement sur GitHub, mais sa consultation ne donne pas le droit de le copier, de le réutiliser ou de le redistribuer.</p>
@@ -83,17 +94,38 @@
       <p>Des affiches publicitaires peuvent apparaître dans les salles du jeu. Pour l'instant, aucun annonceur : elles affichent « À venir ». Elles sont toujours signalées par la mention « PUBLICITÉ » et indiquent le nom de l'annonceur. Elles ne contiennent aucun script, ne chargent aucun contenu externe et ne collectent aucune donnée.</p>
 
       <h2 id="confidentialite">Politique de confidentialité</h2>
-      <p>En résumé : <strong>ce site ne collecte aucune donnée personnelle</strong>. Il n'y a ni compte, ni formulaire, ni cookie, ni publicité ciblée. Seule une mesure d'audience anonyme est active (voir plus bas), que vous pouvez refuser.</p>
-      <h3>Ce que fait l'éditeur</h3>
-      <p>L'éditeur ne reçoit, ne traite et ne conserve aucune donnée vous concernant. Votre progression, votre avatar et vos réglages restent sur votre appareil (voir ci-dessous) et ne sont jamais transmis.</p>
-      <h3>Ce que fait l'hébergeur</h3>
-      <p>Comme tout serveur web, l'hébergeur (GitHub) peut enregistrer des informations techniques lors de votre visite (adresse IP, date, page demandée) et les traiter hors de l'Union européenne. Ce traitement relève de GitHub : voir sa <a href="https://docs.github.com/fr/site-policy/privacy-policies/github-general-privacy-statement" rel="noopener noreferrer">déclaration de confidentialité</a>.</p>
+      <!--g2l:accounts-off--><p>En résumé : <strong>ce site ne collecte aucune donnée personnelle</strong>. Il n'y a ni compte, ni formulaire, ni cookie, ni publicité ciblée. Seule une mesure d'audience anonyme est active (voir plus bas), que vous pouvez refuser.</p><!--/g2l:accounts-off-->
+<!--g2l:accounts-on--><p>En résumé : <strong>le compte est facultatif</strong>. Si vous en créez un, le site conserve votre adresse e-mail, une empreinte de votre mot de passe (jamais le mot de passe lui-même), vos inscriptions aux cours et votre progression. Il n'y a ni publicité ciblée ni cookie de suivi. Une mesure d'audience anonyme est active (voir plus bas), que vous pouvez refuser.</p><!--/g2l:accounts-on-->
+      <!--g2l:accounts-off--><h3>Ce que fait l'éditeur</h3>
+      <p>L'éditeur ne reçoit, ne traite et ne conserve aucune donnée vous concernant. Votre progression, votre avatar et vos réglages restent sur votre appareil (voir ci-dessous) et ne sont jamais transmis.</p><!--/g2l:accounts-off-->
+<!--g2l:accounts-on--><h3>Votre compte (facultatif)</h3>
+      <ul>
+        <li><strong>Responsable du traitement</strong> : l'éditeur du site (contact ci-dessus).</li>
+        <li><strong>Données</strong> : adresse e-mail ; empreinte du mot de passe (Argon2, impossible à inverser) ; dates de création et de dernière connexion ; cours auxquels vous êtes inscrit ; progression du jeu (sauvegarde) ; jeton de session.</li>
+        <li><strong>Finalités</strong> : créer et gérer votre compte, sauvegarder votre progression et vous la restituer sur vos appareils, compter le nombre d'inscrits par cours (un total, jamais une liste de personnes).</li>
+        <li><strong>Base légale</strong> : le service que vous demandez (le compte est nécessaire pour l'offrir). Il reste facultatif : le jeu fonctionne sans compte, avec la sauvegarde de votre navigateur.</li>
+        <li><strong>Durée</strong> : tant que votre compte existe. La suppression est immédiate sur demande (voir « Vos droits ») ; les sauvegardes techniques de la base sont purgées sous 14 jours.</li>
+        <li><strong>Destinataires</strong> : aucun tiers. Les données sont stockées chez l'hébergeur indiqué plus haut, qui ne les utilise pas pour son propre compte.</li>
+        <li><strong>Sécurité</strong> : connexion chiffrée (HTTPS), mot de passe haché, session par cookie sécurisé.</li>
+      </ul>
+      <p>Aucune de ces données n'est vendue ni utilisée pour de la publicité.</p><!--/g2l:accounts-on-->
+      <!--g2l:accounts-off--><h3>Ce que fait l'hébergeur</h3>
+      <p>Comme tout serveur web, l'hébergeur (GitHub) peut enregistrer des informations techniques lors de votre visite (adresse IP, date, page demandée) et les traiter hors de l'Union européenne. Ce traitement relève de GitHub : voir sa <a href="https://docs.github.com/fr/site-policy/privacy-policies/github-general-privacy-statement" rel="noopener noreferrer">déclaration de confidentialité</a>.</p><!--/g2l:accounts-off-->
+<!--g2l:accounts-on--><h3>Journaux techniques</h3>
+      <p>Comme tout serveur web, le serveur du site conserve dans ses journaux des informations techniques (adresse IP, date, page demandée) pour assurer la sécurité et le bon fonctionnement du service. Les journaux sont limités en taille et renouvelés automatiquement.</p><!--/g2l:accounts-on-->
       <h3>Contenus externes</h3>
       <p>Les polices, images et modèles 3D sont servis par le site lui-même : aucun service tiers n'est contacté automatiquement. Les liens vers d'autres sites (par exemple roadmap.sh) ne sont suivis que si vous cliquez dessus ; ces sites ont leur propre politique.</p>
       <h3>Vos droits</h3>
-      <p>Aucune donnée personnelle n'étant détenue par l'éditeur, il n'y a rien à consulter, rectifier ou supprimer de son côté. Pour toute question, utilisez le contact ci-dessus. Vous pouvez aussi adresser une réclamation à la <a href="https://www.cnil.fr" rel="noopener noreferrer">CNIL</a>.</p>
+      <!--g2l:accounts-off--><p>Aucune donnée personnelle n'étant détenue par l'éditeur, il n'y a rien à consulter, rectifier ou supprimer de son côté. Pour toute question, utilisez le contact ci-dessus. Vous pouvez aussi adresser une réclamation à la <a href="https://www.cnil.fr" rel="noopener noreferrer">CNIL</a>.</p><!--/g2l:accounts-off-->
+<!--g2l:accounts-on--><ul>
+        <li><strong>Accès et portabilité</strong> : dans le jeu, Paramètres, « Exporter mes données » : vous obtenez toutes vos données au format JSON.</li>
+        <li><strong>Effacement</strong> : dans le jeu, Paramètres, « Supprimer mon compte » : le compte, les inscriptions et la progression en ligne sont effacés.</li>
+        <li><strong>Rectification, limitation, opposition</strong> : écrivez au contact indiqué plus haut.</li>
+        <li><strong>Réclamation</strong> : auprès de la <a href="https://www.cnil.fr" rel="noopener noreferrer">CNIL</a>.</li>
+      </ul><!--/g2l:accounts-on-->
       <h3>Évolutions</h3>
-      <p>Si le site ajoute plus tard des comptes ou d'autres traitements, cette page sera mise à jour avant leur mise en service, et votre accord sera demandé lorsque la loi l'exige.</p>
+      <!--g2l:accounts-off--><p>Si le site ajoute plus tard des comptes ou d'autres traitements, cette page sera mise à jour avant leur mise en service, et votre accord sera demandé lorsque la loi l'exige.</p><!--/g2l:accounts-off-->
+<!--g2l:accounts-on--><p>Si le site ajoute plus tard d'autres traitements, cette page sera mise à jour avant leur mise en service, et votre accord sera demandé lorsque la loi l'exige.</p><!--/g2l:accounts-on-->
 
       <h2 id="audience">Mesure d'audience</h2>
       <p>Pour savoir combien de personnes utilisent le site et quelles pages les intéressent, une mesure d'audience <strong>anonyme et sans cookie</strong> est active. Elle utilise le service <a href="https://www.goatcounter.com" rel="noopener noreferrer">GoatCounter</a>, sans script tiers : le site envoie simplement une requête d'image à <code>g2l.goatcounter.com</code>.</p>
@@ -123,7 +155,8 @@
           <tr><td>Réglages (graphismes, luminosité, son)</td><td>Conserver vos préférences</td><td><code>shadow-ops-devops/settings</code></td></tr>
           <tr><td>Conseil d'orientation de l'écran fermé (session seulement)</td><td>Ne pas vous le répéter</td><td><code>shadow-ops-devops/orientation-hint-dismissed</code></td></tr>
           <tr><td>Refus de la mesure d'audience (posé seulement si vous refusez)</td><td>Respecter votre choix</td><td><code>site-no-analytics</code></td></tr>
-          <tr><td>Langue choisie</td><td>Vous proposer la bonne version du site</td><td><code>site-lang</code></td></tr>
+          <!--g2l:accounts-on--><tr><td>Session de connexion (cookie, 30 jours, seulement si vous êtes connecté)</td><td>Vous reconnaître sans redemander votre mot de passe : strictement nécessaire, inaccessible aux scripts</td><td><code>__Host-g2l_session</code></td></tr>
+          <!--/g2l:accounts-on--><tr><td>Langue choisie</td><td>Vous proposer la bonne version du site</td><td><code>site-lang</code></td></tr>
         </tbody>
       </table>
       <p>Ces données ne servent qu'au fonctionnement du jeu : elles n'exigent pas de consentement. Vous pouvez les effacer à tout moment avec « Réinitialiser la progression » dans le jeu, ou en vidant les données du site dans votre navigateur.</p>

@@ -41,6 +41,10 @@ import { t } from "./i18n/messages/app";
 import { t as diagnosticsText } from "./i18n/messages/diagnostics";
 import { classifyRenderer, describeRenderer } from "./core/diagnostics";
 import { trackEvent, trackPageview } from "./analytics/track";
+import { createAccountSection } from "./account/accountSection";
+import { ACCOUNTS_ENABLED, GAME_COURSE_ID } from "./account/config";
+import { GameAccount } from "./account/gameAccount";
+import { accountApi, sessionStore } from "./account/session";
 
 const MAX_FRAME_DELTA_SECONDS = 0.05;
 /** Pour mesurer la fluidité, on garde la vraie durée de l'image (la simulation, elle, est plafonnée) : sinon une machine lente paraîtrait plus rapide qu'elle n'est. Plafonnée tout de même pour ignorer un blocage isolé. */
@@ -55,6 +59,8 @@ class ShadowOpsApp {
   private readonly settings = new SettingsStore(safeLocalStorage(), prefersTouchControls());
   private readonly frameRateMonitor = new FrameRateMonitor();
   private readonly quality = new QualityController(this.settings);
+  /** Compte et synchronisation de la progression ; absent quand les comptes ne sont pas activés dans ce build. */
+  private account: GameAccount | null = null;
   private readonly aimRaycaster = new THREE.Raycaster();
   private readonly groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private readonly aimPointScratch = new THREE.Vector3();
@@ -119,6 +125,8 @@ class ShadowOpsApp {
     document.addEventListener("fullscreenchange", () => this.touchControls.setFullscreen(isFullscreen(document)));
     this.resize();
     this.pipeline.renderer.setAnimationLoop(() => this.frame());
+    // Le compte est créé avant l'accueil : le menu Paramètres contient déjà son bloc « Compte » au premier affichage.
+    this.startAccount();
     this.showTitle();
     // Téléchargé pendant que le joueur lit l'écran titre : l'agent humain est prêt au lancement de la mission.
     loadHumanCharacterAsset((this.progress.avatar ?? DEFAULT_AVATAR).body).catch((error: unknown) =>
@@ -146,6 +154,18 @@ class ShadowOpsApp {
         },
       });
     }
+  }
+
+  /** Compte facultatif : jamais bloquant. Si le serveur ne répond pas, le jeu fonctionne avec la sauvegarde locale. */
+  private startAccount(): void {
+    if (!ACCOUNTS_ENABLED) return;
+    const account = new GameAccount(sessionStore, accountApi, this.progress, GAME_COURSE_ID);
+    // Des données du compte ont remplacé la progression locale : l'accueil affiché doit les refléter.
+    account.onProgressReplaced = () => {
+      if (this.screens.isTitleVisible) this.showTitle();
+    };
+    this.account = account;
+    account.init().catch((error: unknown) => console.warn("Compte indisponible, sauvegarde locale seule.", error));
   }
 
   private enableTouchMode(): void {
@@ -195,6 +215,7 @@ class ShadowOpsApp {
       brightnessLabel: this.brightnessLabel(),
       onCycleBrightness: () => this.cycleBrightness(),
       diagnostics: this.renderDiagnostics(),
+      accountSection: this.account ? createAccountSection(this.account) : null,
       soundLabel: this.soundLabel(),
       onToggleSound: () => this.toggleSound(),
       onReset: () => {
@@ -813,6 +834,7 @@ class ShadowOpsApp {
       brightnessLabel: this.brightnessLabel(),
       onCycleBrightness: () => this.cycleBrightness(),
       diagnostics: this.renderDiagnostics(),
+      accountSection: this.account ? createAccountSection(this.account) : null,
       soundLabel: this.soundLabel(),
       onToggleSound: () => this.toggleSound(),
       onResume: () => {

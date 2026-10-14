@@ -8,6 +8,7 @@ import { createLanguageSwitch } from "../i18n/switcher";
 import { trackEvent, trackPageview } from "../analytics/track";
 import { element, requireElement } from "../ui/dom";
 import { availableCount, COURSES, playHref, SCREENSHOTS, textOf, type Course, type Screenshot } from "./catalog";
+import { accountHeaderControl, accountsEnabled, enrollmentLine, loadEnrollmentCounts, playClickHandler, startPortalSession } from "./account";
 import { PortalGate } from "./portalGate";
 import "./portal.css";
 
@@ -54,7 +55,10 @@ function gameCard(course: Course): HTMLElement {
   const href = playHref(course, LANG, BASE);
   const action = href ? link(t("play"), href, "btn btn-primary") : element("span", { className: "game-soon", text: t("comingSoon") });
   // Entonnoir : combien de visiteurs cliquent sur « Jouer », jeu par jeu (aucune donnée personnelle).
-  if (href) action.addEventListener("click", () => trackEvent(`play-click/${course.id}`));
+  if (href) {
+    action.addEventListener("click", () => trackEvent(`play-click/${course.id}`));
+    if (accountsEnabled) action.addEventListener("click", playClickHandler(course, href));
+  }
   return element("article", { className: `game-card ${course.status}` }, [
     courseVisual(course),
     element("div", { className: "game-text" }, [
@@ -62,6 +66,7 @@ function gameCard(course: Course): HTMLElement {
       element("h3", { text: text.title }),
       element("p", { className: "game-scenario", text: text.scenario }),
       element("p", { className: "game-topics", attributes: { "aria-label": t("topicsLabel") }, text: text.topics.join(" · ") }),
+      enrollmentLine(course),
       element("div", { className: "game-actions" }, [
         action,
         course.roadmapUrl ? link(t("roadmapFollowed"), course.roadmapUrl, "text-link", true) : null,
@@ -168,6 +173,7 @@ function render(root: HTMLElement): void {
         element("a", { className: "brand", attributes: { href: portalPath(LANG, BASE) } }, [brandMark(), document.createTextNode(t("siteName"))]),
         element("nav", { className: "main-nav", attributes: { "aria-label": t("mainNavLabel") } }, [link(t("navGames"), "#jeux", "nav-link"), link(t("navPreview"), "#apercu", "nav-link"), link(t("navMethod"), "#methode", "nav-link")]),
         switcher,
+        accountHeaderControl(),
         link(t("navPlay"), "#jeux", "btn btn-outline btn-small"),
       ]),
     ]),
@@ -199,4 +205,6 @@ function redirectToPreferredLanguage(): boolean {
 if (!redirectToPreferredLanguage()) {
   render(requireElement("#portal"));
   trackPageview(BASE);
+  void startPortalSession();
+  void loadEnrollmentCounts();
 }
