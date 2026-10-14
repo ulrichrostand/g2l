@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Legal notice and privacy policy: publisher, host, personal data and on-device storage." />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://g2l.goatcounter.com; object-src 'none'; base-uri 'self'; form-action 'none'" />
     <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#05080c" />
     <title>Legal notice and privacy</title>
@@ -14,7 +14,7 @@
   <body>
     <main class="legal">
       <header class="legal-top">
-        <a class="brand" href="../">ECHO CELL</a>
+        <a class="brand" href="../">GAMING TO LEARN</a>
         <a href="../../mentions-legales/" hreflang="fr" lang="fr">Français</a>
       </header>
 
@@ -26,6 +26,7 @@
         <li><a href="#propriete">Intellectual property</a></li>
         <li><a href="#publicite">Advertising</a></li>
         <li><a href="#confidentialite">Personal data</a></li>
+        <li><a href="#audience">Audience measurement</a></li>
         <li><a href="#stockage">Storage on your device</a></li>
       </ul>
 
@@ -66,7 +67,7 @@
       <p>Advertising posters may appear in the game's rooms. For now there is no advertiser: they read “Coming soon”. They are always labeled “ADVERTISEMENT” and show the advertiser's name. They contain no script, load no external content and collect no data.</p>
 
       <h2 id="confidentialite">Privacy policy</h2>
-      <p>In short: <strong>this site does not collect any personal data</strong>. There is no account, no form, no cookie, no audience measurement tool and no targeted advertising.</p>
+      <p>In short: <strong>this site does not collect any personal data</strong>. There is no account, no form, no cookie and no targeted advertising. Only an anonymous audience measurement is active (see below), which you can refuse.</p>
       <h3>What the publisher does</h3>
       <p>The publisher does not receive, process or keep any data about you. Your progress, avatar and settings stay on your device (see below) and are never transmitted.</p>
       <h3>What the host does</h3>
@@ -76,7 +77,25 @@
       <h3>Your rights</h3>
       <p>Since the publisher holds no personal data, there is nothing to access, correct or delete on their side. For any question, use the contact above. You may also lodge a complaint with the <a href="https://www.cnil.fr/en/home" rel="noopener noreferrer">CNIL</a> (French data protection authority).</p>
       <h3>Changes</h3>
-      <p>If the site later adds accounts, audience measurement or other processing, this page will be updated before it goes live, and your consent will be requested where the law requires it.</p>
+      <p>If the site later adds accounts or other processing, this page will be updated before it goes live, and your consent will be requested where the law requires it.</p>
+
+      <h2 id="audience">Audience measurement</h2>
+      <p>To learn how many people use the site and which pages interest them, an <strong>anonymous, cookie-free</strong> audience measurement is active. It uses the <a href="https://www.goatcounter.com" rel="noopener noreferrer">GoatCounter</a> service, with no third-party script: the site simply sends an image request to <code>g2l.goatcounter.com</code>.</p>
+      <h3>What is measured</h3>
+      <ul>
+        <li>The page visited, its title, and the domain name of the site you came from (not the full address).</li>
+        <li>A few actions: a click on “Play”, the start of a campaign, a completed sector (sector identifier). No text you type is sent.</li>
+        <li>What the measurement server infers from the request itself: browser and device type, approximate country. According to its publisher, GoatCounter does not keep IP addresses and sets no cookie or persistent identifier (<a href="https://www.goatcounter.com/privacy" rel="noopener noreferrer">its policy</a>).</li>
+      </ul>
+      <h3>What is not</h3>
+      <p>Your progress, avatar, settings and the contents of your local storage are never sent. The data is not combined with other processing nor used for targeted advertising. Nothing is measured if your browser sends “Do Not Track”.</p>
+      <h3>Your choice</h3>
+      <p>You can refuse this measurement at any time; your choice is remembered on this device.</p>
+      <p>
+        <button type="button" id="optout" class="optout" data-label-disable="Opt out of audience measurement" data-label-enable="Turn audience measurement back on">Opt out of audience measurement</button>
+        <span id="optout-status" role="status" data-status-on="Audience measurement is on." data-status-fail="Choice not saved: your browser's storage is blocked." data-status-off="Audience measurement is off on this device."></span>
+      </p>
+      <noscript><p>Without JavaScript nothing is measured: there is nothing to opt out of.</p></noscript>
 
       <h2 id="stockage">Storage on your device</h2>
       <p>The site uses your browser's storage (<code>localStorage</code> and <code>sessionStorage</code>) only to provide the service you ask for. This information stays on your device, is not a tracking cookie and is never sent to the site.</p>
@@ -86,11 +105,13 @@
           <tr><td>Progress, records, game in progress, avatar</td><td>Resume your campaign</td><td><code>shadow-ops-devops/progress</code></td></tr>
           <tr><td>Settings (graphics, brightness, sound)</td><td>Keep your preferences</td><td><code>shadow-ops-devops/settings</code></td></tr>
           <tr><td>Screen-orientation tip dismissed (session only)</td><td>Not repeat it</td><td><code>shadow-ops-devops/orientation-hint-dismissed</code></td></tr>
+          <tr><td>Audience-measurement opt-out (set only if you opt out)</td><td>Respect your choice</td><td><code>site-no-analytics</code></td></tr>
           <tr><td>Chosen language</td><td>Offer you the right version of the site</td><td><code>site-lang</code></td></tr>
         </tbody>
       </table>
       <p>This data is only used to run the game: it does not require consent. You can erase it at any time with “Reset progress” in the game, or by clearing the site's data in your browser.</p>
       <p><a href="../">Back to the portal</a></p>
     </main>
+    <script type="module" src="/src/legal/optout.ts"></script>
   </body>
 </html>

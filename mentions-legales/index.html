@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Mentions légales et politique de confidentialité du site : éditeur, hébergeur, données personnelles et stockage local." />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://g2l.goatcounter.com; object-src 'none'; base-uri 'self'; form-action 'none'" />
     <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#05080c" />
     <title>Mentions légales et confidentialité</title>
@@ -14,7 +14,7 @@
   <body>
     <main class="legal">
       <header class="legal-top">
-        <a class="brand" href="../">CELLULE ÉCHO</a>
+        <a class="brand" href="../">GAMING TO LEARN</a>
         <a href="../en/legal/" hreflang="en" lang="en">English</a>
       </header>
 
@@ -26,6 +26,7 @@
         <li><a href="#propriete">Propriété intellectuelle</a></li>
         <li><a href="#publicite">Publicité</a></li>
         <li><a href="#confidentialite">Données personnelles</a></li>
+        <li><a href="#audience">Mesure d'audience</a></li>
         <li><a href="#stockage">Stockage sur votre appareil</a></li>
       </ul>
 
@@ -66,7 +67,7 @@
       <p>Des affiches publicitaires peuvent apparaître dans les salles du jeu. Pour l'instant, aucun annonceur : elles affichent « À venir ». Elles sont toujours signalées par la mention « PUBLICITÉ » et indiquent le nom de l'annonceur. Elles ne contiennent aucun script, ne chargent aucun contenu externe et ne collectent aucune donnée.</p>
 
       <h2 id="confidentialite">Politique de confidentialité</h2>
-      <p>En résumé : <strong>ce site ne collecte aucune donnée personnelle</strong>. Il n'y a ni compte, ni formulaire, ni cookie, ni outil de mesure d'audience, ni publicité ciblée.</p>
+      <p>En résumé : <strong>ce site ne collecte aucune donnée personnelle</strong>. Il n'y a ni compte, ni formulaire, ni cookie, ni publicité ciblée. Seule une mesure d'audience anonyme est active (voir plus bas), que vous pouvez refuser.</p>
       <h3>Ce que fait l'éditeur</h3>
       <p>L'éditeur ne reçoit, ne traite et ne conserve aucune donnée vous concernant. Votre progression, votre avatar et vos réglages restent sur votre appareil (voir ci-dessous) et ne sont jamais transmis.</p>
       <h3>Ce que fait l'hébergeur</h3>
@@ -76,7 +77,25 @@
       <h3>Vos droits</h3>
       <p>Aucune donnée personnelle n'étant détenue par l'éditeur, il n'y a rien à consulter, rectifier ou supprimer de son côté. Pour toute question, utilisez le contact ci-dessus. Vous pouvez aussi adresser une réclamation à la <a href="https://www.cnil.fr" rel="noopener noreferrer">CNIL</a>.</p>
       <h3>Évolutions</h3>
-      <p>Si le site ajoute plus tard des comptes, une mesure d'audience ou d'autres traitements, cette page sera mise à jour avant leur mise en service, et votre accord sera demandé lorsque la loi l'exige.</p>
+      <p>Si le site ajoute plus tard des comptes ou d'autres traitements, cette page sera mise à jour avant leur mise en service, et votre accord sera demandé lorsque la loi l'exige.</p>
+
+      <h2 id="audience">Mesure d'audience</h2>
+      <p>Pour savoir combien de personnes utilisent le site et quelles pages les intéressent, une mesure d'audience <strong>anonyme et sans cookie</strong> est active. Elle utilise le service <a href="https://www.goatcounter.com" rel="noopener noreferrer">GoatCounter</a>, sans script tiers : le site envoie simplement une requête d'image à <code>g2l.goatcounter.com</code>.</p>
+      <h3>Ce qui est mesuré</h3>
+      <ul>
+        <li>La page visitée, son titre, et le nom de domaine du site d'où vous venez (pas l'adresse complète).</li>
+        <li>Quelques actions : un clic sur « Jouer », le début d'une campagne, un secteur terminé (identifiant du secteur). Aucun texte que vous saisissez n'est envoyé.</li>
+        <li>Ce que le serveur de mesure déduit de la requête elle-même : type de navigateur et d'appareil, pays approximatif. Selon son éditeur, GoatCounter ne conserve pas les adresses IP et ne dépose aucun cookie ni identifiant persistant (<a href="https://www.goatcounter.com/privacy" rel="noopener noreferrer">sa politique</a>).</li>
+      </ul>
+      <h3>Ce qui ne l'est pas</h3>
+      <p>Votre progression, votre avatar, vos réglages et le contenu de votre stockage local ne sont jamais envoyés. Les données ne sont pas recoupées avec d'autres traitements ni utilisées pour de la publicité ciblée. Aucune mesure n'a lieu si votre navigateur envoie « Ne pas me suivre ».</p>
+      <h3>Votre choix</h3>
+      <p>Vous pouvez refuser cette mesure à tout moment ; votre choix est mémorisé sur cet appareil.</p>
+      <p>
+        <button type="button" id="optout" class="optout" data-label-disable="Refuser la mesure d'audience" data-label-enable="Réactiver la mesure d'audience">Refuser la mesure d'audience</button>
+        <span id="optout-status" role="status" data-status-on="La mesure d'audience est active." data-status-fail="Choix non enregistré : le stockage de votre navigateur est bloqué." data-status-off="La mesure d'audience est désactivée sur cet appareil."></span>
+      </p>
+      <noscript><p>Sans JavaScript, aucune mesure n'a lieu : rien à refuser.</p></noscript>
 
       <h2 id="stockage">Stockage sur votre appareil</h2>
       <p>Le site utilise le stockage de votre navigateur (<code>localStorage</code> et <code>sessionStorage</code>), uniquement pour fournir le service que vous demandez. Ces informations restent sur votre appareil, ne sont pas des cookies de suivi et ne sont jamais envoyées au site.</p>
@@ -86,11 +105,13 @@
           <tr><td>Progression, records, partie en cours, avatar</td><td>Reprendre votre campagne</td><td><code>shadow-ops-devops/progress</code></td></tr>
           <tr><td>Réglages (graphismes, luminosité, son)</td><td>Conserver vos préférences</td><td><code>shadow-ops-devops/settings</code></td></tr>
           <tr><td>Conseil d'orientation de l'écran fermé (session seulement)</td><td>Ne pas vous le répéter</td><td><code>shadow-ops-devops/orientation-hint-dismissed</code></td></tr>
+          <tr><td>Refus de la mesure d'audience (posé seulement si vous refusez)</td><td>Respecter votre choix</td><td><code>site-no-analytics</code></td></tr>
           <tr><td>Langue choisie</td><td>Vous proposer la bonne version du site</td><td><code>site-lang</code></td></tr>
         </tbody>
       </table>
       <p>Ces données ne servent qu'au fonctionnement du jeu : elles n'exigent pas de consentement. Vous pouvez les effacer à tout moment avec « Réinitialiser la progression » dans le jeu, ou en vidant les données du site dans votre navigateur.</p>
       <p><a href="../">Retour au portail</a></p>
     </main>
+    <script type="module" src="/src/legal/optout.ts"></script>
   </body>
 </html>

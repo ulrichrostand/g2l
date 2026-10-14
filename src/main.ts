@@ -38,6 +38,7 @@ import { enterLandscapeFullscreen, exitLandscapeFullscreen, fullscreenSupported,
 import { OrientationHint } from "./ui/orientationHint";
 import { prefersTouchControls, TouchControls } from "./ui/touchControls";
 import { t } from "./i18n/messages/app";
+import { trackEvent, trackPageview } from "./analytics/track";
 
 const MAX_FRAME_DELTA_SECONDS = 0.05;
 /** Part basse de l'écran couverte par l'interface de l'accueil en portrait (raccourcis, dossier, bouton de lancement). */
@@ -769,6 +770,7 @@ class ShadowOpsApp {
     // Le dernier terminal est la console principale : elle n'a pas de défi ni de leçon, on ne compte que les défis.
     const missed = this.wrongAttemptsPerTerminal.slice(0, module.challenges.length).flatMap((attempts, index) => (attempts > 0 ? [index] : []));
     this.progress.saveResult(module.id, { bestScore: score.score, stars: score.stars, ghost: score.ghost, missed });
+    trackEvent(`sector-complete/${module.id}`);
     this.hideMissionUi();
 
     const moduleIndex = CURRICULUM.indexOf(module);
@@ -975,6 +977,8 @@ class ShadowOpsApp {
       const creator = new CharacterCreator(this.creatorContainer, initial, {
         onChange: (config) => builtStudio.setAvatar(config),
         onSave: (config) => {
+          // Premier agent créé = vrai début de campagne (et non simple visite de l'accueil).
+          if (firstRun && this.progress.avatar === null) trackEvent("campaign-start");
           this.progress.saveAvatar(config);
           this.closeCharacterCreator();
           onDone();
@@ -1172,6 +1176,7 @@ function boot(): void {
   const canvas = requireElement<HTMLCanvasElement>("#game");
   try {
     new ShadowOpsApp(canvas);
+    trackPageview(import.meta.env.BASE_URL);
   } catch (error) {
     console.error("Initialisation impossible", error);
     const fallback = requireElement<HTMLElement>("#screen");

@@ -5,6 +5,7 @@ import { REPOSITORY_URL } from "../content/links";
 import { legalPath, portalPath } from "../i18n/routes";
 import { isSingular } from "../i18n/lang";
 import { createLanguageSwitch } from "../i18n/switcher";
+import { trackEvent, trackPageview } from "../analytics/track";
 import { element, requireElement } from "../ui/dom";
 import { availableCount, COURSES, playHref, SCREENSHOTS, textOf, type Course, type Screenshot } from "./catalog";
 import { PortalGate } from "./portalGate";
@@ -52,6 +53,8 @@ function gameCard(course: Course): HTMLElement {
   const text = textOf(course, LANG);
   const href = playHref(course, LANG, BASE);
   const action = href ? link(t("play"), href, "btn btn-primary") : element("span", { className: "game-soon", text: t("comingSoon") });
+  // Entonnoir : combien de visiteurs cliquent sur « Jouer », jeu par jeu (aucune donnée personnelle).
+  if (href) action.addEventListener("click", () => trackEvent(`play-click/${course.id}`));
   return element("article", { className: `game-card ${course.status}` }, [
     courseVisual(course),
     element("div", { className: "game-text" }, [
@@ -193,4 +196,7 @@ function redirectToPreferredLanguage(): boolean {
   return true;
 }
 
-if (!redirectToPreferredLanguage()) render(requireElement("#portal"));
+if (!redirectToPreferredLanguage()) {
+  render(requireElement("#portal"));
+  trackPageview(BASE);
+}

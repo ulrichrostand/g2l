@@ -1,5 +1,5 @@
 ---
-name: Portail Cellule Écho
+name: Portail Gaming to Learn
 description: Le hall d'entrée d'une salle d'arcade : fond presque noir, accent citron néon, titres anguleux, un portail lumineux et de vraies captures des jeux.
 colors:
   void: "#080b0a"
@@ -98,7 +98,7 @@ components:
     typography: "{typography.body}"
 ---
 
-# Design System: Portail Cellule Écho
+# Design System: Portail Gaming to Learn
 
 ## Overview
 

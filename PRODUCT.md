@@ -35,12 +35,12 @@ Pas des cours à lire ni des quiz isolés : l'apprentissage passe par de vraies 
 - Aucun emoji nulle part dans l'interface.
 - Crédit visible à roadmap.sh ; projet indépendant, non affilié.
 - Sécurité : aucune injection HTML, CSP stricte, entrées validées, aucun secret dans le code, liens sortants en `rel="noopener noreferrer"`.
-- Performance mobile : qualité graphique réglable, repli automatique si le jeu ralentit ; polices et ressources auto-hébergées, aucun script tiers.
-- Non décidé : nom définitif du site (provisoire : « Cellule Écho »), contenu exact et scénarios des parcours à venir, outil de statistiques, pages légales, schéma des comptes.
+- Performance mobile : qualité graphique réglable, repli automatique si le jeu ralentit ; polices et ressources auto-hébergées, aucun script tiers (la mesure d'audience envoie un simple pixel, sans script).
+- Non décidé : domaine propre, contenu exact et scénarios des parcours à venir, schéma des comptes. Décidé : nom « Gaming to Learn » (G2L), mesure d'audience GoatCounter sans cookie, pages légales provisoires.
 
 ## Brand Commitments
 
-- Nom provisoire du site : « Cellule Écho » (une seule constante à changer).
+- Nom du site : « Gaming to Learn » (G2L), une seule constante à changer (`siteName` dans `src/i18n/messages/portal.ts`). « Cellule Écho » reste le nom de la cellule fictive dans le jeu.
 - Ton direct, adulte, sans jargon non expliqué ; tutoiement.
 - Le portail présente une collection de jeux au même rang, dans un esprit « site de jeux vidéo » (référence fournie par l'auteur : fond sombre, accent néon, titres de jeu, portail lumineux en haut, cartes de jeux, galerie, bandeau d'appel, pied de page complet).
 - Aucun emoji, aucune illustration inventée : uniquement de vraies captures des jeux, ou une affiche typographique pour un jeu qui n'existe pas encore.

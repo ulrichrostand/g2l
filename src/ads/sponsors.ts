@@ -46,7 +46,7 @@ export const SPONSORS: readonly Sponsor[] = [];
 /** Affiche de repli tant qu'aucun annonceur n'a signé : indique simplement que l'emplacement arrive. */
 export const HOUSE_POSTER: Sponsor = {
   id: "house",
-  advertiser: "Cellule Écho",
+  advertiser: "Gaming to Learn",
   kind: "recruitment",
   headline: { fr: "À venir", en: "Coming soon" },
   detail: { fr: "Un partenaire apparaîtra bientôt sur cet emplacement", en: "A partner will soon appear on this spot" },

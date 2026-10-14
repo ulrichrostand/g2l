@@ -31,3 +31,6 @@ th { color: var(--muted); font-weight: 600; }
 code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.9em; background: rgba(255, 255, 255, 0.06); padding: 0.1em 0.35em; border-radius: 4px; }
 .note { border-left: 3px solid var(--accent); padding: 8px 14px; background: rgba(57, 255, 136, 0.06); margin: 1em 0; }
 @media (max-width: 560px) { dl { grid-template-columns: 1fr; } dt { margin-top: 8px; } }
+.optout { font: inherit; color: var(--text); background: transparent; border: 1px solid var(--accent); border-radius: 6px; padding: 8px 14px; min-height: 44px; cursor: pointer; margin-right: 12px; }
+.optout:hover { background: rgba(57, 255, 136, 0.1); }
+.optout:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }

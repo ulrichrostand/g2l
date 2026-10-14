@@ -243,6 +243,14 @@ Pages statiques bilingues : `mentions-legales/index.html` (`/mentions-legales/`)
 
 **À revoir dès que le site devient professionnel** (micro-entreprise, annonceurs payants, mesure d'audience, comptes) : identité complète de l'éditeur, SIRET, contact direct, mentions sur la publicité, consentement aux traceurs. Cette page n'est pas un avis juridique.
 
+## Mesure d'audience
+
+Anonyme et sans cookie, via [GoatCounter](https://www.goatcounter.com) (compte `g2l`, voir `ANALYTICS_SITE_CODE` dans `src/analytics/track.ts`). Aucun script tiers : le site envoie un pixel (requête d'image) vers `g2l.goatcounter.com`, ce qui est autorisé dans la CSP des pages (`img-src`, vérifié par un test).
+- Pages vues (portail, jeu, mentions légales) et trois évènements : `play-click/<jeu>`, `campaign-start`, `sector-complete/<secteur>`. Noms d'évènements restreints à `[a-z0-9/-]` : pas de texte libre.
+- Rien d'envoyé en local, sous « Ne pas me suivre », pour les navigateurs automatisés, ni après le refus du visiteur (bouton dans les mentions légales, clé `site-no-analytics`).
+- Du référent, seul le nom de domaine est transmis. Jamais la progression, l'avatar ni le stockage local.
+- Pour changer de compte ou d'outil : modifier la constante, la CSP des six pages et la section « Mesure d'audience » des mentions légales.
+
 ## Licence
 
 Tous droits réservés (voir `LICENSE`) : le code est consultable sur GitHub, mais ne peut être copié, réutilisé ni redistribué sans autorisation. Les contributions passent par pull request et sont validées par le propriétaire (voir `CONTRIBUTING.md`). Les composants tiers gardent leur licence (tableau ci-dessous).

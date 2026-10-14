@@ -2,7 +2,7 @@ import { createTranslator } from "../translator";
 
 export const t = createTranslator("portal", {
   fr: {
-    siteName: "Cellule Écho",
+    siteName: "Gaming to Learn",
     navGames: "Jeux",
     navPreview: "Aperçu",
     navMethod: "Méthode",
@@ -44,7 +44,7 @@ export const t = createTranslator("portal", {
     noScript: "Ce site nécessite JavaScript.",
   },
   en: {
-    siteName: "Echo Cell",
+    siteName: "Gaming to Learn",
     navGames: "Games",
     navPreview: "Preview",
     navMethod: "Method",
