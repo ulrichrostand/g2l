@@ -26,12 +26,14 @@ export interface Sponsor {
   accent: string;
   /** Début de diffusion inclus, au format AAAA-MM-JJ (UTC). Absent = déjà actif. */
   startsOn?: string;
+  /** Vrai pour l'affiche de repli « À venir » : elle ne nomme aucun partenaire (il n'y en a pas). */
+  placeholder?: boolean;
   /** Fin de diffusion incluse, au format AAAA-MM-JJ (UTC). Absent = sans fin. */
   endsOn?: string;
 }
 
 /**
- * Annonces vendues. Vide tant qu'aucun annonceur n'a signé : le jeu affiche alors l'affiche « votre annonce ici »
+ * Annonces vendues. Vide tant qu'aucun annonceur n'a signé : le jeu affiche alors l'affiche « À venir »
  * (voir `HOUSE_POSTER`). Exemple de ligne à ajouter :
  *
  *   { id: "acme-devops", advertiser: "ACME", kind: "recruitment",
@@ -41,15 +43,16 @@ export interface Sponsor {
  */
 export const SPONSORS: readonly Sponsor[] = [];
 
-/** Affiche de repli : invite les annonceurs, et évite des murs vides tant qu'il n'y a pas de client. */
+/** Affiche de repli tant qu'aucun annonceur n'a signé : indique simplement que l'emplacement arrive. */
 export const HOUSE_POSTER: Sponsor = {
   id: "house",
   advertiser: "Cellule Écho",
   kind: "recruitment",
-  headline: { fr: "Votre annonce ici", en: "Your ad here" },
-  detail: { fr: "Recrutez des profils DevOps formés en jouant", en: "Hire DevOps talent trained by playing" },
+  headline: { fr: "À venir", en: "Coming soon" },
+  detail: { fr: "Un partenaire apparaîtra bientôt sur cet emplacement", en: "A partner will soon appear on this spot" },
   url: "https://ulrichrostand.github.io/rostand/",
   accent: "#c6f135",
+  placeholder: true,
 };
 
 const ID_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;

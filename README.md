@@ -228,7 +228,7 @@ première visite sur l'accueil français, un navigateur anglophone est redirigé
 
 **Affiches** (`src/ads/`) : des affiches texte sont peintes **au sol** de quelques salles (4 par niveau au plus, une par salle), orientées vers le haut de l'écran : vue de dessus, le sol se lit bien mieux qu'un mur. Elles n'occupent jamais une case de jeu (départ, sortie, terminal, dossier, caméra, ronde de garde) et restent hors de l'ombre du mur sud.
 - Les annonceurs se déclarent dans **un seul fichier** : `src/ads/sponsors.ts` (`SPONSORS`), avec dates de début/fin, accroche FR/EN, adresse https et couleur. Un test (`sponsorProblems`) refuse une annonce invalide.
-- Sans annonceur actif, l'affiche « Votre annonce ici » s'affiche à la place.
+- Sans annonceur actif, l'affiche « À venir » (sans nom de partenaire) s'affiche à la place.
 - Chaque affiche porte la mention « PUBLICITÉ » / « ADVERTISEMENT ». Elle est dessinée en canvas : aucun script, aucune requête, aucun clic, aucun suivi, donc rien à ajouter dans la CSP.
 
 **Éclairage** (`src/level/lighting.ts`) : chaque salle a un niveau `off`, `dim`, `normal` ou `bright` (valeurs dans `LIGHT_LEVELS`). La salle de départ est toujours `normal`, le nombre de salles allumées est plafonné par la qualité graphique, et l'ambiance (`AMBIENT_LIGHT`) garantit que les salles sans néon restent lisibles.

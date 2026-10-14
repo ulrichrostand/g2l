@@ -34,6 +34,12 @@ describe("catalogue des annonceurs", () => {
     expect(sponsorProblems([{ ...sample, startsOn: "2026-12-01", endsOn: "2026-11-01" }])).toContain("acme-devops : la fin précède le début");
   });
 
+  it("l'affiche de repli annonce « À venir » dans les deux langues, sans nommer de partenaire", () => {
+    expect(HOUSE_POSTER.placeholder).toBe(true);
+    expect(HOUSE_POSTER.headline).toEqual({ fr: "À venir", en: "Coming soon" });
+    expect(sponsorsToShow(new Date("2026-10-14T00:00:00Z"), [])).toEqual([HOUSE_POSTER]);
+  });
+
   it("filtre par dates (bornes incluses) et retombe sur l'affiche de repli", () => {
     const dated: Sponsor = { ...sample, startsOn: "2026-11-01", endsOn: "2026-11-30" };
     expect(activeSponsors([dated], new Date("2026-10-31T23:59:59Z"))).toEqual([]);

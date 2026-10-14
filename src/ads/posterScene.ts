@@ -83,9 +83,11 @@ function drawPoster(sponsor: Sponsor, lang: Lang): HTMLCanvasElement {
   context.fillStyle = sponsor.accent;
   context.font = `600 40px ${FONT_FAMILY}`;
   context.fillText(sponsor.url.replace(/^https:\/\//, "").replace(/\/$/, ""), left, CANVAS_HEIGHT - 128);
-  context.fillStyle = "#7d8a83";
-  context.font = `500 32px ${FONT_FAMILY}`;
-  context.fillText(t("partnerLabel", { advertiser: sponsor.advertiser }), left, CANVAS_HEIGHT - 76);
+  if (!sponsor.placeholder) {
+    context.fillStyle = "#7d8a83";
+    context.font = `500 32px ${FONT_FAMILY}`;
+    context.fillText(t("partnerLabel", { advertiser: sponsor.advertiser }), left, CANVAS_HEIGHT - 76);
+  }
   return canvas;
 }
 
