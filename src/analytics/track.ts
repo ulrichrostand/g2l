@@ -46,6 +46,8 @@ export interface CountParameters {
   path: string;
   title?: string;
   referrer?: string;
+  /** Taille d'écran « largeur,hauteur,densité » : sert uniquement à savoir si le site est utilisé sur téléphone ou ordinateur. */
+  screen?: string;
   /** Vrai pour un évènement (clic, étape franchie) plutôt qu'une page vue. */
   event?: boolean;
 }
@@ -54,6 +56,7 @@ export function buildCountUrl(endpoint: string, parameters: CountParameters): st
   const query = new URLSearchParams({ p: parameters.path });
   if (parameters.title) query.set("t", parameters.title);
   if (parameters.referrer) query.set("r", parameters.referrer);
+  if (parameters.screen) query.set("s", parameters.screen);
   if (parameters.event) query.set("e", "true");
   // Évite qu'un cache serve la même réponse à deux visites différentes.
   query.set("rnd", Math.random().toString(36).slice(2, 10));
@@ -90,8 +93,15 @@ function send(parameters: CountParameters): void {
   pixel.src = buildCountUrl(ANALYTICS_ENDPOINT, parameters);
 }
 
+/** Format attendu par GoatCounter : largeur,hauteur,densité de pixels. Valeurs entières bornées, jamais d'autre information. */
+export function screenSize(width: number, height: number, pixelRatio: number): string {
+  const clamp = (value: number): number => (Number.isFinite(value) ? Math.min(Math.max(Math.round(value), 0), 20000) : 0);
+  return `${clamp(width)},${clamp(height)},${Math.min(Math.max(Math.round(pixelRatio * 100) / 100, 0), 10)}`;
+}
+
 export function trackPageview(base: string): void {
   send({
+    screen: screenSize(window.screen.width, window.screen.height, window.devicePixelRatio || 1),
     path: pagePath(window.location.pathname, base),
     title: document.title,
     referrer: referrerHost(document.referrer, window.location.hostname),

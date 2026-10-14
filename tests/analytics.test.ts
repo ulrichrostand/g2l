@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ANALYTICS_ENDPOINT, ANALYTICS_OPT_OUT_KEY, buildCountUrl, isValidEventName, pagePath, referrerHost, shouldTrack, type TrackEnvironment } from "../src/analytics/track";
+import { screenSize, ANALYTICS_ENDPOINT, ANALYTICS_OPT_OUT_KEY, buildCountUrl, isValidEventName, pagePath, referrerHost, shouldTrack, type TrackEnvironment } from "../src/analytics/track";
 
 const visitor: TrackEnvironment = { hostname: "ulrichrostand.github.io", doNotTrack: false, automated: false, optedOut: false };
 
@@ -42,6 +42,16 @@ describe("données envoyées", () => {
     const event = new URL(buildCountUrl(ANALYTICS_ENDPOINT, { path: "campaign-start", event: true }));
     expect(event.searchParams.get("e")).toBe("true");
     expect([...event.searchParams.keys()].sort()).toEqual(["e", "p", "rnd"]);
+  });
+
+  it("transmet la taille d'écran sous forme de trois nombres bornés, pour les pages vues seulement", () => {
+    expect(screenSize(1920, 1080, 1.25)).toBe("1920,1080,1.25");
+    expect(screenSize(390.4, 844.6, 3)).toBe("390,845,3");
+    expect(screenSize(Number.NaN, -5, 99)).toBe("0,0,10");
+    const page = new URL(buildCountUrl(ANALYTICS_ENDPOINT, { path: "/", screen: "390,844,3" }));
+    expect(page.searchParams.get("s")).toBe("390,844,3");
+    const event = new URL(buildCountUrl(ANALYTICS_ENDPOINT, { path: "campaign-start", event: true }));
+    expect(event.searchParams.get("s")).toBeNull();
   });
 
   it("n'accepte que des noms d'évènements sobres (pas de texte libre)", () => {

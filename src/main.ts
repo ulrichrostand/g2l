@@ -3,7 +3,7 @@ import "./style.css";
 import { unlockedWeapons } from "./combat/weapons";
 import { InputController } from "./core/input";
 import { SeededRandom } from "./core/rng";
-import { BRIGHTNESS_EXPOSURE, BRIGHTNESS_LABELS, FrameRateMonitor, lowerQuality, nextBrightness, nextQuality, QUALITY_PROFILES, SettingsStore, type GraphicsQuality } from "./core/settings";
+import { BRIGHTNESS_EXPOSURE, BRIGHTNESS_LABELS, FrameRateMonitor, nextBrightness, QualityController, QUALITY_PROFILES, SettingsStore, type GraphicsQuality } from "./core/settings";
 import { Ambience } from "./core/ambience";
 import { AudioEngine, SoundFx } from "./core/sound";
 import { CURRICULUM } from "./content/curriculum";
@@ -50,6 +50,7 @@ class ShadowOpsApp {
   private readonly pipeline: RenderPipeline;
   private readonly settings = new SettingsStore(safeLocalStorage(), prefersTouchControls());
   private readonly frameRateMonitor = new FrameRateMonitor();
+  private readonly quality = new QualityController(this.settings);
   private readonly aimRaycaster = new THREE.Raycaster();
   private readonly groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private readonly aimPointScratch = new THREE.Vector3();
@@ -96,10 +97,12 @@ class ShadowOpsApp {
   private touchMode = false;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
-    this.pipeline = new RenderPipeline(canvas, QUALITY_PROFILES[this.settings.quality]);
+    this.pipeline = new RenderPipeline(canvas, QUALITY_PROFILES[this.quality.current]);
     window.addEventListener("resize", () => this.resize());
     this.input.attachPointerAim(canvas);
     if (prefersTouchControls()) this.enableTouchMode();
+    // Onglet resté en arrière-plan : le navigateur gèle l'animation, et la reprise ne doit pas passer pour une machine trop lente.
+    document.addEventListener("visibilitychange", () => this.frameRateMonitor.reset());
     // Un écran tactile sur un ordinateur portable n'est détecté qu'au premier contact.
     window.addEventListener("touchstart", () => this.enableTouchMode(), { once: true, passive: true });
     // L'indicateur n'apparaît qu'en mission : dans les menus, la sauvegarde est affichée autrement.
@@ -116,7 +119,7 @@ class ShadowOpsApp {
       console.warn("Préchargement du personnage humain impossible (nouvel essai au lancement).", error),
     );
     // Qualité basse : les robots simples n'ont pas besoin du modèle, on économise ce téléchargement sur mobile.
-    if (QUALITY_PROFILES[this.settings.quality].detailedAndroids) {
+    if (QUALITY_PROFILES[this.quality.current].detailedAndroids) {
       loadSentinelAsset().catch((error: unknown) => console.warn("Préchargement des sentinelles impossible (nouvel essai au lancement).", error));
     }
     // Raccourcis de test : bloc éliminé du build de production (import.meta.env.DEV vaut false).
@@ -353,10 +356,10 @@ class ShadowOpsApp {
         {
           gadgetTargets,
           moduleIndex,
-          quality: QUALITY_PROFILES[this.settings.quality],
+          quality: QUALITY_PROFILES[this.quality.current],
           avatar: this.progress.avatar ?? DEFAULT_AVATAR,
           playerModel: loadHumanCharacterAsset((this.progress.avatar ?? DEFAULT_AVATAR).body),
-          sentinelModel: QUALITY_PROFILES[this.settings.quality].detailedAndroids ? loadSentinelAsset() : null,
+          sentinelModel: QUALITY_PROFILES[this.quality.current].detailedAndroids ? loadSentinelAsset() : null,
           boss: { name: bossFor(module.id).name, color: bossFor(module.id).color },
         },
       );
@@ -878,17 +881,16 @@ class ShadowOpsApp {
   }
 
   private qualityLabel(): string {
-    return t("graphicsLabel", { quality: QUALITY_PROFILES[this.settings.quality].label });
+    return t("graphicsLabel", { quality: QUALITY_PROFILES[this.quality.current].label });
   }
 
   /** Bouton de réglage : bloom, vignette et résolution changent tout de suite ; ombres et poussière au prochain secteur. */
   private cycleQuality(): string {
-    this.applyQuality(nextQuality(this.settings.quality));
+    this.applyQuality(this.quality.cycle());
     return this.qualityLabel();
   }
 
   private applyQuality(quality: GraphicsQuality): void {
-    this.settings.setQuality(quality);
     this.pipeline.applyProfile(QUALITY_PROFILES[quality]);
     // En pleine mission, passer en « Basse » allège aussi les personnages tout de suite (le retour en arrière attend le secteur suivant).
     if (!QUALITY_PROFILES[quality].detailedAndroids) this.mission?.useSimpleAndroids();
@@ -954,7 +956,7 @@ class ShadowOpsApp {
   /** Si l'appareil ne suit pas, on baisse la qualité d'un cran plutôt que de laisser le jeu saccader. */
   private watchFrameRate(deltaSeconds: number): void {
     if (!this.frameRateMonitor.sample(deltaSeconds)) return;
-    const lower = lowerQuality(this.settings.quality);
+    const lower = this.quality.reduceAutomatically();
     if (!lower) return;
     this.applyQuality(lower);
     this.hud.showNotice(t("qualityReduced", { quality: QUALITY_PROFILES[lower].label }));

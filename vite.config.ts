@@ -1,4 +1,5 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, type Plugin } from "vitest/config";
+import { injectSiteUrl, robotsTxt, sitemapXml } from "./src/seo/site";
 import { LANGS } from "./src/i18n/lang";
 import { gameHtmlFile, legalHtmlFile } from "./src/i18n/routes";
 
@@ -11,6 +12,25 @@ function siteBase(): string {
   const raw = process.env.APP_BASE ?? "/";
   if (!/^\/([A-Za-z0-9._-]+\/)*$/.test(raw)) throw new Error(`APP_BASE invalide : « ${raw} » (attendu : « / » ou « /nom/ »)`);
   return raw;
+}
+
+/** Origine publique du site (domaine). À changer avec SITE_ORIGIN le jour où le site a son propre nom de domaine. */
+function siteOrigin(): string {
+  return process.env.SITE_ORIGIN ?? "https://ulrichrostand.github.io";
+}
+
+/** Adresses absolues des balises de partage, sitemap et robots.txt, calculés au build avec le bon domaine et le bon préfixe. */
+function seoPlugin(): Plugin {
+  const origin = siteOrigin();
+  const base = siteBase();
+  return {
+    name: "g2l-seo",
+    transformIndexHtml: { order: "pre", handler: (html) => injectSiteUrl(html, origin, base) },
+    generateBundle() {
+      this.emitFile({ type: "asset", fileName: "sitemap.xml", source: sitemapXml(origin, base) });
+      this.emitFile({ type: "asset", fileName: "robots.txt", source: robotsTxt(origin, base) });
+    },
+  };
 }
 
 /** Une page par langue et par produit : le portail, chaque jeu et les mentions légales, en français et en anglais. */
@@ -26,6 +46,7 @@ function htmlEntries(): Record<string, string> {
 
 export default defineConfig({
   base: siteBase(),
+  plugins: [seoPlugin()],
   build: {
     target: "es2022",
     chunkSizeWarningLimit: 900,

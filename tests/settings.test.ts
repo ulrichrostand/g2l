@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BRIGHTNESS_EXPOSURE, defaultQuality, isBrightness, nextBrightness, FrameRateMonitor, lowerQuality, nextQuality, QUALITY_PROFILES, SettingsStore } from "../src/core/settings";
+import { QualityController, BRIGHTNESS_EXPOSURE, defaultQuality, isBrightness, nextBrightness, FrameRateMonitor, lowerQuality, nextQuality, QUALITY_PROFILES, SettingsStore } from "../src/core/settings";
 
 class MemoryStorage {
   values = new Map<string, string>();
@@ -93,5 +93,36 @@ describe("luminosité choisie par le joueur", () => {
     const corrupted = new SettingsStore(storage, false);
     expect([corrupted.quality, corrupted.brightness]).toEqual(["low", "normal"]);
     expect(isBrightness("blinding")).toBe(false);
+  });
+});
+
+describe("qualité appliquée (QualityController)", () => {
+  it("une baisse automatique n'est jamais mémorisée : la visite suivante repart du choix du joueur", () => {
+    const storage = new MemoryStorage();
+    const controller = new QualityController(new SettingsStore(storage, false));
+    expect(controller.current).toBe("high");
+    expect(controller.reduceAutomatically()).toBe("medium");
+    expect(controller.reduceAutomatically()).toBe("low");
+    expect(controller.reduceAutomatically()).toBeNull();
+    expect(controller.current).toBe("low");
+    expect(new QualityController(new SettingsStore(storage, false)).current).toBe("high");
+  });
+
+  it("un choix du joueur est mémorisé, y compris le retour en Haute après une baisse automatique", () => {
+    const storage = new MemoryStorage();
+    const controller = new QualityController(new SettingsStore(storage, false));
+    controller.reduceAutomatically();
+    controller.reduceAutomatically();
+    expect(controller.cycle()).toBe("high");
+    expect(new QualityController(new SettingsStore(storage, false)).current).toBe("high");
+    controller.choose("low");
+    expect(new QualityController(new SettingsStore(storage, false)).current).toBe("low");
+  });
+
+  it("la baisse automatique part du choix du joueur, pas de la valeur par défaut", () => {
+    const storage = new MemoryStorage();
+    new SettingsStore(storage, false).setQuality("medium");
+    const controller = new QualityController(new SettingsStore(storage, false));
+    expect(controller.reduceAutomatically()).toBe("low");
   });
 });

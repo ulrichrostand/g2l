@@ -249,7 +249,16 @@ Anonyme et sans cookie, via [GoatCounter](https://www.goatcounter.com) (compte `
 - Pages vues (portail, jeu, mentions légales) et trois évènements : `play-click/<jeu>`, `campaign-start`, `sector-complete/<secteur>`. Noms d'évènements restreints à `[a-z0-9/-]` : pas de texte libre.
 - Rien d'envoyé en local, sous « Ne pas me suivre », pour les navigateurs automatisés, ni après le refus du visiteur (bouton dans les mentions légales, clé `site-no-analytics`).
 - Du référent, seul le nom de domaine est transmis. Jamais la progression, l'avatar ni le stockage local.
+- La taille d'écran (largeur, hauteur, densité) accompagne les pages vues, pour connaître la part de téléphones.
 - Pour changer de compte ou d'outil : modifier la constante, la CSP des six pages et la section « Mesure d'audience » des mentions légales.
+
+## Partage et référencement
+
+Chaque page a ses balises Open Graph et Twitter (aperçu quand on partage le lien), son adresse canonique et ses `hreflang` FR/EN. L'image de partage est `public/share/og-image.png` (1200×630). Les adresses absolues sont calculées au build : domaine par défaut `https://ulrichrostand.github.io` (variable `SITE_ORIGIN` pour un autre), préfixe par `APP_BASE`. Le build produit aussi `sitemap.xml` et `robots.txt` (ce dernier n'est lu par les moteurs qu'à la racine d'un domaine propre). Au changement de nom de domaine : définir `SITE_ORIGIN`, reconstruire, et déclarer le sitemap dans la Search Console.
+
+## Qualité graphique
+
+Le jeu démarre en « Haute » sur ordinateur et « Moyenne » sur téléphone. Si l'image saccade en mission, la qualité baisse d'un cran, **pour la session seulement** (`QualityController`) : seul un choix du joueur dans le menu Paramètres est mémorisé.
 
 ## Licence
 

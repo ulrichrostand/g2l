@@ -185,3 +185,40 @@ export class SettingsStore {
     }
   }
 }
+
+/**
+ * Qualité réellement appliquée. Elle part du choix enregistré du joueur (ou de la valeur par défaut de l'appareil)
+ * et peut baisser toute seule si le jeu ralentit. Cette baisse automatique n'est JAMAIS enregistrée : un
+ * ralentissement passager (onglet resté en arrière-plan, chargement, mauvaise carte graphique sélectionnée) ne doit
+ * pas figer « Basse » pour toujours. Seul un choix explicite du joueur est mémorisé.
+ */
+export class QualityController {
+  private active: GraphicsQuality;
+
+  constructor(private readonly settings: SettingsStore) {
+    this.active = settings.quality;
+  }
+
+  get current(): GraphicsQuality {
+    return this.active;
+  }
+
+  /** Choix du joueur : appliqué et mémorisé. */
+  choose(quality: GraphicsQuality): void {
+    this.active = quality;
+    this.settings.setQuality(quality);
+  }
+
+  /** Bouton de réglage : passe à la qualité suivante (choix du joueur, donc mémorisé). */
+  cycle(): GraphicsQuality {
+    this.choose(nextQuality(this.active));
+    return this.active;
+  }
+
+  /** Baisse d'un cran, pour la session seulement. Renvoie la nouvelle qualité, ou null si déjà au plus bas. */
+  reduceAutomatically(): GraphicsQuality | null {
+    const lower = lowerQuality(this.active);
+    if (lower) this.active = lower;
+    return lower;
+  }
+}
