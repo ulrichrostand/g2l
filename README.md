@@ -243,6 +243,10 @@ Pages statiques bilingues : `mentions-legales/index.html` (`/mentions-legales/`)
 
 **À revoir dès que le site devient professionnel** (micro-entreprise, annonceurs payants, mesure d'audience, comptes) : identité complète de l'éditeur, SIRET, contact direct, mentions sur la publicité, consentement aux traceurs. Cette page n'est pas un avis juridique.
 
+## Licence
+
+Tous droits réservés (voir `LICENSE`) : le code est consultable sur GitHub, mais ne peut être copié, réutilisé ni redistribué sans autorisation. Les contributions passent par pull request et sont validées par le propriétaire (voir `CONTRIBUTING.md`). Les composants tiers gardent leur licence (tableau ci-dessous).
+
 ## Ressources 3D et licences
 
 | Ressource | Auteur | Licence | Fichier |

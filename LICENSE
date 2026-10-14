@@ -1,0 +1,50 @@
+Copyright (c) 2026 the owner of this repository (GitHub: @ulrichrostand).
+All rights reserved. / Tous droits réservés.
+
+ENGLISH
+
+This project (source code, texts, scenarios, game content, graphics and
+documentation) is proprietary. No license is granted, except:
+
+1. You may view the source code on GitHub, and use the features GitHub
+   provides on public repositories (for example forking to propose a change),
+   as allowed by the GitHub Terms of Service.
+2. You may play the game on its public website.
+
+Without prior written permission from the owner, you may NOT copy, reuse,
+modify, redistribute, host, sell, or build another product from this project,
+in whole or in part.
+
+Contributions: by submitting a pull request, you agree that the owner may use,
+modify and distribute your contribution as part of this project, including
+commercially, as stated in the pull request template.
+
+Third-party components keep their own licenses (3D characters by Quaternius,
+CC0; fonts Chakra Petch and Barlow, SIL OFL 1.1; npm dependencies). The license
+texts are in public/licenses/ and public/models/characters/licenses/.
+This project is independent and not affiliated with roadmap.sh.
+
+FRANÇAIS
+
+Ce projet (code source, textes, scénarios, contenu du jeu, éléments graphiques
+et documentation) est propriétaire. Aucune licence n'est accordée, sauf :
+
+1. Vous pouvez consulter le code source sur GitHub et utiliser les fonctions
+   que GitHub offre sur les dépôts publics (par exemple un fork pour proposer
+   une modification), selon les conditions d'utilisation de GitHub.
+2. Vous pouvez jouer au jeu sur son site public.
+
+Sans autorisation écrite préalable du propriétaire, vous ne pouvez PAS copier,
+réutiliser, modifier, redistribuer, héberger, vendre ni construire un autre
+produit à partir de ce projet, en tout ou en partie.
+
+Contributions : en soumettant une pull request, vous acceptez que le
+propriétaire utilise, modifie et distribue votre contribution dans le cadre de
+ce projet, y compris à titre commercial, comme l'indique le modèle de pull
+request.
+
+Les composants tiers conservent leurs propres licences (personnages 3D de
+Quaternius, CC0 ; polices Chakra Petch et Barlow, SIL OFL 1.1 ; dépendances
+npm). Les textes de licence sont dans public/licenses/ et
+public/models/characters/licenses/. Ce projet est indépendant et n'est pas
+affilié à roadmap.sh.
