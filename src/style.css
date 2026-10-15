@@ -864,6 +864,9 @@ body.touch .keyboard-only, body:not(.touch) .touch-only { display: none; }
 .hud.touch-mode .tutorial-title { font-size: 1rem; margin: 0.1em 0 0.05em; }
 .hud.touch-mode .tutorial-hint { font-size: 0.8rem; line-height: 1.35; margin-bottom: 0.4em; }
 .hud.touch-mode .tutorial-footer .btn { padding: 0.3em 0.7em; font-size: 0.78rem; }
+/* En paysage, la carte du tutoriel est posée sur la zone du joystick (z-index 12) : sans ce calque, un tap sur « Passer »
+   tombait sur le joystick. Le HUD ne capte que ses propres boutons (pointer-events: none ailleurs), donc les commandes tactiles restent utilisables. */
+.hud.touch-mode { z-index: 13; }
 @media (orientation: landscape) and (max-height: 500px) {
   /* Entre le bord gauche et les munitions : ni le joystick ni les boutons d'action ne sont recouverts. */
   .hud.touch-mode .tutorial-card { bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: calc(12px + env(safe-area-inset-left, 0px)); transform: none; width: min(260px, 34vw); }
