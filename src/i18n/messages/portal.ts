@@ -41,6 +41,7 @@ export const t = createTranslator("portal", {
     footerCreditFonts: "Polices : Chakra Petch et Barlow (SIL OFL)",
     footerLegal: "Mentions légales et confidentialité",
     footerSource: "Code source (GitHub)",
+    footerContribute: "Contribuer au projet",
     noScript: "Ce site nécessite JavaScript.",
   },
   en: {
@@ -83,6 +84,7 @@ export const t = createTranslator("portal", {
     footerCreditFonts: "Fonts: Chakra Petch and Barlow (SIL OFL)",
     footerLegal: "Legal notice and privacy",
     footerSource: "Source code (GitHub)",
+    footerContribute: "Contribute to the project",
     noScript: "This site requires JavaScript.",
   },
 });

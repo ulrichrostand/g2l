@@ -1,5 +1,6 @@
 import { skillLevelLabel, type SkillReport } from "../game/skills";
 import { ROADMAP_URL } from "../content/curriculum";
+import { contributingUrl } from "../content/links";
 import { recapOf, type DevOpsModule } from "../content/types";
 import type { MissionScore } from "../game/scoring";
 import { formatGrade, GENERAL_EXAM_MIN_MODULES } from "../game/exam";
@@ -631,6 +632,8 @@ export class ScreenManager {
       element("a", { text: "roadmap.sh/devops", attributes: { href: ROADMAP_URL, target: "_blank", rel: "noopener noreferrer" } }),
       document.createTextNode(" · "),
       element("a", { text: t("legalLink"), attributes: { href: legalPath(LANG, import.meta.env.BASE_URL) } }),
+      document.createTextNode(" · "),
+      element("a", { text: t("contributeLink"), attributes: { href: contributingUrl(LANG), target: "_blank", rel: "noopener noreferrer" } }),
     ]);
   }
 }

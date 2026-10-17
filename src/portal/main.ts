@@ -1,7 +1,7 @@
 import { LANG } from "../i18n/lang";
 import { t } from "../i18n/messages/portal";
 import { autoRedirectTarget, readStoredLang } from "../i18n/preference";
-import { REPOSITORY_URL } from "../content/links";
+import { REPOSITORY_URL, contributingUrl } from "../content/links";
 import { legalPath, portalPath } from "../i18n/routes";
 import { isSingular } from "../i18n/lang";
 import { createLanguageSwitch } from "../i18n/switcher";
@@ -159,6 +159,7 @@ function footer(): HTMLElement {
           element("li", {}, [link("roadmap.sh", "https://roadmap.sh/", "footer-link", true)]),
           element("li", {}, [link(t("footerLegal"), legalPath(LANG, BASE), "footer-link")]),
           element("li", {}, [link(t("footerSource"), REPOSITORY_URL, "footer-link", true)]),
+          element("li", {}, [link(t("footerContribute"), contributingUrl(LANG), "footer-link", true)]),
         ]),
       ]),
     ]),

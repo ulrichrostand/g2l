@@ -2,6 +2,8 @@
 
 Merci de vouloir aider. Les idées, les corrections de contenu et le code sont les bienvenus. **Rien n'est publié sur le site sans validation du mainteneur.**
 
+*English version: [CONTRIBUTING.en.md](CONTRIBUTING.en.md).*
+
 ## Comment ça se passe
 
 1. **Une idée, une faute, une question pédagogique mal formulée ?** Ouvre une *issue* (onglet « Issues » > « New issue ») avec le bon modèle. Aucun code nécessaire.
@@ -38,7 +40,7 @@ Pour une grosse fonctionnalité (nouveau parcours, nouveau mécanisme de jeu), *
 
 Le site existe en français et en anglais. Une correction de traduction est une contribution précieuse : le contenu est dans
 `src/content/en/` (anglais) et `src/content/fr/` (français), l'interface dans `src/i18n/messages/`. Lis `src/i18n/GLOSSARY.md`
-avant de proposer un changement de vocabulaire. Les deux langues doivent garder la même structure : les tests le vérifient.
+avant de proposer un changement de vocabulaire. Les deux langues doivent garder la même structure : les tests le vérifient. Une relecture de l'anglais par un anglophone natif est particulièrement bienvenue.
 
 ## Règles de code
 

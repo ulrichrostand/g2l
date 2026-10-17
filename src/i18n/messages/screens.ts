@@ -176,6 +176,7 @@ export const t = createTranslator("screens", {
     terminalReview: "Revue des terminaux",
     roadmapCredit: "Parcours basé sur la roadmap ",
     legalLink: "Mentions légales",
+    contributeLink: "Contribuer",
     // Étoiles
     starsOne: "{count} étoile sur 3",
     starsOther: "{count} étoiles sur 3",
@@ -339,6 +340,7 @@ export const t = createTranslator("screens", {
     terminalReview: "Terminal review",
     roadmapCredit: "Path based on the roadmap ",
     legalLink: "Legal notice",
+    contributeLink: "Contribute",
     starsOne: "{count} star out of 3",
     starsOther: "{count} stars out of 3",
   },
