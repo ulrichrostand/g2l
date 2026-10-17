@@ -1,7 +1,7 @@
 import { LANG } from "../i18n/lang";
 import { t } from "../i18n/messages/portal";
 import { autoRedirectTarget, readStoredLang } from "../i18n/preference";
-import { REPOSITORY_URL, contributingUrl } from "../content/links";
+import { NEW_ISSUE_URL, REPOSITORY_URL, contributingUrl } from "../content/links";
 import { legalPath, portalPath } from "../i18n/routes";
 import { isSingular } from "../i18n/lang";
 import { createLanguageSwitch } from "../i18n/switcher";
@@ -123,6 +123,24 @@ function practice(): HTMLElement {
   ]);
 }
 
+/** Appel à contribuer : trois façons d'aider, de la plus simple (une issue, sans code) à la plus engagée (une pull request). */
+function contribute(): HTMLElement {
+  const ways = [
+    [t("contributeReportTitle"), t("contributeReportText")],
+    [t("contributeFixTitle"), t("contributeFixText")],
+    [t("contributeCodeTitle"), t("contributeCodeText")],
+  ];
+  return element("section", { className: "contribute", attributes: { id: "contribuer", "aria-labelledby": "contribuer-title" } }, [
+    element("h2", { className: "centered", text: t("contributeTitle"), attributes: { id: "contribuer-title" } }),
+    element("p", { className: "contribute-lead", text: t("contributeLead") }),
+    element("ul", { className: "contribute-ways" }, ways.map(([title, text]) => element("li", { className: "contribute-card" }, [element("h3", { text: title }), element("p", { text })]))),
+    element("div", { className: "hero-actions contribute-actions" }, [
+      link(t("contributeCta"), contributingUrl(LANG), "btn btn-primary", true),
+      link(t("contributeIdea"), NEW_ISSUE_URL, "btn btn-outline", true),
+    ]),
+  ]);
+}
+
 function upcoming(): HTMLElement {
   const next = COURSES.filter((course) => course.status === "soon").map((course) => textOf(course, LANG).field);
   const first = COURSES.find((course) => course.status === "available");
@@ -172,7 +190,7 @@ function render(root: HTMLElement): void {
     element("header", { className: "site-header" }, [
       element("div", { className: "header-inner" }, [
         element("a", { className: "brand", attributes: { href: portalPath(LANG, BASE) } }, [brandMark(), document.createTextNode(t("siteName"))]),
-        element("nav", { className: "main-nav", attributes: { "aria-label": t("mainNavLabel") } }, [link(t("navGames"), "#jeux", "nav-link"), link(t("navPreview"), "#apercu", "nav-link"), link(t("navMethod"), "#methode", "nav-link")]),
+        element("nav", { className: "main-nav", attributes: { "aria-label": t("mainNavLabel") } }, [link(t("navGames"), "#jeux", "nav-link"), link(t("navPreview"), "#apercu", "nav-link"), link(t("navMethod"), "#methode", "nav-link"), link(t("navContribute"), "#contribuer", "nav-link")]),
         switcher,
         accountHeaderControl(),
         link(t("navPlay"), "#jeux", "btn btn-outline btn-small"),
@@ -189,6 +207,7 @@ function render(root: HTMLElement): void {
         element("div", { className: "gallery" }, SCREENSHOTS.map(galleryItem)),
       ]),
       practice(),
+      contribute(),
       upcoming(),
     ]),
     footer(),

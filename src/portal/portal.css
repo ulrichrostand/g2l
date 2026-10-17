@@ -134,6 +134,16 @@ h2.centered { text-align: center; }
 .practice-list dt { font-family: var(--display); font-weight: 700; text-transform: uppercase; font-size: var(--text-body); color: var(--lime); }
 .practice-list dd { margin: var(--space-2) 0 0; color: var(--text-soft); max-width: 46ch; }
 
+/* Appel à contribuer */
+.contribute { padding-top: clamp(var(--space-12), 8vw, var(--space-24)); text-align: center; }
+.contribute h2 { margin-bottom: var(--space-4); }
+.contribute-lead { margin: 0 auto var(--space-8); max-width: 56ch; color: var(--text-soft); font-size: var(--text-lead); }
+.contribute-ways { list-style: none; margin: 0 0 var(--space-8); padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-6); text-align: left; }
+.contribute-card { padding: var(--space-6); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.contribute-card h3 { margin: 0 0 var(--space-2); font-size: var(--text-body); color: var(--lime); text-transform: uppercase; }
+.contribute-card p { margin: 0; color: var(--text-soft); }
+.contribute-actions { justify-content: center; }
+
 /* Bandeau citron */
 .band { padding-top: clamp(var(--space-12), 8vw, var(--space-24)); }
 .band-inner { background: var(--lime); color: var(--lime-ink); border-radius: var(--radius-md); padding: clamp(var(--space-8), 5vw, var(--space-16)); text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-4); }
@@ -156,6 +166,7 @@ h2.centered { text-align: center; }
   .portal-canvas { width: min(78vw, 380px); }
   .practice-visual { min-height: 0; aspect-ratio: 4 / 3; }
   .footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .contribute-ways { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
   .main-nav { display: none; }
