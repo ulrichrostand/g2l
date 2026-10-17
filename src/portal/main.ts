@@ -224,7 +224,8 @@ function render(root: HTMLElement): void {
 function redirectToPreferredLanguage(): boolean {
   const target = autoRedirectTarget(LANG, readStoredLang(), navigator.languages ?? []);
   if (target === null) return false;
-  window.location.replace(portalPath(target, BASE));
+  // On garde l'étiquette de source (`?ref=`) et l'ancre (`#contribuer`) du lien partagé : sinon elles disparaissent à la redirection.
+  window.location.replace(portalPath(target, BASE) + window.location.search + window.location.hash);
   return true;
 }
 

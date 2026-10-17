@@ -256,9 +256,10 @@ En développement : lancer l'API (`server/`, port 3000) puis `VITE_ACCOUNTS=1 np
 ## Mesure d'audience
 
 Anonyme et sans cookie, via [GoatCounter](https://www.goatcounter.com) (compte `g2l`, voir `ANALYTICS_SITE_CODE` dans `src/analytics/track.ts`). Aucun script tiers : le site envoie un pixel (requête d'image) vers `g2l.goatcounter.com`, ce qui est autorisé dans la CSP des pages (`img-src`, vérifié par un test).
-- Pages vues (portail, jeu, mentions légales) et trois évènements : `play-click/<jeu>`, `campaign-start`, `sector-complete/<secteur>`. Noms d'évènements restreints à `[a-z0-9/-]` : pas de texte libre.
+- Pages vues (portail, jeu, mentions légales) et des évènements de parcours : `play-click/<jeu>`, `campaign-start`, `tutorial-complete`, `tutorial-skip`, `terminal-hack/<secteur>`, `player-down/<secteur>`, `mission-failed/<secteur>`, `mission-quit/<secteur>`, `sector-complete/<secteur>`, `contribute-click/{guide,issue,footer,game}`. Noms d'évènements restreints à `[a-z0-9/-]` : pas de texte libre.
 - Rien d'envoyé en local, sous « Ne pas me suivre », pour les navigateurs automatisés, ni après le refus du visiteur (bouton dans les mentions légales, clé `site-no-analytics`).
 - Du référent, seul le nom de domaine est transmis. Jamais la progression, l'avatar ni le stockage local.
+- Beaucoup d'applications (LinkedIn, X, messageries) ne transmettent aucun référent : pour savoir d'où viennent les visites, ajoute une étiquette au lien partagé, par exemple `https://ulrichrostand.github.io/g2l/?ref=linkedin`. Paramètres lus : `ref`, `utm_source`, `source` (lettres, chiffres, `_` et `-`, 40 caractères au plus). L'étiquette remplace le référent dans GoatCounter et est conservée par la redirection vers l'anglais.
 - La taille d'écran (largeur, hauteur, densité) accompagne les pages vues, pour connaître la part de téléphones.
 - Pour changer de compte ou d'outil : modifier la constante, la CSP des six pages et la section « Mesure d'audience » des mentions légales.
 

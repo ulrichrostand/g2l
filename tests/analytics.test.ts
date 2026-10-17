@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { screenSize, ANALYTICS_ENDPOINT, ANALYTICS_OPT_OUT_KEY, buildCountUrl, isValidEventName, pagePath, referrerHost, shouldTrack, type TrackEnvironment } from "../src/analytics/track";
+import { screenSize, ANALYTICS_ENDPOINT, ANALYTICS_OPT_OUT_KEY, buildCountUrl, isValidEventName, pagePath, referrerHost, shouldTrack, sourceTag, type TrackEnvironment } from "../src/analytics/track";
 import { CURRICULUM } from "../src/content/curriculum";
 
 const visitor: TrackEnvironment = { hostname: "ulrichrostand.github.io", doNotTrack: false, automated: false, optedOut: false };
@@ -77,5 +77,31 @@ describe("évènements de suivi du parcours", () => {
       ["sector-complete", "terminal-hack", "player-down", "mission-failed", "mission-quit"].map((prefix) => `${prefix}/${module.id}`),
     );
     for (const name of [...fixed, ...perSector]) expect(isValidEventName(name), name).toBe(true);
+  });
+});
+
+describe("étiquette de source des liens partagés", () => {
+  it("lit ref, utm_source ou source, dans cet ordre, en minuscules", () => {
+    expect(sourceTag("?ref=linkedin")).toBe("linkedin");
+    expect(sourceTag("?ref=LinkedIn-FR")).toBe("linkedin-fr");
+    expect(sourceTag("?utm_source=x")).toBe("x");
+    expect(sourceTag("?source=newsletter")).toBe("newsletter");
+    expect(sourceTag("?utm_source=x&ref=linkedin")).toBe("linkedin");
+    expect(sourceTag("?autre=1&ref=post_1")).toBe("post_1");
+  });
+
+  it("ignore l'absence d'étiquette et tout ce qui n'est pas sobre (adresse, espaces, texte libre, trop long)", () => {
+    expect(sourceTag("")).toBe("");
+    expect(sourceTag("?foo=bar")).toBe("");
+    expect(sourceTag("?ref=")).toBe("");
+    expect(sourceTag("?ref=https://exemple.com/page")).toBe("");
+    expect(sourceTag("?ref=jean dupont")).toBe("");
+    expect(sourceTag("?ref=a.b")).toBe("");
+    expect(sourceTag(`?ref=${"a".repeat(41)}`)).toBe("");
+    expect(sourceTag("?ref=-tiret")).toBe("");
+  });
+
+  it("passe à l'étiquette suivante quand la première est invalide", () => {
+    expect(sourceTag("?ref=https://x.y&utm_source=linkedin")).toBe("linkedin");
   });
 });

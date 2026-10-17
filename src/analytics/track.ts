@@ -42,6 +42,24 @@ export function referrerHost(referrer: string, ownHost: string): string {
   }
 }
 
+/** Étiquette de source ajoutée à un lien partagé (`?ref=linkedin`) : sobre, jamais une adresse ni du texte libre. */
+const SOURCE_TAG = /^[a-z0-9][a-z0-9_-]{0,39}$/;
+/** Mêmes noms que ceux que GoatCounter reconnaît pour la source d'une visite. */
+const SOURCE_PARAMETERS = ["ref", "utm_source", "source"] as const;
+
+/**
+ * Origine déclarée dans l'adresse de la page, ou « » si elle est absente ou invalide. Beaucoup d'applications (LinkedIn, X,
+ * messageries) ne transmettent aucun site d'origine : l'étiquette permet de savoir d'où viennent les visites sans rien traquer.
+ */
+export function sourceTag(search: string): string {
+  const parameters = new URLSearchParams(search);
+  for (const name of SOURCE_PARAMETERS) {
+    const value = (parameters.get(name) ?? "").trim().toLowerCase();
+    if (SOURCE_TAG.test(value)) return value;
+  }
+  return "";
+}
+
 export interface CountParameters {
   path: string;
   title?: string;
@@ -104,7 +122,8 @@ export function trackPageview(base: string): void {
     screen: screenSize(window.screen.width, window.screen.height, window.devicePixelRatio || 1),
     path: pagePath(window.location.pathname, base),
     title: document.title,
-    referrer: referrerHost(document.referrer, window.location.hostname),
+    // L'étiquette du lien, plus précise, passe avant le site d'origine déduit du navigateur.
+    referrer: sourceTag(window.location.search) || referrerHost(document.referrer, window.location.hostname),
   });
 }
 
