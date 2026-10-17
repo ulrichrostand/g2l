@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { screenSize, ANALYTICS_ENDPOINT, ANALYTICS_OPT_OUT_KEY, buildCountUrl, isValidEventName, pagePath, referrerHost, shouldTrack, type TrackEnvironment } from "../src/analytics/track";
+import { CURRICULUM } from "../src/content/curriculum";
 
 const visitor: TrackEnvironment = { hostname: "ulrichrostand.github.io", doNotTrack: false, automated: false, optedOut: false };
 
@@ -66,5 +67,15 @@ describe("données envoyées", () => {
   it("n'envoie rien vers une autre adresse que le compte GoatCounter déclaré", () => {
     expect(ANALYTICS_ENDPOINT).toMatch(/^https:\/\/[a-z0-9-]+\.goatcounter\.com\/count$/);
     expect(ANALYTICS_OPT_OUT_KEY).toBe("site-no-analytics");
+  });
+});
+
+describe("évènements de suivi du parcours", () => {
+  it("chaque évènement émis par le jeu et le portail est un nom valide, pour tous les secteurs", () => {
+    const fixed = ["campaign-start", "tutorial-complete", "tutorial-skip", "contribute-click/guide", "contribute-click/issue", "contribute-click/footer", "contribute-click/game"];
+    const perSector = CURRICULUM.flatMap((module) =>
+      ["sector-complete", "terminal-hack", "player-down", "mission-failed", "mission-quit"].map((prefix) => `${prefix}/${module.id}`),
+    );
+    for (const name of [...fixed, ...perSector]) expect(isValidEventName(name), name).toBe(true);
   });
 });

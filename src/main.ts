@@ -438,6 +438,7 @@ class ShadowOpsApp {
   private finishTutorial(outcome: "finished" | "skipped"): void {
     this.tutorial = null;
     this.progress.markTutorialDone();
+    trackEvent(outcome === "finished" ? "tutorial-complete" : "tutorial-skip");
     if (outcome === "finished") {
       this.sound.play("success");
       this.tutorialGuide.showCompletion();
@@ -547,11 +548,7 @@ class ShadowOpsApp {
       },
       onSolved: ({ wrongAttempts }) => {
         this.wrongAttemptsPerTerminal[terminalIndex] = wrongAttempts;
-        panel.close();
-        this.sound.play("success");
-        mission.markTerminalHacked(terminalIndex);
-        this.saveCheckpoint();
-        mission.resume();
+        this.finishTerminal(mission, terminalIndex, panel);
       },
       onDisconnect: (wrongAttempts) => {
         this.wrongAttemptsPerTerminal[terminalIndex] = wrongAttempts;
@@ -580,11 +577,7 @@ class ShadowOpsApp {
       },
       onCompleted: (wrongAttempts) => {
         this.wrongAttemptsPerTerminal[terminalIndex] = wrongAttempts;
-        panel.close();
-        this.sound.play("success");
-        mission.markTerminalHacked(terminalIndex);
-        this.saveCheckpoint();
-        mission.resume();
+        this.finishTerminal(mission, terminalIndex, panel);
       },
       onDisconnect: (wrongAttempts) => {
         this.wrongAttemptsPerTerminal[terminalIndex] = wrongAttempts;
@@ -768,7 +761,18 @@ class ShadowOpsApp {
     this.hud.showNotice(t("takedownSilent"));
   }
 
+  /** Terminal piraté (défi ou scénario réussi) : on referme le panneau, on enregistre l'avancée et on rend la main au joueur. */
+  private finishTerminal(mission: Mission, terminalIndex: number, panel: { close(): void }): void {
+    panel.close();
+    this.sound.play("success");
+    mission.markTerminalHacked(terminalIndex);
+    trackEvent(`terminal-hack/${mission.module.id}`);
+    this.saveCheckpoint();
+    mission.resume();
+  }
+
   private handlePlayerDown(livesLeft: number): void {
+    trackEvent(`player-down/${this.requireMission().module.id}`);
     this.saveCheckpoint();
     this.sound.play("alarm");
     this.flashAlert();
@@ -780,6 +784,7 @@ class ShadowOpsApp {
 
   private handleMissionFailed(module: DevOpsModule): void {
     // Mission perdue : la reprendre n'aurait pas de sens, on repart du début.
+    trackEvent(`mission-failed/${module.id}`);
     this.progress.clearCheckpoint();
     this.sound.play("alarm");
     this.flashAlert();
@@ -842,6 +847,7 @@ class ShadowOpsApp {
         this.mission?.resume();
       },
       onQuit: () => {
+        if (this.mission) trackEvent(`mission-quit/${this.mission.module.id}`);
         this.saveCheckpoint();
         this.showTitle();
       },

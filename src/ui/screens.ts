@@ -1,5 +1,6 @@
 import { skillLevelLabel, type SkillReport } from "../game/skills";
 import { ROADMAP_URL } from "../content/curriculum";
+import { trackEvent } from "../analytics/track";
 import { contributingUrl } from "../content/links";
 import { recapOf, type DevOpsModule } from "../content/types";
 import type { MissionScore } from "../game/scoring";
@@ -633,8 +634,14 @@ export class ScreenManager {
       document.createTextNode(" · "),
       element("a", { text: t("legalLink"), attributes: { href: legalPath(LANG, import.meta.env.BASE_URL) } }),
       document.createTextNode(" · "),
-      element("a", { text: t("contributeLink"), attributes: { href: contributingUrl(LANG), target: "_blank", rel: "noopener noreferrer" } }),
+      this.contributeLink(),
     ]);
+  }
+
+  private contributeLink(): HTMLAnchorElement {
+    const anchor = element("a", { text: t("contributeLink"), attributes: { href: contributingUrl(LANG), target: "_blank", rel: "noopener noreferrer" } });
+    anchor.addEventListener("click", () => trackEvent("contribute-click/game"));
+    return anchor;
   }
 }
 

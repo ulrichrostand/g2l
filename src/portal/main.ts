@@ -22,6 +22,12 @@ function link(label: string, href: string, className: string, external = false):
   return element("a", { className, text: label, attributes });
 }
 
+/** Compte les clics sur un lien (évènement anonyme, sans texte libre) sans changer son comportement. */
+function trackedLink(anchor: HTMLAnchorElement, eventName: string): HTMLAnchorElement {
+  anchor.addEventListener("click", () => trackEvent(eventName));
+  return anchor;
+}
+
 /** Marque du site : un anneau et son cœur, en géométrie exacte (pas de glyphe ni d'emoji). */
 function brandMark(): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, "svg");
@@ -135,8 +141,8 @@ function contribute(): HTMLElement {
     element("p", { className: "contribute-lead", text: t("contributeLead") }),
     element("ul", { className: "contribute-ways" }, ways.map(([title, text]) => element("li", { className: "contribute-card" }, [element("h3", { text: title }), element("p", { text })]))),
     element("div", { className: "hero-actions contribute-actions" }, [
-      link(t("contributeCta"), contributingUrl(LANG), "btn btn-primary", true),
-      link(t("contributeIdea"), NEW_ISSUE_URL, "btn btn-outline", true),
+      trackedLink(link(t("contributeCta"), contributingUrl(LANG), "btn btn-primary", true), "contribute-click/guide"),
+      trackedLink(link(t("contributeIdea"), NEW_ISSUE_URL, "btn btn-outline", true), "contribute-click/issue"),
     ]),
   ]);
 }
@@ -177,7 +183,7 @@ function footer(): HTMLElement {
           element("li", {}, [link("roadmap.sh", "https://roadmap.sh/", "footer-link", true)]),
           element("li", {}, [link(t("footerLegal"), legalPath(LANG, BASE), "footer-link")]),
           element("li", {}, [link(t("footerSource"), REPOSITORY_URL, "footer-link", true)]),
-          element("li", {}, [link(t("footerContribute"), contributingUrl(LANG), "footer-link", true)]),
+          element("li", {}, [trackedLink(link(t("footerContribute"), contributingUrl(LANG), "footer-link", true), "contribute-click/footer")]),
         ]),
       ]),
     ]),
