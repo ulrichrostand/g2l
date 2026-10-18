@@ -15,6 +15,8 @@ export interface ChallengePanelCallbacks {
   onWrongAnswer(): void;
   onSolved(outcome: ChallengeOutcome): void;
   onDisconnect(wrongAttempts: number): void;
+  /** Première aide demandée pendant ce défi (indice, ou dossier rouvert) : elle compte pour l'autonomie au débriefing. */
+  onHelpUsed?(): void;
 }
 
 /** Après 2 échecs on révèle la réponse : l'objectif est d'apprendre, pas de bloquer. */
@@ -38,6 +40,8 @@ export class ChallengePanel {
   private readonly actions = element("div", { className: "challenge-actions" });
   /** Rappel de la leçon, replié par défaut : le joueur choisit de relire avant de répondre. */
   private readonly lessonBox = element("div", { className: "lesson-recall" });
+  /** Un seul signalement par défi, même si le joueur demande plusieurs fois de l'aide. */
+  private helpReported = false;
 
   constructor(
     private readonly container: HTMLElement,
@@ -106,7 +110,11 @@ export class ChallengePanel {
     this.body.replaceChildren(form, hint);
     this.actions.replaceChildren(
       button(t("run"), () => this.submit({ kind: "command", typedCommand: input.value }), "btn primary"),
-      button(t("hintButton"), () => (hint.hidden = false), "btn ghost"),
+      button(t("hintButton"), () => {
+        // Un indice déjà montré par une erreur précédente n'est pas une demande d'aide.
+        if (hint.hidden) this.reportHelp();
+        hint.hidden = false;
+      }, "btn ghost"),
       ...this.secondaryActions(),
     );
     input.focus();
@@ -156,9 +164,16 @@ export class ChallengePanel {
     continueButton.focus();
   }
 
+  private reportHelp(): void {
+    if (this.helpReported) return;
+    this.helpReported = true;
+    this.callbacks.onHelpUsed?.();
+  }
+
   private secondaryActions(): HTMLButtonElement[] {
     const reviewButton = button(this.lessonBox.hidden ? t("reviewFile") : t("hideFile"), () => {
       this.lessonBox.hidden = !this.lessonBox.hidden;
+      if (!this.lessonBox.hidden) this.reportHelp();
       reviewButton.textContent = this.lessonBox.hidden ? t("reviewFile") : t("hideFile");
     }, "btn ghost");
     return [reviewButton, this.disconnectButton()];

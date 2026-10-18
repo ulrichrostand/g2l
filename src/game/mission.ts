@@ -264,6 +264,8 @@ export class Mission {
   private shotsFired = 0;
   private readonly tutorialState: TutorialSnapshot = { x: 0, z: 0, aiming: false, crouching: false, intelCollected: 0, hackedCount: 0, neutralizations: 0, shotsFired: 0, guardsRemaining: 0 };
   elapsedSeconds = 0;
+  /** Vies au départ de la mission, pour compter celles qui ont été perdues. */
+  readonly livesTotal: number;
   health = MAX_HEALTH;
 
   private readonly layout: LevelLayout;
@@ -319,6 +321,7 @@ export class Mission {
     private readonly options: MissionOptions,
   ) {
     this.livesLeft = difficulty.lives;
+    this.livesTotal = difficulty.lives;
     const seed = seedFromString(module.id);
     this.layout = generateLevel({
       seed,
@@ -425,6 +428,11 @@ export class Mission {
     if (kind === "terminal" && bestDistance === Infinity) for (const pickup of this.intel) if (!pickup.collected) consider(pickup.root.position.x, pickup.root.position.z);
     if (kind === "guard") for (const guard of this.guards) if (!guard.neutralized) consider(guard.position.x, guard.position.z);
     return bestDistance !== Infinity;
+  }
+
+  /** Vies perdues depuis le départ (reprises de sauvegarde comprises : `livesLeft` est restauré). */
+  get livesLost(): number {
+    return Math.max(0, this.livesTotal - this.livesLeft);
   }
 
   get intelCollected(): number {

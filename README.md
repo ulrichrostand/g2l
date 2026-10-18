@@ -45,8 +45,14 @@ Pensé pour un **grand débutant** : aucune connaissance requise, on part de « 
     au-dessus des sentinelles, voile rouge quand on est touché, caméra qui anticipe la visée.
 - Les **sentinelles** ont un **cône de vision** visible, bloqué par les murs et les racks. S'accroupir réduit leur portée, courir fait du bruit.
 - Les **caméras de surveillance** (dès le module 1) balaient la salle : si elles te voient trop longtemps, c'est l'alerte.
-- En fin de mission : **débriefing** (score, étoiles, dossiers, neutralisations, statut « Fantôme »),
+- En fin de mission : **débriefing** (score, étoiles, sang-froid, autonomie, neutralisations, statut « Fantôme »),
   **récapitulatif**, **tous les dossiers du module** et **revue de chaque terminal**. Le cours reste consultable depuis la carte.
+- **Score et étoiles** (`src/game/scoring.ts`) : 100 points par terminal (−40 par erreur, 20 au minimum), +150 « Fantôme » sans détection
+  (−75 par détection), plus une **réserve de 20 points par dossier** du secteur, répartie à parts égales entre :
+  **sang-froid** (plein sans vie perdue, une part égale retirée par vie perdue) et **autonomie** (une part égale par terminal à question
+  résolu sans aide, c'est-à-dire sans indice ni dossier rouvert pendant la question). L'aide ne retire jamais de points : elle prive
+  seulement du bonus. Les dossiers étant obligatoires pour débloquer les terminaux, ils ne rapportent plus rien en eux-mêmes ; la réserve
+  garde sa taille pour que les meilleurs scores déjà enregistrés restent comparables. Étoiles : 3 au-dessus de 85 % du maximum, 2 au-dessus de 55 %.
 - **Boss de fin de secteur** : une fois tous les terminaux piratés, un boss se réveille dans la salle d'extraction
   (Processus Zombie, Fork Bomb, Merge Conflict, 502 Bad Gateway, OOMKiller, CrashLoopBackOff… jusqu'à ENTROPIA).
   3 phases : on brise son armure au pistolet en esquivant ses salves annoncées (rafales, éventails, anneaux, spirales),
@@ -275,6 +281,17 @@ Chaque page a ses balises Open Graph et Twitter (aperçu quand on partage le lie
 Le jeu démarre en « Haute » sur ordinateur et « Moyenne » sur téléphone. Si l'image saccade en mission (moins de 40 images/s sur 4 s), la baisse est **progressive et pour la session seulement** (`QualityController`) : d'abord la résolution du rendu 3D (100 % → 85 % → 70 %, bloom et ombres conservés, interface toujours nette), puis seulement le profil d'effets. Le profil « Basse » remplace aussi les androïdes animés par de simples robots : la baisse automatique ne l'atteint donc jamais sur un ordinateur doté d'une carte graphique dédiée (plancher « Moyenne »). Seul un choix du joueur dans le menu Paramètres est mémorisé.
 
 Le menu Paramètres affiche une ligne de diagnostic : carte graphique détectée, images/s mesurées, résolution, et un conseil si le navigateur calcule en logiciel ou sur la puce intégrée (`src/core/diagnostics.ts`).
+
+## Pistes retenues pour plus tard
+
+Idées discutées, pas encore décidées ou pas encore faites (aucune n'est promise) :
+- **Archives optionnelles** : des objets cachés et facultatifs (un peu d'histoire, des points bonus), pour ramener l'exploration libre
+  maintenant que les dossiers sont obligatoires. Demande du placement dans le générateur de niveaux et des éléments graphiques.
+- **Critère « Rythme »** (temps de mission) pour le score : écarté pour l'instant, car risqué pour les débutants et sur téléphone ; à revoir
+  avec de vraies durées de parties (évènement de mesure par tranche de durée).
+- **Plus de tension après les neutralisations** : renforts liés aux terminaux piratés, ou superviseur qui relance les sentinelles
+  neutralisées tant qu'un nœud « watchdog » n'est pas piraté. À décider avec les données `player-down` et `mission-failed`.
+- **Alléger les modèles 3D** (personnages de 2,5 Mo chacun) pour les téléphones d'entrée de gamme et les connexions lentes.
 
 ## Licence
 

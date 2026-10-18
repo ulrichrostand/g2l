@@ -100,6 +100,8 @@ class ShadowOpsApp {
   private scenarioStep = 0;
   /** Leçons déjà lues dans la mission en cours (ramassées ou transmises au terminal). */
   private readLessons = new Set<number>();
+  /** Terminaux à question où le joueur a demandé de l'aide : ils ne rapportent pas de points d'autonomie. */
+  private assistedTerminals = new Set<number>();
   /** Conseils de combat déjà donnés dans la mission : on explique une fois, sans harceler. */
   private readonly combatHintsShown = new Set<ShotResult | "alarm">();
   /** Historique des commandes du gadget, conservé entre missions comme un vrai shell. */
@@ -403,6 +405,7 @@ class ShadowOpsApp {
     // + 1 : la console principale compte aussi dans le score.
     this.wrongAttemptsPerTerminal = [...module.challenges.map(() => 0), 0];
     this.readLessons = new Set();
+    this.assistedTerminals = new Set();
     this.combatHintsShown.clear();
     this.scenarioStep = 0;
     const resumed = checkpoint !== null && this.applyCheckpoint(this.mission, module, checkpoint);
@@ -484,6 +487,7 @@ class ShadowOpsApp {
     }
     this.wrongAttemptsPerTerminal = [...module.challenges, null].map((_, index) => checkpoint.wrongAttemptsPerTerminal[index] ?? 0);
     this.readLessons = new Set(checkpoint.readLessons.filter((index) => index < module.lessons.length));
+    this.assistedTerminals = new Set((checkpoint.assistedTerminals ?? []).filter((index) => index < module.challenges.length));
     return true;
   }
 
@@ -499,6 +503,7 @@ class ShadowOpsApp {
       ...mission.captureState(),
       wrongAttemptsPerTerminal: [...this.wrongAttemptsPerTerminal],
       readLessons: [...this.readLessons],
+      assistedTerminals: [...this.assistedTerminals],
     });
   }
 
@@ -557,6 +562,10 @@ class ShadowOpsApp {
       onWrongAnswer: () => {
         this.sound.play("failure");
         mission.raiseNoiseAt(terminalIndex);
+      },
+      onHelpUsed: () => {
+        this.assistedTerminals.add(terminalIndex);
+        this.saveCheckpoint();
       },
       onSolved: ({ wrongAttempts }) => {
         this.wrongAttemptsPerTerminal[terminalIndex] = wrongAttempts;
@@ -812,8 +821,11 @@ class ShadowOpsApp {
       wrongAttemptsPerTerminal: this.wrongAttemptsPerTerminal,
       detections: mission.detections,
       elapsedSeconds: mission.elapsedSeconds,
-      intelCollected: mission.intelCollected,
       intelTotal: mission.intelTotal,
+      livesLost: mission.livesLost,
+      livesTotal: mission.livesTotal,
+      challengeCount: module.challenges.length,
+      unassistedChallenges: module.challenges.length - this.assistedTerminals.size,
     });
     // Le dernier terminal est la console principale : elle n'a pas de défi ni de leçon, on ne compte que les défis.
     const missed = this.wrongAttemptsPerTerminal.slice(0, module.challenges.length).flatMap((attempts, index) => (attempts > 0 ? [index] : []));
@@ -830,8 +842,6 @@ class ShadowOpsApp {
         wrongAttemptsPerTerminal: [...this.wrongAttemptsPerTerminal],
         detections: mission.detections,
         neutralizations: mission.neutralizations,
-        intelCollected: mission.intelCollected,
-        intelTotal: mission.intelTotal,
         elapsedSeconds: mission.elapsedSeconds,
         isLastModule: !nextModule,
         bossName: bossFor(module.id).name,

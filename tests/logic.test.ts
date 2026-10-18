@@ -63,28 +63,74 @@ describe("curriculum", () => {
 });
 
 describe("computeMissionScore", () => {
+  /** Secteur type : 5 défis + la console, 5 dossiers (réserve de 100 points), aucune vie perdue, aucune aide. */
+  const perfect = {
+    terminalCount: 5,
+    wrongAttemptsPerTerminal: [0, 0, 0, 0, 0],
+    detections: 0,
+    elapsedSeconds: 120,
+    intelTotal: 5,
+    livesLost: 0,
+    livesTotal: 3,
+    unassistedChallenges: 5,
+    challengeCount: 5,
+  };
+
   it("donne 3 étoiles et le bonus fantôme pour un sans-faute", () => {
-    const result = computeMissionScore({
-      terminalCount: 5,
-      wrongAttemptsPerTerminal: [0, 0, 0, 0, 0],
-      detections: 0,
-      elapsedSeconds: 120,
-      intelCollected: 5,
-      intelTotal: 5,
-    });
+    const result = computeMissionScore(perfect);
     expect(result).toMatchObject({ score: 750, maxScore: 750, stars: 3, ghost: true, firstTryAccuracy: 1 });
+    expect(result.composure).toEqual({ points: 50, max: 50 });
+    expect(result.autonomy).toEqual({ points: 50, max: 50 });
   });
+
+  it("garde le même score maximum qu'avant les dossiers obligatoires : 100 points de réserve pour 5 dossiers", () => {
+    expect(computeMissionScore(perfect).maxScore).toBe(5 * 100 + 5 * 20 + 150);
+  });
+
+  it("sang-froid : chaque vie perdue retire une part égale, sans jamais descendre sous zéro", () => {
+    expect(computeMissionScore({ ...perfect, livesLost: 1 }).composure.points).toBe(33);
+    expect(computeMissionScore({ ...perfect, livesLost: 2 }).composure.points).toBe(17);
+    expect(computeMissionScore({ ...perfect, livesLost: 9 }).composure.points).toBe(0);
+  });
+
+  it("autonomie : chaque terminal à question résolu sans aide rapporte une part égale", () => {
+    expect(computeMissionScore({ ...perfect, unassistedChallenges: 4 }).autonomy.points).toBe(40);
+    expect(computeMissionScore({ ...perfect, unassistedChallenges: 0 }).autonomy.points).toBe(0);
+  });
+
+  it("l'aide ne retire jamais de points : elle ne fait que priver du bonus", () => {
+    const withHelp = computeMissionScore({ ...perfect, unassistedChallenges: 0 });
+    const challengesOnly = perfect.terminalCount * 100 + 150 + withHelp.composure.points;
+    expect(withHelp.score).toBe(challengesOnly);
+  });
+
+  it("une mission parfaite à sang-froid et autonomie moyens garde ses étoiles de façon cohérente", () => {
+    const careful = computeMissionScore({ ...perfect, livesLost: 1, unassistedChallenges: 3 });
+    expect(careful.score).toBe(500 + 150 + 33 + 30);
+    expect(careful.stars).toBe(3);
+  });
+
   it("ne descend jamais sous zéro", () => {
     const result = computeMissionScore({
       terminalCount: 5,
       wrongAttemptsPerTerminal: [9, 9, 9, 9, 9],
       detections: 10,
       elapsedSeconds: 1,
-      intelCollected: 0,
       intelTotal: 5,
+      livesLost: 2,
+      livesTotal: 3,
+      unassistedChallenges: 0,
+      challengeCount: 5,
     });
     expect(result.score).toBe(0);
     expect(result.stars).toBe(1);
+  });
+
+  it("tolère des valeurs incohérentes sans produire de NaN", () => {
+    const result = computeMissionScore({ ...perfect, livesTotal: 0, challengeCount: 0, unassistedChallenges: 0 });
+    expect(Number.isFinite(result.score)).toBe(true);
+    expect(result.composure.points).toBe(50);
+    expect(result.autonomy.points).toBe(50);
   });
 });
 

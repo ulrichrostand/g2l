@@ -27,6 +27,8 @@ export interface MissionCheckpoint {
   wrongAttemptsPerTerminal: number[];
   collectedIntel: number[];
   readLessons: number[];
+  /** Terminaux à question où le joueur a demandé de l'aide (indice, dossier rouvert) : absent des anciennes sauvegardes. */
+  assistedTerminals?: number[];
   neutralizedGuards: number[];
   firewalledCameras: number[];
   /** Munitions du pistolet (chargeur + réserve). */
@@ -132,6 +134,7 @@ export function parseCheckpoint(candidate: unknown): MissionCheckpoint | null {
     isIndexList(candidate.hackedTerminals) &&
     isIndexList(candidate.collectedIntel) &&
     isIndexList(candidate.readLessons) &&
+    (candidate.assistedTerminals === undefined || isIndexList(candidate.assistedTerminals)) &&
     isIndexList(candidate.neutralizedGuards) &&
     isIndexList(candidate.firewalledCameras) &&
     isBoundedInteger(candidate.ammo, 99) &&
@@ -160,6 +163,7 @@ export function parseCheckpoint(candidate: unknown): MissionCheckpoint | null {
     wrongAttemptsPerTerminal: [...(candidate.wrongAttemptsPerTerminal as number[])],
     collectedIntel: [...(candidate.collectedIntel as number[])],
     readLessons: [...(candidate.readLessons as number[])],
+    assistedTerminals: candidate.assistedTerminals === undefined ? [] : [...(candidate.assistedTerminals as number[])],
     neutralizedGuards: [...(candidate.neutralizedGuards as number[])],
     firewalledCameras: [...(candidate.firewalledCameras as number[])],
     ammo: candidate.ammo as number,

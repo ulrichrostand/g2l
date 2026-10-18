@@ -15,6 +15,7 @@ const checkpoint: Omit<MissionCheckpoint, "savedAt" | "layoutVersion"> = {
   wrongAttemptsPerTerminal: [0, 0, 1, 0, 0],
   collectedIntel: [0],
   readLessons: [0, 2],
+  assistedTerminals: [1],
   neutralizedGuards: [1],
   firewalledCameras: [0],
   ammo: 20,
@@ -163,5 +164,18 @@ describe("tutoriel terminé", () => {
     expect(decodeSaveCode(encodeSaveCode({ ...emptyProgress(), tutorialDone: true })).tutorialDone).toBe(true);
     store.reset();
     expect(store.tutorialDone).toBe(false);
+  });
+});
+
+describe("terminaux avec aide dans la sauvegarde", () => {
+  it("une sauvegarde antérieure, sans ce champ, reste valide et compte zéro aide", () => {
+    const { assistedTerminals: _ignored, ...old } = checkpoint;
+    const parsed = parseCheckpoint({ ...old, layoutVersion: 2, savedAt: "x" });
+    expect(parsed?.assistedTerminals).toEqual([]);
+  });
+
+  it("refuse une liste d'aides invalide : on perd une mission, jamais la campagne", () => {
+    expect(parseCheckpoint({ ...checkpoint, assistedTerminals: ["a"], layoutVersion: 2, savedAt: "x" })).toBeNull();
+    expect(parseCheckpoint({ ...checkpoint, assistedTerminals: [-1], layoutVersion: 2, savedAt: "x" })).toBeNull();
   });
 });

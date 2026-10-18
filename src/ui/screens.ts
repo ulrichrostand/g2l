@@ -104,8 +104,6 @@ export interface DebriefData {
   wrongAttemptsPerTerminal: number[];
   detections: number;
   neutralizations: number;
-  intelCollected: number;
-  intelTotal: number;
   elapsedSeconds: number;
   isLastModule: boolean;
   bossName: string;
@@ -450,7 +448,8 @@ export class ScreenManager {
           this.stat(t("statRating"), "★".repeat(score.stars) + "☆".repeat(3 - score.stars)),
           this.stat(t("statScore"), `${score.score} / ${score.maxScore}`),
           this.stat(t("statFirstTry"), t("percentValue", { percent: Math.round(score.firstTryAccuracy * 100) })),
-          this.stat(t("statIntel"), `${data.intelCollected}/${data.intelTotal}`),
+          this.stat(t("statComposure"), `${score.composure.points}/${score.composure.max}`),
+          this.stat(t("statAutonomy"), `${score.autonomy.points}/${score.autonomy.max}`),
           this.stat(t("statDetections"), score.ghost ? t("statGhost") : String(data.detections)),
           this.stat(t("statTakedowns"), String(data.neutralizations)),
           this.stat(t("statBoss"), data.bossName),
