@@ -103,9 +103,17 @@ function readEnvironment(): TrackEnvironment {
   };
 }
 
+/**
+ * Aucune mesure depuis le serveur de développement (`npm run dev`, même ouvert depuis un téléphone sur le réseau local) ni depuis une copie
+ * de test construite avec `VITE_ANALYTICS_OFF=1` : les essais ne doivent pas se mélanger aux vraies statistiques.
+ */
+function disabledByBuild(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_ANALYTICS_OFF === "1";
+}
+
 /** Envoi « au mieux » : un échec de mesure ne doit jamais gêner le visiteur, il n'a donc aucun effet visible. */
 function send(parameters: CountParameters): void {
-  if (!shouldTrack(readEnvironment())) return;
+  if (disabledByBuild() || !shouldTrack(readEnvironment())) return;
   const pixel = new Image(1, 1);
   pixel.referrerPolicy = "no-referrer";
   pixel.src = buildCountUrl(ANALYTICS_ENDPOINT, parameters);
