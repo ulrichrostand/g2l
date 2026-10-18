@@ -10,7 +10,8 @@ import { CURRICULUM } from "./content/curriculum";
 import type { DevOpsModule } from "./content/types";
 import { difficultyForModule } from "./game/difficulty";
 import { buildGeneralExam, buildModuleExam, examTimeLimitSeconds, GENERAL_EXAM_ID, GENERAL_EXAM_MIN_MODULES, mentionFor, type ExamQuestion } from "./game/exam";
-import { cameraZoomForAspect, Mission, type AimInput, type CombatEvent, type ShotResult, type TargetRef } from "./game/mission";
+import { isTerminalLocked, lessonForDossier } from "./game/dossierLessons";
+import { cameraZoomForAspect, Mission, type AimInput, type CombatEvent, type ContextActionKind, type ShotResult, type TargetRef } from "./game/mission";
 import { buildSkillReport } from "./game/skills";
 import { isModuleUnlocked, LEVEL_LAYOUT_VERSION, ProgressStore, type MissionCheckpoint } from "./game/progress";
 import { decodeSaveCode, encodeSaveCode, SaveCodeError } from "./game/saveCode";
@@ -370,6 +371,8 @@ class ShadowOpsApp {
         this.input,
         {
           onTerminalRequested: (terminalIndex) => this.openTerminal(terminalIndex),
+          isTerminalLocked: (terminalIndex) => this.isTerminalLocked(module, terminalIndex),
+          onTerminalDenied: () => trackEvent(`terminal-locked/${module.id}`),
           onIntelFound: () => this.showCollectedIntel(),
           onCommandRequested: (target) => this.openCommandPanel(target),
           onBossCommandRequested: (phaseIndex, secondsLeft) => this.openBossPanel(phaseIndex, secondsLeft),
@@ -512,6 +515,15 @@ class ShadowOpsApp {
    * Un débutant ne doit jamais tomber sur une question sans avoir eu la leçon :
    * si le dossier correspondant n'a pas été lu, la cellule Écho le transmet d'abord.
    */
+  /**
+   * Un terminal à question ne se pirate qu'une fois sa leçon lue dans un dossier : le n-ième dossier trouvé ouvre la n-ième leçon,
+   * donc débloque le n-ième terminal. Les leçons lues sont dans la sauvegarde : une partie reprise garde ses terminaux ouverts.
+   * La console principale (au-delà des défis) n'a pas de dossier et n'est jamais verrouillée ici.
+   */
+  private isTerminalLocked(module: DevOpsModule, terminalIndex: number): boolean {
+    return isTerminalLocked(terminalIndex, module.challenges.length, this.readLessons);
+  }
+
   private openTerminal(terminalIndex: number): void {
     const mission = this.requireMission();
     if (terminalIndex >= mission.module.challenges.length) {
@@ -592,15 +604,15 @@ class ShadowOpsApp {
   private showCollectedIntel(): void {
     const mission = this.requireMission();
     const lessons = mission.module.lessons;
-    const nextUnread = lessons.findIndex((_, index) => !this.readLessons.has(index));
-    const lessonIndex = nextUnread === -1 ? (mission.intelCollected - 1) % lessons.length : nextUnread;
+    const { index: lessonIndex, review } = lessonForDossier(this.readLessons, lessons.length, mission.intelCollected);
     const lesson = lessons[lessonIndex];
     if (!lesson) throw new RangeError(`Leçon ${lessonIndex} introuvable`);
     this.readLessons.add(lessonIndex);
+    trackEvent(`intel-pickup/${mission.module.id}`);
     this.saveCheckpoint();
     this.sound.play("success");
     this.lessonPanel.open(lesson, {
-      eyebrow: t(nextUnread === -1 ? "intelEyebrowReview" : "intelEyebrow", { index: lessonIndex + 1, total: lessons.length }),
+      eyebrow: t(review ? "intelEyebrowReview" : "intelEyebrow", { index: lessonIndex + 1, total: lessons.length }),
       continueLabel: t("intelContinue"),
       onContinue: () => mission.resume(),
     });
@@ -994,7 +1006,8 @@ class ShadowOpsApp {
     this.ambience.update(deltaSeconds, hudState.exposure, mission.isPaused);
     if (this.touchMode) {
       this.touchControls.sync({
-        contextLabel: hudState.contextAction ? (hudState.contextAction.kind === "takedown" ? t("actionTakedownShort") : t("actionHackShort")) : null,
+        contextLabel: hudState.contextAction ? contextActionShortLabel(hudState.contextAction.kind) : null,
+        contextLocked: hudState.contextAction?.kind === "locked",
         crouched: hudState.posture === "crouching",
         // Le boss s'achève à la commande même avant d'avoir débloqué un gadget (module d'introduction).
         gadgetVisible: hudState.gadgetAvailable || hudState.commandTarget !== null,
@@ -1170,6 +1183,13 @@ class ShadowOpsApp {
 }
 
 /** Décor du menu : une salle serveur stylisée qui tourne lentement en arrière-plan. */
+/** Libellé du bouton d'action tactile : une seule ligne courte par type d'action. */
+function contextActionShortLabel(kind: ContextActionKind): string {
+  if (kind === "takedown") return t("actionTakedownShort");
+  if (kind === "locked") return t("actionLockedShort");
+  return t("actionHackShort");
+}
+
 function createIdleScene(): THREE.Scene {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x05080c);

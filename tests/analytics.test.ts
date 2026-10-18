@@ -74,7 +74,7 @@ describe("évènements de suivi du parcours", () => {
   it("chaque évènement émis par le jeu et le portail est un nom valide, pour tous les secteurs", () => {
     const fixed = ["campaign-start", "tutorial-complete", "tutorial-skip", "contribute-click/guide", "contribute-click/issue", "contribute-click/footer", "contribute-click/game"];
     const perSector = CURRICULUM.flatMap((module) =>
-      ["sector-complete", "terminal-hack", "player-down", "mission-failed", "mission-quit"].map((prefix) => `${prefix}/${module.id}`),
+      ["sector-complete", "terminal-hack", "terminal-locked", "intel-pickup", "player-down", "mission-failed", "mission-quit"].map((prefix) => `${prefix}/${module.id}`),
     );
     for (const name of [...fixed, ...perSector]) expect(isValidEventName(name), name).toBe(true);
   });

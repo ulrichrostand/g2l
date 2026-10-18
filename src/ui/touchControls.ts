@@ -137,13 +137,16 @@ export class TouchControls {
   }
 
   /** Mise à jour à chaque frame : on ne touche au DOM que si l'état change. */
-  sync(state: { contextLabel: string | null; crouched: boolean; gadgetVisible: boolean; gadgetReady: boolean; shootReady: boolean }): void {
+  sync(state: { contextLabel: string | null; contextLocked?: boolean; crouched: boolean; gadgetVisible: boolean; gadgetReady: boolean; shootReady: boolean }): void {
     const interactLabel = state.contextLabel ?? t("action");
     if (this.interactButton.textContent !== interactLabel) {
       this.interactButton.textContent = interactLabel;
       this.interactButton.setAttribute("aria-label", interactLabel);
     }
     setIfChanged(this.interactButton, "disabled", state.contextLabel === null);
+    // Terminal verrouillé : bouton cliquable (il explique pourquoi) mais discret, dans le jaune des dossiers.
+    const locked = state.contextLocked === true;
+    if (this.interactButton.classList.contains("locked") !== locked) this.interactButton.classList.toggle("locked", locked);
     setIfChanged(this.commandButton, "hidden", !state.gadgetVisible);
     setIfChanged(this.commandButton, "disabled", !state.gadgetReady);
     if (this.aimPad.classList.contains("dry") === state.shootReady) this.aimPad.classList.toggle("dry", !state.shootReady);

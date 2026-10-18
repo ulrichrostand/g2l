@@ -222,7 +222,8 @@ export class Hud {
   private promptLines(state: HudState, commandSeconds: number): HTMLElement[] {
     const lines: HTMLElement[] = [];
     if (state.contextAction) {
-      lines.push(element("span", { text: `${this.touchMode ? "" : t("keyPrefixAction")}${state.contextAction.label}` }));
+      const locked = state.contextAction.kind === "locked";
+      lines.push(element("span", { className: locked ? "prompt-locked" : "", text: `${this.touchMode ? "" : t("keyPrefixAction")}${state.contextAction.label}` }));
     }
     if (state.commandTarget) {
       const verb = state.commandTarget.kind === "camera" ? t("verbCut") : state.commandTarget.kind === "boss" ? t("verbFinish") : t("verbEnd");

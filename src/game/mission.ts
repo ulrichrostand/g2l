@@ -30,7 +30,8 @@ import { accentForModule, buildLevelScene, cellToWorld, disposeScene, type Level
 import type { MissionDifficulty } from "./difficulty";
 import { t } from "../i18n/messages/mission";
 
-export type ContextActionKind = "takedown" | "hack";
+/** « locked » : un terminal à portée dont la leçon n'a pas encore été trouvée dans un dossier. */
+export type ContextActionKind = "takedown" | "hack" | "locked";
 
 /** Une cible du pistolet ou du gadget : une sentinelle ou une caméra, par son index. */
 export interface TargetRef {
@@ -127,6 +128,10 @@ export interface MinimapSnapshot {
 
 export interface MissionCallbacks {
   onTerminalRequested(terminalIndex: number): void;
+  /** Vrai tant que le terminal ne peut pas être piraté (dossier manquant) : l'interaction est refusée, la mission continue. */
+  isTerminalLocked?(terminalIndex: number): boolean;
+  /** Le joueur a tenté de pirater un terminal verrouillé (sert à mesurer si la règle des dossiers gêne). */
+  onTerminalDenied?(terminalIndex: number): void;
   onIntelFound(): void;
   onCommandRequested(target: TargetRef): void;
   /** Boss à genoux : la commande qui l'achève (phase à partir de 0, secondes d'exposition restantes). */
@@ -415,7 +420,9 @@ export class Mission {
       into.set(x, 0, z);
     };
     if (kind === "intel") for (const pickup of this.intel) if (!pickup.collected) consider(pickup.root.position.x, pickup.root.position.z);
-    if (kind === "terminal") for (const terminal of this.terminals) if (!terminal.hacked) consider(terminal.root.position.x, terminal.root.position.z);
+    // Seuls les terminaux à question déjà débloqués sont montrés (pas la console principale) ; s'il n'y en a aucun, on guide vers le prochain dossier.
+    if (kind === "terminal") for (const terminal of this.terminals) if (!terminal.hacked && terminal.kind !== "console" && !this.isLocked(terminal)) consider(terminal.root.position.x, terminal.root.position.z);
+    if (kind === "terminal" && bestDistance === Infinity) for (const pickup of this.intel) if (!pickup.collected) consider(pickup.root.position.x, pickup.root.position.z);
     if (kind === "guard") for (const guard of this.guards) if (!guard.neutralized) consider(guard.position.x, guard.position.z);
     return bestDistance !== Infinity;
   }
@@ -734,7 +741,12 @@ export class Mission {
     if (this.takedownCandidate()) return { kind: "takedown", label: t("actionTakedown") };
     const terminal = this.nearbyTerminal();
     if (!terminal) return null;
+    if (this.isLocked(terminal)) return { kind: "locked", label: t("actionHackLocked", { terminal: terminal.label }) };
     return { kind: "hack", label: terminal.kind === "console" ? t("actionOpenConsole") : t("actionHack", { terminal: terminal.label }) };
+  }
+
+  private isLocked(terminal: HackTerminal): boolean {
+    return this.callbacks.isTerminalLocked?.(this.terminals.indexOf(terminal)) ?? false;
   }
 
   private performContextAction(): boolean {
@@ -747,6 +759,12 @@ export class Mission {
     }
     const terminal = this.nearbyTerminal();
     if (!terminal) return false;
+    if (this.isLocked(terminal)) {
+      // Refus sans pause : le joueur reste dans l'action et sait quoi faire (trouver un dossier).
+      this.callbacks.onNotice(t("terminalLocked", { collected: this.intelCollected, total: this.intelTotal }));
+      this.callbacks.onTerminalDenied?.(this.terminals.indexOf(terminal));
+      return false;
+    }
     this.pause();
     this.callbacks.onTerminalRequested(this.terminals.indexOf(terminal));
     return true;

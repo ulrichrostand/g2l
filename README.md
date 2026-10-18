@@ -15,8 +15,11 @@ Pensé pour un **grand débutant** : aucune connaissance requise, on part de « 
 - **Apprendre** : chaque mission contient **5 dossiers jaunes** à ramasser. Chacun est une leçon courte :
   explication simple, analogie de la vie courante, exemple de commande, point à retenir.
 - **Prouver** : **5 terminaux** à pirater, un par leçon (QCM, commande à taper, étapes à remettre dans l'ordre).
-  Si tu arrives à un terminal sans avoir lu son dossier, la cellule Écho te transmet la leçon d'abord :
-  jamais de question sans cours. Le dossier reste consultable pendant la question.
+  Un terminal est **verrouillé tant que sa leçon n'a pas été lue** : le 1er dossier trouvé ouvre la leçon 1 et débloque le
+  terminal 1, le 2e dossier le terminal 2, etc. (`src/game/dossierLessons.ts`). Un terminal verrouillé affiche « dossier
+  manquant » en jaune, sans mettre la mission en pause ; les dossiers sont les points jaunes de la mini-carte. La console
+  principale n'a pas de dossier et n'est jamais verrouillée. Jamais de question sans cours, et le dossier reste consultable
+  pendant la question.
 - **Pratiquer** : chaque secteur a une **console principale** (terminal bleu) : un vrai incident à résoudre
   en enchaînant 4 à 6 commandes dans un faux terminal qui répond comme les vrais outils
   (installer et vérifier nginx, publier un correctif avec Git, diagnostiquer le réseau couche par couche,
@@ -256,7 +259,7 @@ En développement : lancer l'API (`server/`, port 3000) puis `VITE_ACCOUNTS=1 np
 ## Mesure d'audience
 
 Anonyme et sans cookie, via [GoatCounter](https://www.goatcounter.com) (compte `g2l`, voir `ANALYTICS_SITE_CODE` dans `src/analytics/track.ts`). Aucun script tiers : le site envoie un pixel (requête d'image) vers `g2l.goatcounter.com`, ce qui est autorisé dans la CSP des pages (`img-src`, vérifié par un test).
-- Pages vues (portail, jeu, mentions légales) et des évènements de parcours : `play-click/<jeu>`, `campaign-start`, `tutorial-complete`, `tutorial-skip`, `terminal-hack/<secteur>`, `player-down/<secteur>`, `mission-failed/<secteur>`, `mission-quit/<secteur>`, `sector-complete/<secteur>`, `contribute-click/{guide,issue,footer,game}`. Noms d'évènements restreints à `[a-z0-9/-]` : pas de texte libre.
+- Pages vues (portail, jeu, mentions légales) et des évènements de parcours : `play-click/<jeu>`, `campaign-start`, `tutorial-complete`, `tutorial-skip`, `intel-pickup/<secteur>`, `terminal-hack/<secteur>`, `terminal-locked/<secteur>`, `player-down/<secteur>`, `mission-failed/<secteur>`, `mission-quit/<secteur>`, `sector-complete/<secteur>`, `contribute-click/{guide,issue,footer,game}`. Noms d'évènements restreints à `[a-z0-9/-]` : pas de texte libre.
 - Rien d'envoyé en local, sous « Ne pas me suivre », pour les navigateurs automatisés, ni après le refus du visiteur (bouton dans les mentions légales, clé `site-no-analytics`).
 - Du référent, seul le nom de domaine est transmis. Jamais la progression, l'avatar ni le stockage local.
 - Beaucoup d'applications (LinkedIn, X, messageries) ne transmettent aucun référent : pour savoir d'où viennent les visites, ajoute une étiquette au lien partagé, par exemple `https://ulrichrostand.github.io/g2l/?ref=linkedin`. Paramètres lus : `ref`, `utm_source`, `source` (lettres, chiffres, `_` et `-`, 40 caractères au plus). L'étiquette remplace le référent dans GoatCounter et est conservée par la redirection vers l'anglais.
