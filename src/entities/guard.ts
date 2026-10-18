@@ -80,6 +80,8 @@ const CALM_CONE_COLOR = new THREE.Color(0xffd54a);
 const ALERT_CONE_COLOR = new THREE.Color(0xff2d2d);
 const VISOR_COLOR = new THREE.Color(0xff2d2d);
 const SUSPENDED_VISOR_COLOR = new THREE.Color(0x4fc3ff);
+/** Une sentinelle redémarrée se relève avant de tirer : le joueur a un instant pour réagir (multiple de son temps de réaction). */
+const REBOOT_FIRE_DELAY_FACTOR = 2.5;
 const HIT_FLASH_COLOR = new THREE.Color(0xffffff);
 
 export class Guard {
@@ -95,6 +97,8 @@ export class Guard {
   private readonly body: THREE.Group;
   private readonly rig: HumanoidRig;
   private readonly visorMaterial: THREE.MeshStandardMaterial;
+  /** Couleur de la visière avant toute neutralisation : on la rend quand la sentinelle est réactivée. */
+  private readonly visorBaseColor: THREE.Color;
   private readonly badge: StatusBadge;
   private fallProgress = 0;
   private readonly lastPosition = new THREE.Vector3();
@@ -138,6 +142,7 @@ export class Guard {
     this.rig = model.rig;
     this.body = model.rig.root;
     this.visorMaterial = model.glow;
+    this.visorBaseColor = this.visorMaterial.color.clone();
     this.root.add(this.body);
     this.badge = new StatusBadge();
     this.badge.sprite.position.y = 2.45;
@@ -332,6 +337,26 @@ export class Guard {
     this.badge.show("none");
     this.visorMaterial.emissiveIntensity = 0;
     this.visorMaterial.color.setHex(0x331111);
+  }
+
+  /**
+   * Redémarrage par la sécurité : une sentinelle neutralisée se relève sur place et fonce vers `target` (la position du joueur
+   * au moment de l'alerte). Elle laisse un instant avant son premier tir. Sans effet sur une sentinelle encore en service.
+   */
+  reactivate(target: THREE.Vector3): void {
+    if (!this.neutralized) return;
+    this.neutralized = false;
+    this.fallProgress = 0;
+    this.body.rotation.x = 0;
+    this.body.position.y = 0;
+    this.visorMaterial.color.copy(this.visorBaseColor);
+    this.shieldHits = 0;
+    this.suspendedRemaining = 0;
+    this.hitFlash = 0;
+    this.pendingShot = null;
+    this.detour = [];
+    this.enterCombat(target);
+    this.fireCooldown = this.tuning.reactionSeconds * REBOOT_FIRE_DELAY_FACTOR;
   }
 
   /** `player` à null = joueur imperceptible (invulnérabilité de réapparition). */

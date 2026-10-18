@@ -45,6 +45,8 @@ Pensé pour un **grand débutant** : aucune connaissance requise, on part de « 
     au-dessus des sentinelles, voile rouge quand on est touché, caméra qui anticipe la visée.
 - Les **sentinelles** ont un **cône de vision** visible, bloqué par les murs et les racks. S'accroupir réduit leur portée, courir fait du bruit.
 - Les **caméras de surveillance** (dès le module 1) balaient la salle : si elles te voient trop longtemps, c'est l'alerte.
+  Si **toutes les sentinelles sont déjà à terre** quand une caméra donne l'alarme, la sécurité les **redémarre toutes** (elles se relèvent
+  sur place et foncent vers toi, après un court instant). Pour l'éviter, brouille la caméra avant de finir les sentinelles.
 - En fin de mission : **débriefing** (score, étoiles, sang-froid, autonomie, neutralisations, statut « Fantôme »),
   **récapitulatif**, **tous les dossiers du module** et **revue de chaque terminal**. Le cours reste consultable depuis la carte.
 - **Score et étoiles** (`src/game/scoring.ts`) : 100 points par terminal (−40 par erreur, 20 au minimum), +150 « Fantôme » sans détection
@@ -289,8 +291,9 @@ Idées discutées, pas encore décidées ou pas encore faites (aucune n'est prom
   maintenant que les dossiers sont obligatoires. Demande du placement dans le générateur de niveaux et des éléments graphiques.
 - **Critère « Rythme »** (temps de mission) pour le score : écarté pour l'instant, car risqué pour les débutants et sur téléphone ; à revoir
   avec de vraies durées de parties (évènement de mesure par tranche de durée).
-- **Plus de tension après les neutralisations** : renforts liés aux terminaux piratés, ou superviseur qui relance les sentinelles
-  neutralisées tant qu'un nœud « watchdog » n'est pas piraté. À décider avec les données `player-down` et `mission-failed`.
+- **Plus de tension après les neutralisations** : déjà en place avec les caméras (redémarrage des sentinelles à terre). Restent à décider,
+  avec les données `player-down` et `mission-failed` : des renforts liés aux terminaux piratés, ou un superviseur qui relance les sentinelles
+  neutralisées tant qu'un nœud « watchdog » n'est pas piraté. Le premier secteur n'a pas de caméra et reste donc inchangé.
 - **Alléger les modèles 3D** (personnages de 2,5 Mo chacun) pour les téléphones d'entrée de gamme et les connexions lentes.
 
 ## Licence

@@ -180,3 +180,50 @@ describe("Guard — combat", () => {
     expect(guard.consumeAlarm()).toBe(false);
   });
 });
+
+describe("Guard — réactivation par la sécurité", () => {
+  const route = { waypoints: [{ x: 1, z: 1 }, { x: 2, z: 1 }] };
+
+  it("une sentinelle neutralisée se relève, en alerte, et ne reste plus à terre", () => {
+    const guard = new Guard(createCorridor(), route, TUNING);
+    guard.neutralize();
+    expect(guard.neutralized).toBe(true);
+    guard.reactivate(new THREE.Vector3(8.5, 0, 1.5));
+    expect(guard.neutralized).toBe(false);
+    expect(guard.isHostile).toBe(true);
+  });
+
+  it("tire sur un joueur en vue, mais pas à la première image : elle se relève d'abord", () => {
+    const guard = new Guard(createCorridor(), route, TUNING);
+    guard.neutralize();
+    guard.reactivate(new THREE.Vector3(4.5, 0, 1.5));
+    const player = playerAt(4);
+    guard.update(1 / 60, player);
+    expect(guard.consumeShot()).toBeNull();
+    let fired = false;
+    for (let elapsed = 0; elapsed < 6 && !fired; elapsed += 1 / 60) {
+      guard.update(1 / 60, player);
+      fired = guard.consumeShot() !== null;
+    }
+    expect(fired).toBe(true);
+  });
+
+  it("n'a aucun effet sur une sentinelle encore en service", () => {
+    const guard = new Guard(createCorridor(), route, TUNING);
+    guard.reactivate(new THREE.Vector3(8.5, 0, 1.5));
+    expect(guard.neutralized).toBe(false);
+    expect(guard.isHostile).toBe(false);
+  });
+
+  it("peut être neutralisée de nouveau après un redémarrage", () => {
+    const guard = new Guard(createCorridor(), route, TUNING);
+    guard.neutralize();
+    guard.reactivate(new THREE.Vector3(8.5, 0, 1.5));
+    guard.neutralize();
+    expect(guard.neutralized).toBe(true);
+    // Neutralisée, elle ne perçoit plus rien, comme n'importe quelle sentinelle à terre.
+    guard.update(1 / 60, playerAt(4));
+    expect(guard.awareness).toBe(0);
+    expect(guard.consumeShot()).toBeNull();
+  });
+});

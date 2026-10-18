@@ -962,6 +962,17 @@ export class Mission {
     }
   }
 
+  /**
+   * Une caméra qui te repère alors que toutes les sentinelles sont neutralisées : la sécurité les redémarre toutes. Il n'y a ainsi
+   * jamais de niveau « vide » sous l'œil d'une caméra ; pour l'éviter, brouille la caméra avant de finir les sentinelles.
+   */
+  private rebootSentinelsIfAllDown(): void {
+    if (this.guards.length === 0 || !this.guards.every((guard) => guard.neutralized)) return;
+    for (const guard of this.guards) guard.reactivate(this.player.position);
+    // Hors délai anti-répétition : ce message explique la règle, et il passe après l'alerte générale du même instant.
+    this.callbacks.onNotice(t("sentinelsRebooted"));
+  }
+
   private collectNearbyIntel(): boolean {
     const pickup = this.intel.find(
       (candidate) =>
@@ -1002,6 +1013,7 @@ export class Mission {
       }
       if (camera.alarm >= 1 && this.cameraAlarmCooldown === 0) {
         this.raiseAlarm("camera");
+        this.rebootSentinelsIfAllDown();
         camera.resetAlarm();
         this.cameraAlarmCooldown = CAMERA_ALARM_COOLDOWN_SECONDS;
       }
