@@ -227,3 +227,70 @@ describe("Guard — réactivation par la sécurité", () => {
     expect(guard.consumeShot()).toBeNull();
   });
 });
+
+describe("Guard — découverte d'un corps", () => {
+  const route = { waypoints: [{ x: 1, z: 1 }, { x: 2, z: 1 }] };
+
+  /** Deux sentinelles dans le couloir : l'observatrice regarde vers +X depuis (1, 1), le corps est devant elle. */
+  function observerAndBody(bodyX: number): { observer: Guard; body: Guard } {
+    const observer = new Guard(createCorridor(), route, TUNING);
+    const body = new Guard(createCorridor(), { waypoints: [{ x: bodyX, z: 1 }, { x: bodyX + 1, z: 1 }] }, TUNING);
+    body.neutralize(true);
+    return { observer, body };
+  }
+
+  it("voit un corps dans son champ de vision, à portée, sans mur entre eux", () => {
+    const { observer, body } = observerAndBody(4);
+    expect(observer.canSeeBodyOf(body)).toBe(true);
+  });
+
+  it("ne voit pas un corps hors de portée", () => {
+    const { observer, body } = observerAndBody(10);
+    expect(observer.canSeeBodyOf(body)).toBe(false);
+  });
+
+  it("ne voit pas un corps derrière elle", () => {
+    const observer = new Guard(createCorridor(), { waypoints: [{ x: 6, z: 1 }, { x: 7, z: 1 }] }, TUNING);
+    const body = new Guard(createCorridor(), { waypoints: [{ x: 3, z: 1 }, { x: 4, z: 1 }] }, TUNING);
+    body.neutralize(true);
+    expect(observer.canSeeBodyOf(body)).toBe(false);
+  });
+
+  it("ne voit pas un corps à travers un mur", () => {
+    const grid = createCorridor();
+    grid.set(3, 1, Tile.Wall);
+    const observer = new Guard(grid, route, TUNING);
+    const body = new Guard(grid, { waypoints: [{ x: 5, z: 1 }, { x: 6, z: 1 }] }, TUNING);
+    body.neutralize(true);
+    expect(observer.canSeeBodyOf(body)).toBe(false);
+  });
+
+  it("passe en alerte en découvrant un corps", () => {
+    const { observer, body } = observerAndBody(4);
+    expect(observer.isHostile).toBe(false);
+    observer.discoverBody(body.position);
+    expect(observer.isHostile).toBe(true);
+    expect(observer.awareness).toBe(1);
+  });
+
+  it("n'est pas concernée si elle est à terre, suspendue ou déjà en alerte", () => {
+    const { observer: down } = observerAndBody(4);
+    down.neutralize(true);
+    expect(down.canDiscoverBodies).toBe(false);
+    const { observer: alerted, body } = observerAndBody(4);
+    alerted.engage(new THREE.Vector3(8.5, 0, 1.5));
+    expect(alerted.canDiscoverBodies).toBe(false);
+    alerted.discoverBody(body.position);
+    expect(alerted.isHostile).toBe(true);
+  });
+
+  it("un corps redevient « à découvrir » quand la sentinelle est neutralisée de nouveau", () => {
+    const { body } = observerAndBody(4);
+    body.bodyDiscovered = true;
+    body.reactivate(new THREE.Vector3(8.5, 0, 1.5));
+    expect(body.bodyDiscovered).toBe(false);
+    body.bodyDiscovered = true;
+    body.neutralize();
+    expect(body.bodyDiscovered).toBe(false);
+  });
+});

@@ -594,7 +594,12 @@ export class Mission {
 
     for (const index of state.hackedTerminals) this.terminals[index]?.markHacked();
     for (const index of state.collectedIntel) this.intel[index]?.collect();
-    for (const index of state.neutralizedGuards) this.guards[index]?.neutralize(true);
+    for (const index of state.neutralizedGuards) {
+      const guard = this.guards[index];
+      guard?.neutralize(true);
+      // Les corps d'une partie reprise sont déjà connus : pas d'alerte surprise au chargement.
+      if (guard) guard.bodyDiscovered = true;
+    }
     for (const index of state.firewalledCameras) this.cameras[index]?.firewall();
     this.sidearm = new Sidearm(state.ammo);
     this.bossDefeated = state.bossDefeated;
@@ -963,6 +968,25 @@ export class Mission {
   }
 
   /**
+   * Une sentinelle en service qui voit le corps d'une autre passe en alerte et fonce vers lui. Chaque corps ne donne l'alerte qu'une fois
+   * (sinon les sentinelles reviendraient indéfiniment sur le même corps). Ce n'est pas une détection du joueur : elle ne compte pas contre
+   * le statut « Fantôme », mais celui qui laisse un corps en vue réveille la sécurité.
+   */
+  private checkBodiesDiscovered(): void {
+    const bodies = this.guards.filter((guard) => guard.neutralized && !guard.bodyDiscovered);
+    if (bodies.length === 0) return;
+    for (const observer of this.guards) {
+      if (!observer.canDiscoverBodies) continue;
+      const body = bodies.find((candidate) => !candidate.bodyDiscovered && observer.canSeeBodyOf(candidate));
+      if (!body) continue;
+      body.bodyDiscovered = true;
+      observer.discoverBody(body.position);
+      // Hors délai anti-répétition : ce message explique pourquoi une sentinelle vient de passer en alerte.
+      this.callbacks.onNotice(t("bodyDiscovered"));
+    }
+  }
+
+  /**
    * Une caméra qui te repère alors que toutes les sentinelles sont neutralisées : la sécurité les redémarre toutes. Il n'y a ainsi
    * jamais de niveau « vide » sous l'œil d'une caméra ; pour l'éviter, brouille la caméra avant de finir les sentinelles.
    */
@@ -1003,6 +1027,7 @@ export class Mission {
       }
       this.wasSuspended[index] = guard.isSuspended;
     });
+    this.checkBodiesDiscovered();
     for (const camera of this.cameras) {
       camera.update(deltaSeconds, this.elapsedSeconds, playerSnapshot);
       // Une caméra qui te voit appelle les sentinelles proches avant même de déclencher l'alarme.

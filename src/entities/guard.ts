@@ -93,6 +93,8 @@ export class Guard {
   state: GuardState = "patrol";
   /** Neutralisé (au corps à corps ou par commande) : définitif pour la mission. */
   neutralized = false;
+  /** Un corps (cette sentinelle à terre) a déjà été découvert par une autre sentinelle : il ne déclenche l'alerte qu'une fois. */
+  bodyDiscovered = false;
 
   private readonly body: THREE.Group;
   private readonly rig: HumanoidRig;
@@ -257,6 +259,26 @@ export class Guard {
     this.investigate(noiseCell);
   }
 
+  /** Seule une sentinelle en service et encore calme remarque un corps : à genoux, à terre ou déjà en alerte, elle a d'autres soucis. */
+  get canDiscoverBodies(): boolean {
+    return !this.neutralized && !this.isSuspended && !this.isHostile;
+  }
+
+  /** Vrai si cette sentinelle voit le corps d'une autre : portée et champ de vision normaux, les murs et les racks bloquent la vue. */
+  canSeeBodyOf(body: Guard): boolean {
+    const deltaX = body.position.x - this.position.x;
+    const deltaZ = body.position.z - this.position.z;
+    if (Math.hypot(deltaX, deltaZ) > this.tuning.visionRange) return false;
+    if (!this.isWithinFieldOfView(deltaX, deltaZ, this.tuning.fieldOfViewRadians)) return false;
+    return hasLineOfSight(this.grid, this.position.x, this.position.z, body.position.x, body.position.z);
+  }
+
+  /** Corps découvert : la sentinelle passe en alerte et fonce vers lui, en cherchant l'intrus avec sa vue élargie. */
+  discoverBody(bodyPosition: THREE.Vector3): void {
+    if (!this.canDiscoverBodies) return;
+    this.enterCombat(bodyPosition);
+  }
+
   /** Alarme donnée par une autre sentinelle ou une caméra : on fonce vers la position signalée. */
   engage(position: THREE.Vector3): void {
     if (this.neutralized || this.isSuspended) return;
@@ -325,6 +347,7 @@ export class Guard {
   neutralize(instant = false): void {
     if (this.neutralized) return;
     this.neutralized = true;
+    this.bodyDiscovered = false;
     if (instant) {
       this.fallProgress = 0.999;
       this.animateFall(1);
@@ -346,6 +369,7 @@ export class Guard {
   reactivate(target: THREE.Vector3): void {
     if (!this.neutralized) return;
     this.neutralized = false;
+    this.bodyDiscovered = false;
     this.fallProgress = 0;
     this.body.rotation.x = 0;
     this.body.position.y = 0;

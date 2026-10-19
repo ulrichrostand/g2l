@@ -44,6 +44,9 @@ Pensé pour un **grand débutant** : aucune connaissance requise, on part de « 
   - Retours visuels et sonores : traçantes, flash du canon, étincelles, marqueur de touche, pictogrammes « ? », « ! » et « ⏸ »
     au-dessus des sentinelles, voile rouge quand on est touché, caméra qui anticipe la visée.
 - Les **sentinelles** ont un **cône de vision** visible, bloqué par les murs et les racks. S'accroupir réduit leur portée, courir fait du bruit.
+- Une sentinelle en service qui **voit le corps d'une sentinelle neutralisée** (portée et cône de vision normaux, murs et racks bloquent la vue)
+  passe **en alerte** et fonce vers lui ; chaque corps ne donne l'alerte qu'une fois. Ce n'est pas une détection du joueur : elle ne
+  fait pas perdre le statut « Fantôme », mais celui qui laisse un corps en vue réveille la sécurité. Neutralise hors de la vue des autres.
 - Les **caméras de surveillance** (dès le module 1) balaient la salle : si elles te voient trop longtemps, c'est l'alerte.
   Si **toutes les sentinelles sont déjà à terre** quand une caméra donne l'alarme, la sécurité les **redémarre toutes** (elles se relèvent
   sur place et foncent vers toi, après un court instant). Pour l'éviter, brouille la caméra avant de finir les sentinelles.
